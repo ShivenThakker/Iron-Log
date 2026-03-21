@@ -11,6 +11,7 @@ import sessionRoutes from './routes/session.routes';
 import nutritionRoutes from './routes/nutrition.routes';
 import bodyRoutes from './routes/body.routes';
 import aiRoutes from './routes/ai.routes';
+import gamificationRoutes from './routes/gamification.routes';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/sessions', sessionRoutes);
 app.use('/nutrition', nutritionRoutes);
 app.use('/body', bodyRoutes);
 app.use('/ai', aiRoutes);
+app.use('/gamification', gamificationRoutes);
 
 // Main health route for keep-alive
 app.get('/health', (req, res) => {
