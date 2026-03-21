@@ -8,6 +8,7 @@ import userRoutes from './routes/user.routes';
 import exerciseRoutes from './routes/exercise.routes';
 import programRoutes from './routes/program.routes';
 import sessionRoutes from './routes/session.routes';
+import nutritionRoutes from './routes/nutrition.routes';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/users', userRoutes);
 app.use('/exercises', exerciseRoutes);
 app.use('/programs', programRoutes);
 app.use('/sessions', sessionRoutes);
+app.use('/nutrition', nutritionRoutes);
 
 // Main health route for keep-alive
 app.get('/health', (req, res) => {
