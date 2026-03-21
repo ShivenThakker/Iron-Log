@@ -20,18 +20,28 @@ export default function RegisterScreen() {
       setError('Please fill in all fields');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const res = await api.post('/auth/register', { email, password, name });
       await loginStore(res.data.accessToken, res.data.refreshToken, res.data.userId);
-      
-      // Navigate to onboarding flow instead of tabs
       router.replace('/onboarding');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create account');
+      // Log the full error for debugging
+      console.log('Registration error:', err, err?.response?.data);
+      // Show backend validation errors clearly
+      if (err?.response?.data?.error) {
+        // If error is a string, show it. If it's an array (zod), join messages.
+        if (Array.isArray(err.response.data.error)) {
+          setError(err.response.data.error.map((e: any) => e.message).join('\n'));
+        } else {
+          setError(err.response.data.error);
+        }
+      } else {
+        setError('Failed to create account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
