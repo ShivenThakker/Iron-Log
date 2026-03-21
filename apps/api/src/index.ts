@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
 
 dotenv.config();
 
@@ -15,8 +16,9 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Auth routes
+// Main Routes
 app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
 
 // Main health route for keep-alive
 app.get('/health', (req, res) => {
