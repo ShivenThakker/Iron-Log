@@ -18,11 +18,13 @@
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
+    "expo-secure-store": "^55.0.9",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "uuid": "^7.0.3",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../../constants/tokens';
+import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
 
 export default function ProgressTab() {
   return (

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { COLORS } from '../../../constants/tokens';
+import { COLORS } from '../../constants/tokens';
 
 export default function TabLayout() {
   return (

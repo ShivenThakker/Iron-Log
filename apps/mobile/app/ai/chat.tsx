@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../../constants/tokens';
-import { api } from '../../../services/api';
+import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
+import { api } from '../../services/api';
 
 export default function AiChat() {
   const [messages, setMessages] = useState<{role: 'user'|'ai', text: string}[]>([

@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, RADIUS } from '../../../constants/tokens';
+import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
 
 export default function HomeDashboard() {
   const router = useRouter();
