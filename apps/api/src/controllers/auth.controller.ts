@@ -1,50 +1,29 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { AuthService } from '../services/auth.service';
+import { authService } from '../services/auth.service';
 
-const registerSchema = z.object({
+const authSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  fullName: z.string().optional(),
-});
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
+  name: z.string().optional()
 });
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const data = registerSchema.parse(req.body);
-    const result = await AuthService.register(data.email, data.password, data.fullName);
-    res.status(201).json(result);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Registration failed' });
+    const validated = authSchema.parse(req.body);
+    const tokens = await authService.register(validated.email, validated.password, validated.name);
+    res.status(201).json(tokens);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Validation failed' });
   }
 };
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const data = loginSchema.parse(req.body);
-    const result = await AuthService.login(data.email, data.password);
-    res.json(result);
-  } catch (error: any) {
-    res.status(401).json({ error: error.message || 'Login failed' });
+    const validated = authSchema.parse(req.body);
+    const tokens = await authService.login(validated.email, validated.password);
+    res.status(200).json(tokens);
+  } catch (err: any) {
+    res.status(401).json({ error: err.message });
   }
-};
-
-export const refresh = async (req: Request, res: Response) => {
-  try {
-    const { refreshToken } = req.body;
-    if (!refreshToken) return res.status(400).json({ error: 'No refresh token provided' });
-    const result = await AuthService.refresh(refreshToken);
-    res.json(result);
-  } catch (error: any) {
-    res.status(401).json({ error: error.message || 'Refresh failed' });
-  }
-};
-
-export const logout = async (req: Request, res: Response) => {
-  // Clear refresh tokens if we stored them in DB
-  res.json({ success: true });
 };
