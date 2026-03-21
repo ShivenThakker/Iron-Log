@@ -10,6 +10,7 @@ import programRoutes from './routes/program.routes';
 import sessionRoutes from './routes/session.routes';
 import nutritionRoutes from './routes/nutrition.routes';
 import bodyRoutes from './routes/body.routes';
+import aiRoutes from './routes/ai.routes';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/programs', programRoutes);
 app.use('/sessions', sessionRoutes);
 app.use('/nutrition', nutritionRoutes);
 app.use('/body', bodyRoutes);
+app.use('/ai', aiRoutes);
 
 // Main health route for keep-alive
 app.get('/health', (req, res) => {
