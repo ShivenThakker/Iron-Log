@@ -1,22 +1,19 @@
-import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
-dotenv.config();
 
-// Graceful fallback if no API key is provided during MVP development
-const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+import axios from 'axios';
 
 export class GeminiService {
   async getTextFeedback(prompt: string) {
-    if (!ai) return "AI features are disabled because you have not configured GEMINI_API_KEY yet. Please add it to the .env file!";
+    // Call Ollama running locally (e.g., llama3 or other model)
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
+      const response = await axios.post('http://localhost:11434/api/generate', {
+        model: 'llama3',
+        prompt,
+        stream: false
       });
-      return response.text;
+      return response.data.response || response.data.text || "[No response from Ollama]";
     } catch (e: any) {
       console.error(e);
-      throw new Error('Gemini generation failed');
+      throw new Error('Ollama generation failed');
     }
   }
 

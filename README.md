@@ -11,7 +11,7 @@ This project uses a monorepo setup:
 ## Tech Stack
 - **Mobile**: Expo, Expo Router, Zustand (State), WatermelonDB (Offline Database), NativeWind (Styling).
 - **API**: Express.js, TypeScript, Prisma (PostgreSQL).
-- **Services**: Supabase (Database/Auth), Gemini (AI Features), Upstash (Redis).
+- **Services**: SQLite (local DB), Ollama (AI Features, local LLM). No Redis required.
 
 ## Getting Started
 
