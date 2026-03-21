@@ -1,11 +1,13 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-const prisma = new PrismaClient();
+import { sqliteAdapter } from '../lib/prisma-adapter';
+
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export class ExerciseRepository {
   async findAll(query?: string) {
     if (query) {
       return prisma.exercise.findMany({
-        where: { name: { contains: query, mode: 'insensitive' } }
+        where: { name: { contains: query } }
       });
     }
     return prisma.exercise.findMany();

@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { sqliteAdapter } from './lib/prisma-adapter';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import exerciseRoutes from './routes/exercise.routes';
@@ -18,7 +19,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 app.use(helmet());
 app.use(cors());

@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { sqliteAdapter } from '../lib/prisma-adapter';
+
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export class SessionRepository {
   async createSession(userId: string, data: any) {

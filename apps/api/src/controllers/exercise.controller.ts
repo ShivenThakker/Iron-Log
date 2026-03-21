@@ -13,7 +13,8 @@ export const getAllExercises = async (req: Request, res: Response) => {
 
 export const getExercise = async (req: Request, res: Response) => {
   try {
-    const ex = await exerciseRepository.findById(req.params.id);
+    const exerciseId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const ex = await exerciseRepository.findById(exerciseId);
     if (!ex) {
       res.status(404).json({ error: 'Not found' });
       return;

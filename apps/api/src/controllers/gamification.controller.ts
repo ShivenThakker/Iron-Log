@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { sqliteAdapter } from '../lib/prisma-adapter';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export const RANKS = [
   { minXp: 0, name: 'Rookie' },

@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { sqliteAdapter } from '../lib/prisma-adapter';
+
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export const calculateEstimated1RM = (weightKg: number, reps: number) => {
   return weightKg * (1 + reps / 30);
@@ -13,7 +15,7 @@ export const checkAndCreatePR = async (userId: string, exerciseId: string, weigh
 
   const estimated1RM = calculateEstimated1RM(weightKg, reps);
 
-  if (!currentPR || estimated1RM > currentPR.estimated_1rm_kg!.toNumber()) {
+  if (!currentPR || estimated1RM > (currentPR.estimated_1rm_kg ?? 0)) {
     const newPr = await prisma.personalRecord.create({
       data: {
         user_id: userId,

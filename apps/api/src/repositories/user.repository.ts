@@ -1,5 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-const prisma = new PrismaClient();
+import { sqliteAdapter } from '../lib/prisma-adapter';
+
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export class UserRepository {
   async updateUserProfile(userId: string, data: Prisma.UserUpdateInput) {

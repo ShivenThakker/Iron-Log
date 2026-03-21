@@ -10,18 +10,18 @@ model User {
   id                    String    @id @default(uuid())
   email                 String    @unique
   password_hash         String?
-  name                  String?   @db.VarChar(100)
-  date_of_birth         DateTime? @db.Date
-  gender                String?   // stored as string equivalent to ENUM
-  height_cm             Decimal?  @db.Decimal(5, 2)
+  name                  String?
+  date_of_birth         DateTime?
+  gender                String?
+  height_cm             Float?
   unit_system           String?   @default("metric")
-  fitness_goal          String?   
-  activity_level        String?   
-  experience_level      String?   
+  fitness_goal          String?
+  activity_level        String?
+  experience_level      String?
   training_style        String?   @default("hypertrophy")
-  schedule_days_per_week Int?       @default(4) @db.SmallInt
+  schedule_days_per_week Int?     @default(4)
   session_duration_min  Int?      @default(60)
-  injuries              String[]  
+  injuries              String?   // store as JSON string
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
 
@@ -47,8 +47,8 @@ model User {
 model EquipmentProfile {
   id              String   @id @default(uuid())
   user_id         String
-  name            String   @db.VarChar(100)
-  equipment_types String[]
+  name            String
+  equipment_types String?   // store as JSON string
   is_active       Boolean  @default(false)
   created_at      DateTime @default(now())
 
@@ -58,7 +58,7 @@ model EquipmentProfile {
 model BodyWeightLog {
   id        String   @id @default(uuid())
   user_id   String
-  weight_kg Decimal  @db.Decimal(5, 2)
+  weight_kg Float
   logged_at DateTime
   note      String?
 
@@ -68,7 +68,7 @@ model BodyWeightLog {
 model WeightGoal {
   id             String   @id @default(uuid())
   user_id        String   @unique
-  goal_weight_kg Decimal  @db.Decimal(5, 2)
+  goal_weight_kg Float
   set_at         DateTime @default(now())
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -77,25 +77,25 @@ model WeightGoal {
 model BodyMeasurement {
   id             String   @id @default(uuid())
   user_id        String
-  logged_at      DateTime @db.Date
-  chest_cm       Decimal? @db.Decimal(5, 1)
-  waist_cm       Decimal? @db.Decimal(5, 1)
-  hips_cm        Decimal? @db.Decimal(5, 1)
-  left_arm_cm    Decimal? @db.Decimal(5, 1)
-  right_arm_cm   Decimal? @db.Decimal(5, 1)
-  left_thigh_cm  Decimal? @db.Decimal(5, 1)
-  right_thigh_cm Decimal? @db.Decimal(5, 1)
-  neck_cm        Decimal? @db.Decimal(5, 1)
-  body_fat_pct   Decimal? @db.Decimal(4, 2)
+  logged_at      DateTime
+  chest_cm       Float?
+  waist_cm       Float?
+  hips_cm        Float?
+  left_arm_cm    Float?
+  right_arm_cm   Float?
+  left_thigh_cm  Float?
+  right_thigh_cm Float?
+  neck_cm        Float?
+  body_fat_pct   Float?
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model Exercise {
   id                       String   @id @default(uuid())
-  name                     String   @db.VarChar(150)
+  name                     String
   primary_muscle           String
-  secondary_muscles        String[]
+  secondary_muscles        String?   // store as JSON string
   equipment                String
   exercise_type            String   @default("reps")
   default_duration_seconds Int?
@@ -115,11 +115,11 @@ model Exercise {
 model WorkoutProgram {
   id                     String   @id @default(uuid())
   user_id                String
-  name                   String   @db.VarChar(150)
+  name                   String
   difficulty             String?
   type                   String?
   goal                   String?
-  schedule_days_per_week Int?     @db.SmallInt
+  schedule_days_per_week Int?
   is_active              Boolean  @default(false)
   is_ai_generated        Boolean  @default(false)
   ai_generation_id       String?
@@ -136,7 +136,7 @@ model AiPlanGeneration {
   user_id         String
   prompt_snapshot Json
   raw_response    String
-  model_used      String?  @db.VarChar(50)
+  model_used      String?
   created_at      DateTime @default(now())
 
   user            User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -147,7 +147,7 @@ model AiPeriodizationSuggestion {
   id                  String    @id @default(uuid())
   user_id             String
   exercise_id         String
-  suggested_weight_kg Decimal?  @db.Decimal(6, 2)
+  suggested_weight_kg Float?
   suggested_reps      Int?
   reason              String?
   based_on_session_id String?
@@ -163,7 +163,7 @@ model AiPeriodizationSuggestion {
 model WorkoutDay {
   id         String @id @default(uuid())
   program_id String
-  day_name   String @db.VarChar(100)
+  day_name   String
   sort_order Int
 
   program  WorkoutProgram       @relation(fields: [program_id], references: [id], onDelete: Cascade)
@@ -177,9 +177,9 @@ model WorkoutDayExercise {
   exercise_id             String
   superset_group_id       String?
   target_sets             Int?
-  target_reps             String?  @db.VarChar(20)
+  target_reps             String?
   target_duration_seconds Int?
-  target_weight_kg        Decimal? @db.Decimal(6, 2)
+  target_weight_kg        Float?
   rest_seconds            Int?     @default(90)
   sort_order              Int
 
@@ -193,10 +193,10 @@ model WorkoutSession {
   workout_day_id  String?
   started_at      DateTime
   finished_at     DateTime?
-  session_date    DateTime? @db.Date
+  session_date    DateTime?
   duration_seconds Int?
   calories_burned Int?
-  rating          Int?      @db.SmallInt
+  rating          Int?
   notes           String?
 
   user                User                        @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -214,8 +214,8 @@ model ExerciseSet {
   set_type         String   @default("normal")
   reps             Int?
   duration_seconds Int?
-  weight_kg        Decimal? @db.Decimal(6, 2)
-  rpe              Decimal? @db.Decimal(3, 1)
+  weight_kg        Float?
+  rpe              Float?
   logged_at        DateTime @default(now())
 
   session  WorkoutSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
@@ -226,9 +226,9 @@ model PersonalRecord {
   id               String   @id @default(uuid())
   user_id          String
   exercise_id      String
-  weight_kg        Decimal? @db.Decimal(6, 2)
+  weight_kg        Float?
   reps             Int?
-  estimated_1rm_kg Decimal? @db.Decimal(6, 2)
+  estimated_1rm_kg Float?
   session_id       String?
   achieved_at      DateTime
 
@@ -241,9 +241,9 @@ model NutritionGoal {
   id             String   @id @default(uuid())
   user_id        String   @unique
   daily_calories Int?
-  protein_g      Decimal? @db.Decimal(6, 1)
-  carbs_g        Decimal? @db.Decimal(6, 1)
-  fats_g         Decimal? @db.Decimal(6, 1)
+  protein_g      Float?
+  carbs_g        Float?
+  fats_g         Float?
   water_ml       Int      @default(2500)
   updated_at     DateTime @updatedAt
 
@@ -253,15 +253,15 @@ model NutritionGoal {
 model FoodLogEntry {
   id            String   @id @default(uuid())
   user_id       String
-  logged_date   DateTime @db.Date
+  logged_date   DateTime
   meal_slot     String
-  food_name     String   @db.VarChar(200)
+  food_name     String
   usda_fdc_id   Int?
-  quantity_g    Decimal? @db.Decimal(7, 2)
-  calories_kcal Decimal? @db.Decimal(7, 2)
-  protein_g     Decimal? @db.Decimal(6, 2)
-  carbs_g       Decimal? @db.Decimal(6, 2)
-  fats_g        Decimal? @db.Decimal(6, 2)
+  quantity_g    Float?
+  calories_kcal Float?
+  protein_g     Float?
+  carbs_g       Float?
+  fats_g        Float?
   logged_at     DateTime @default(now())
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -271,9 +271,9 @@ model UserXp {
   id            String   @id @default(uuid())
   user_id       String   @unique
   total_xp      Int      @default(0)
-  current_rank  String   @default("Rookie") @db.VarChar(50)
+  current_rank  String   @default("Rookie")
   xp_this_week  Int      @default(0)
-  week_reset_at DateTime @db.Date
+  week_reset_at DateTime
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
@@ -291,7 +291,7 @@ model XpTransaction {
 
 model Trophy {
   id               String  @id @default(uuid())
-  name             String  @db.VarChar(100)
+  name             String
   description      String?
   category         String
   requirement_type String
@@ -317,7 +317,7 @@ model Streak {
   user_id              String   @unique
   current_streak       Int      @default(0)
   longest_streak       Int      @default(0)
-  last_active_date     DateTime @db.Date
+  last_active_date     DateTime
   grace_used_this_week Boolean  @default(false)
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -326,7 +326,7 @@ model Streak {
 model ChatbotConversation {
   id         String   @id @default(uuid())
   user_id    String
-  title      String?  @db.VarChar(200)
+  title      String?
   created_at DateTime @default(now())
 
   user     User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -348,12 +348,12 @@ model StrengthStandard {
   id                String   @id @default(uuid())
   lift              String
   gender            String
-  bodyweight_kg_min Decimal? @db.Decimal(5, 1)
-  bodyweight_kg_max Decimal? @db.Decimal(5, 1)
-  beginner_1rm      Decimal? @db.Decimal(6, 2)
-  novice_1rm        Decimal? @db.Decimal(6, 2)
-  intermediate_1rm  Decimal? @db.Decimal(6, 2)
-  advanced_1rm      Decimal? @db.Decimal(6, 2)
-  elite_1rm         Decimal? @db.Decimal(6, 2)
+  bodyweight_kg_min Float?
+  bodyweight_kg_max Float?
+  beginner_1rm      Float?
+  novice_1rm        Float?
+  intermediate_1rm  Float?
+  advanced_1rm      Float?
+  elite_1rm         Float?
   source            String?
 }

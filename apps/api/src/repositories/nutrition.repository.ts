@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { sqliteAdapter } from '../lib/prisma-adapter';
+
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export class NutritionRepository {
   async searchFood(query: string) {
@@ -18,7 +20,7 @@ export class NutritionRepository {
     const endOfDay = new Date(dateStr);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    const logs = await prisma.nutritionLog.findMany({
+    const logs = await prisma.foodLogEntry.findMany({
       where: {
         user_id: userId,
         logged_at: {
@@ -29,27 +31,27 @@ export class NutritionRepository {
     });
 
     const totals = logs.reduce((acc, log) => ({
-      calories: acc.calories + log.calories,
-      protein: acc.protein + log.protein_g,
-      carbs: acc.carbs + log.carbs_g,
-      fat: acc.fat + log.fat_g
+      calories: acc.calories + (log.calories_kcal ?? 0),
+      protein: acc.protein + (log.protein_g ?? 0),
+      carbs: acc.carbs + (log.carbs_g ?? 0),
+      fat: acc.fat + (log.fats_g ?? 0)
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
     return { logs, totals };
   }
 
   async logFood(userId: string, data: any) {
-    const log = await prisma.nutritionLog.create({
+    const log = await prisma.foodLogEntry.create({
       data: {
         user: { connect: { id: userId } },
-        meal_type: data.meal_type || 'snack',
+        meal_slot: data.meal_slot || data.meal_type || 'snack',
         food_name: data.food_name,
-        calories: data.calories,
+        calories_kcal: data.calories_kcal ?? data.calories,
         protein_g: data.protein_g,
         carbs_g: data.carbs_g,
-        fat_g: data.fat_g,
-        serving_amount: data.serving_amount,
-        serving_unit: data.serving_unit,
+        fats_g: data.fats_g ?? data.fat_g,
+        quantity_g: data.quantity_g ?? data.serving_amount,
+        logged_date: data.logged_date ? new Date(data.logged_date) : new Date(),
         logged_at: data.logged_at ? new Date(data.logged_at) : new Date()
       }
     });

@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { sqliteAdapter } from '../lib/prisma-adapter';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export const getWorkoutStats = async (req: Request, res: Response) => {
   try {
@@ -20,7 +21,7 @@ export const getWorkoutStats = async (req: Request, res: Response) => {
     
     // Total volume (placeholder approximation via sets count for MVP)
     const totalSets = await prisma.exerciseSet.count({
-       where: { workout_sessions: { user_id: userId } }
+       where: { session: { user_id: userId } }
     });
 
     res.json({

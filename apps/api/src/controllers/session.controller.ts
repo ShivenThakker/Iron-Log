@@ -14,8 +14,9 @@ export const startSession = async (req: Request, res: Response) => {
 
 export const getSession = async (req: Request, res: Response) => {
   try {
+    const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     // @ts-ignore
-    const s = await sessionRepository.getSession(req.params.id, req.user.id);
+    const s = await sessionRepository.getSession(sessionId, req.user.id);
     res.json(s);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -35,7 +36,7 @@ export const addSet = async (req: Request, res: Response) => {
   try {
     // @ts-ignore
     const userId = req.user.id;
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     
     const sset = await sessionRepository.addSet(id, req.body);
 
@@ -52,8 +53,9 @@ export const addSet = async (req: Request, res: Response) => {
 
 export const finishSession = async (req: Request, res: Response) => {
   try {
+    const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     // @ts-ignore
-    const s = await sessionRepository.finishSession(req.params.id, req.user.id);
+    const s = await sessionRepository.finishSession(sessionId, req.user.id);
     res.json(s);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
