@@ -20,7 +20,7 @@ export default function OnboardingWizard() {
   const [weightKg, setWeightKg] = useState('');
   const [targetWeightKg, setTargetWeightKg] = useState('');
   const [experience, setExperience] = useState('');
-  const [daysPerWeek, setDaysPerWeek] = useState('4');
+  const [daysPerWeek, setDaysPerWeek] = useState('');
   const [equipment, setEquipment] = useState('');
 
   const handleNext = () => setStep(s => Math.min(6, s + 1));
@@ -36,7 +36,7 @@ export default function OnboardingWizard() {
         height_cm: Number(heightCm),
         target_weight_kg: Number(targetWeightKg),
         experience_level: experience,
-        schedule_days_per_week: Number(daysPerWeek),
+        schedule_days_per_week: daysPerWeek ? Number(daysPerWeek) : 4,
       });
       
       // Save equipment type to profile
@@ -61,7 +61,9 @@ export default function OnboardingWizard() {
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
+      <Text style={styles.kicker}>Step {step} of 6</Text>
       <Text style={styles.title}>What is your primary goal?</Text>
+      <Text style={styles.subtitle}>Choose one goal to personalize your weekly plan.</Text>
       <View style={styles.options}>
         {GOALS.map(g => (
           <TouchableOpacity 
@@ -78,6 +80,7 @@ export default function OnboardingWizard() {
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
+      <Text style={styles.kicker}>Step {step} of 6</Text>
       <Text style={styles.title}>Your Body Profile</Text>
       <Text style={styles.subtitle}>Help IronLog tailor your macros and weights.</Text>
       <Text style={styles.label}>Gender</Text>
@@ -101,6 +104,7 @@ export default function OnboardingWizard() {
 
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
+      <Text style={styles.kicker}>Step {step} of 6</Text>
       <Text style={styles.title}>Training Experience</Text>
       <View style={styles.options}>
         {EXPERIENCE.map(e => (
@@ -111,13 +115,22 @@ export default function OnboardingWizard() {
       </View>
 
       <Text style={[styles.label, {marginTop: SPACING.xl}]}>Days per week (1-7)</Text>
-      <TextInput style={styles.input} keyboardType="numeric" value={daysPerWeek} onChangeText={setDaysPerWeek} />
+      <TextInput
+        style={styles.input}
+        keyboardType="numeric"
+        value={daysPerWeek}
+        onChangeText={setDaysPerWeek}
+        placeholder="e.g. 4"
+        placeholderTextColor={COLORS.dark.textSecondary}
+      />
     </View>
   );
 
   const renderStep4 = () => (
     <View style={styles.stepContainer}>
+      <Text style={styles.kicker}>Step {step} of 6</Text>
       <Text style={styles.title}>Equipment Setup</Text>
+      <Text style={styles.subtitle}>Select where you usually train.</Text>
       <View style={styles.options}>
         {EQUIPMENT.map(e => (
           <TouchableOpacity key={e} style={[styles.optionCard, equipment === e && styles.optionCardActive]} onPress={() => setEquipment(e)}>
@@ -130,6 +143,7 @@ export default function OnboardingWizard() {
 
   const renderStep5 = () => (
     <View style={styles.stepContainer}>
+      <Text style={styles.kicker}>Step {step} of 6</Text>
       <Text style={styles.title}>Never Miss a Session</Text>
       <Text style={styles.subtitle}>Allow push notifications to keep your streak alive and receive AI adjustments.</Text>
       <View style={styles.placeholderBox}>
@@ -140,6 +154,7 @@ export default function OnboardingWizard() {
 
   const renderStep6 = () => (
     <View style={styles.stepContainer}>
+      <Text style={styles.kicker}>Step {step} of 6</Text>
       <Text style={styles.title}>You are a ROOKIE</Text>
       <Text style={styles.subtitle}>Welcome to the IronLog gamification system. Every workout, PR, and streak earns you XP. Unlock trophies and climb the 12 ranks.</Text>
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
@@ -151,6 +166,7 @@ export default function OnboardingWizard() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+      <Text style={styles.screenHeading}>Onboarding</Text>
       <View style={styles.progressHeader}>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${(step / 6) * 100}%` }]} />
@@ -188,18 +204,20 @@ export default function OnboardingWizard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.dark.bgPrimary, padding: SPACING.lg, paddingTop: SPACING.xl * 2 },
+  screenHeading: { color: COLORS.dark.textPrimary, fontSize: 30, fontWeight: '800', marginBottom: SPACING.md },
   progressHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xl },
   progressBar: { flex: 1, height: 8, backgroundColor: COLORS.dark.bgSecondary, borderRadius: RADIUS.full, marginRight: SPACING.md, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: COLORS.dark.accentRed },
   stepText: { color: COLORS.dark.textSecondary, fontSize: 14, fontWeight: 'bold' },
-  stepContainer: { flex: 1 },
+  stepContainer: { flex: 1, backgroundColor: COLORS.dark.bgSecondary, borderRadius: RADIUS.lg, padding: SPACING.lg },
+  kicker: { color: COLORS.dark.accentGold, fontWeight: '700', marginBottom: SPACING.sm },
   title: { fontSize: 28, fontWeight: 'bold', color: COLORS.dark.textPrimary, marginBottom: SPACING.sm },
   subtitle: { fontSize: 16, color: COLORS.dark.textSecondary, marginBottom: SPACING.xl, lineHeight: 22 },
   label: { color: COLORS.dark.textSecondary, fontSize: 14, marginBottom: SPACING.xs, marginTop: SPACING.md },
   input: { backgroundColor: COLORS.dark.bgInput, color: COLORS.dark.textPrimary, padding: SPACING.md, borderRadius: RADIUS.sm, fontSize: 16 },
   options: { gap: SPACING.md },
   optionCard: { backgroundColor: COLORS.dark.bgSecondary, padding: SPACING.lg, borderRadius: RADIUS.md, borderWidth: 2, borderColor: 'transparent' },
-  optionCardActive: { borderColor: COLORS.dark.accentRed, backgroundColor: '#3E1C2E' },
+  optionCardActive: { borderColor: COLORS.dark.accentRed, backgroundColor: COLORS.dark.bgInput },
   optionText: { color: COLORS.dark.textPrimary, fontSize: 18, fontWeight: '500', textAlign: 'center' },
   optionTextActive: { color: COLORS.dark.accentRed, fontWeight: 'bold' },
   footer: { flexDirection: 'row', gap: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.lg },

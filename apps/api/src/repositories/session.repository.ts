@@ -4,7 +4,7 @@ import { sqliteAdapter } from '../lib/prisma-adapter';
 const prisma = new PrismaClient({ adapter: sqliteAdapter });
 
 export class SessionRepository {
-  async createSession(userId: string, data: any) {
+  async createSession(userId: string, data: any = {}) {
     return prisma.workoutSession.create({
       data: {
         user: { connect: { id: userId } },
@@ -38,8 +38,16 @@ export class SessionRepository {
   }
 
   async finishSession(id: string, userId: string) {
+    const existing = await prisma.workoutSession.findFirst({
+      where: { id, user_id: userId }
+    });
+
+    if (!existing) {
+      throw new Error('Session not found');
+    }
+
     const session = await prisma.workoutSession.update({
-      where: { id, user_id: userId },
+      where: { id },
       data: { finished_at: new Date() }
     });
 
