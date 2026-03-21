@@ -6,6 +6,8 @@ import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import exerciseRoutes from './routes/exercise.routes';
+import programRoutes from './routes/program.routes';
+import sessionRoutes from './routes/session.routes';
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/exercises', exerciseRoutes);
+app.use('/programs', programRoutes);
+app.use('/sessions', sessionRoutes);
 
 // Main health route for keep-alive
 app.get('/health', (req, res) => {
