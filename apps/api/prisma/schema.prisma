@@ -1,0 +1,360 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password_hash         String?
+  name                  String?   @db.VarChar(100)
+  date_of_birth         DateTime? @db.Date
+  gender                String?   // stored as string equivalent to ENUM
+  height_cm             Decimal?  @db.Decimal(5, 2)
+  unit_system           String?   @default("metric")
+  fitness_goal          String?   
+  activity_level        String?   
+  experience_level      String?   
+  training_style        String?   @default("hypertrophy")
+  schedule_days_per_week Int?       @default(4) @db.SmallInt
+  session_duration_min  Int?      @default(60)
+  injuries              String[]  
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  equipmentProfiles     EquipmentProfile[]
+  bodyWeightLogs        BodyWeightLog[]
+  weightGoal            WeightGoal?
+  bodyMeasurements      BodyMeasurement[]
+  workoutPrograms       WorkoutProgram[]
+  aiPlanGenerations     AiPlanGeneration[]
+  aiPeriodizationSuggestions AiPeriodizationSuggestion[]
+  workoutSessions       WorkoutSession[]
+  personalRecords       PersonalRecord[]
+  nutritionGoal         NutritionGoal?
+  foodLogEntries        FoodLogEntry[]
+  userXp                UserXp?
+  xpTransactions        XpTransaction[]
+  userTrophies          UserTrophy[]
+  streak                Streak?
+  chatbotConversations  ChatbotConversation[]
+  customExercises       Exercise[] @relation("UserCustomExercises")
+}
+
+model EquipmentProfile {
+  id              String   @id @default(uuid())
+  user_id         String
+  name            String   @db.VarChar(100)
+  equipment_types String[]
+  is_active       Boolean  @default(false)
+  created_at      DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model BodyWeightLog {
+  id        String   @id @default(uuid())
+  user_id   String
+  weight_kg Decimal  @db.Decimal(5, 2)
+  logged_at DateTime
+  note      String?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model WeightGoal {
+  id             String   @id @default(uuid())
+  user_id        String   @unique
+  goal_weight_kg Decimal  @db.Decimal(5, 2)
+  set_at         DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model BodyMeasurement {
+  id             String   @id @default(uuid())
+  user_id        String
+  logged_at      DateTime @db.Date
+  chest_cm       Decimal? @db.Decimal(5, 1)
+  waist_cm       Decimal? @db.Decimal(5, 1)
+  hips_cm        Decimal? @db.Decimal(5, 1)
+  left_arm_cm    Decimal? @db.Decimal(5, 1)
+  right_arm_cm   Decimal? @db.Decimal(5, 1)
+  left_thigh_cm  Decimal? @db.Decimal(5, 1)
+  right_thigh_cm Decimal? @db.Decimal(5, 1)
+  neck_cm        Decimal? @db.Decimal(5, 1)
+  body_fat_pct   Decimal? @db.Decimal(4, 2)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Exercise {
+  id                       String   @id @default(uuid())
+  name                     String   @db.VarChar(150)
+  primary_muscle           String
+  secondary_muscles        String[]
+  equipment                String
+  exercise_type            String   @default("reps")
+  default_duration_seconds Int?
+  is_custom                Boolean  @default(false)
+  created_by_user_id       String?
+  instructions             String?
+  illustration_url         String?
+  thumbnail_url            String?
+
+  createdBy                 User?                        @relation("UserCustomExercises", fields: [created_by_user_id], references: [id], onDelete: SetNull)
+  aiPeriodizationSuggestions AiPeriodizationSuggestion[]
+  workoutDayExercises        WorkoutDayExercise[]
+  exerciseSets               ExerciseSet[]
+  personalRecords            PersonalRecord[]
+}
+
+model WorkoutProgram {
+  id                     String   @id @default(uuid())
+  user_id                String
+  name                   String   @db.VarChar(150)
+  difficulty             String?
+  type                   String?
+  goal                   String?
+  schedule_days_per_week Int?     @db.SmallInt
+  is_active              Boolean  @default(false)
+  is_ai_generated        Boolean  @default(false)
+  ai_generation_id       String?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  user             User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  aiGeneration     AiPlanGeneration? @relation(fields: [ai_generation_id], references: [id], onDelete: SetNull)
+  workoutDays      WorkoutDay[]
+}
+
+model AiPlanGeneration {
+  id              String   @id @default(uuid())
+  user_id         String
+  prompt_snapshot Json
+  raw_response    String
+  model_used      String?  @db.VarChar(50)
+  created_at      DateTime @default(now())
+
+  user            User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  workoutPrograms WorkoutProgram[]
+}
+
+model AiPeriodizationSuggestion {
+  id                  String    @id @default(uuid())
+  user_id             String
+  exercise_id         String
+  suggested_weight_kg Decimal?  @db.Decimal(6, 2)
+  suggested_reps      Int?
+  reason              String?
+  based_on_session_id String?
+  status              String    @default("pending")
+  created_at          DateTime  @default(now())
+  resolved_at         DateTime?
+
+  user     User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exercise Exercise        @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+  session  WorkoutSession? @relation(fields: [based_on_session_id], references: [id], onDelete: SetNull)
+}
+
+model WorkoutDay {
+  id         String @id @default(uuid())
+  program_id String
+  day_name   String @db.VarChar(100)
+  sort_order Int
+
+  program  WorkoutProgram       @relation(fields: [program_id], references: [id], onDelete: Cascade)
+  exercises WorkoutDayExercise[]
+  sessions WorkoutSession[]
+}
+
+model WorkoutDayExercise {
+  id                      String   @id @default(uuid())
+  workout_day_id          String
+  exercise_id             String
+  superset_group_id       String?
+  target_sets             Int?
+  target_reps             String?  @db.VarChar(20)
+  target_duration_seconds Int?
+  target_weight_kg        Decimal? @db.Decimal(6, 2)
+  rest_seconds            Int?     @default(90)
+  sort_order              Int
+
+  workoutDay WorkoutDay @relation(fields: [workout_day_id], references: [id], onDelete: Cascade)
+  exercise   Exercise   @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+}
+
+model WorkoutSession {
+  id              String    @id @default(uuid())
+  user_id         String
+  workout_day_id  String?
+  started_at      DateTime
+  finished_at     DateTime?
+  session_date    DateTime? @db.Date
+  duration_seconds Int?
+  calories_burned Int?
+  rating          Int?      @db.SmallInt
+  notes           String?
+
+  user                User                        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  workoutDay          WorkoutDay?                 @relation(fields: [workout_day_id], references: [id], onDelete: SetNull)
+  exerciseSets        ExerciseSet[]
+  personalRecords     PersonalRecord[]
+  periodizationSuggestions AiPeriodizationSuggestion[]
+}
+
+model ExerciseSet {
+  id               String   @id @default(uuid())
+  session_id       String
+  exercise_id      String
+  set_number       Int
+  set_type         String   @default("normal")
+  reps             Int?
+  duration_seconds Int?
+  weight_kg        Decimal? @db.Decimal(6, 2)
+  rpe              Decimal? @db.Decimal(3, 1)
+  logged_at        DateTime @default(now())
+
+  session  WorkoutSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  exercise Exercise       @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+}
+
+model PersonalRecord {
+  id               String   @id @default(uuid())
+  user_id          String
+  exercise_id      String
+  weight_kg        Decimal? @db.Decimal(6, 2)
+  reps             Int?
+  estimated_1rm_kg Decimal? @db.Decimal(6, 2)
+  session_id       String?
+  achieved_at      DateTime
+
+  user     User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exercise Exercise        @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+  session  WorkoutSession? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+}
+
+model NutritionGoal {
+  id             String   @id @default(uuid())
+  user_id        String   @unique
+  daily_calories Int?
+  protein_g      Decimal? @db.Decimal(6, 1)
+  carbs_g        Decimal? @db.Decimal(6, 1)
+  fats_g         Decimal? @db.Decimal(6, 1)
+  water_ml       Int      @default(2500)
+  updated_at     DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model FoodLogEntry {
+  id            String   @id @default(uuid())
+  user_id       String
+  logged_date   DateTime @db.Date
+  meal_slot     String
+  food_name     String   @db.VarChar(200)
+  usda_fdc_id   Int?
+  quantity_g    Decimal? @db.Decimal(7, 2)
+  calories_kcal Decimal? @db.Decimal(7, 2)
+  protein_g     Decimal? @db.Decimal(6, 2)
+  carbs_g       Decimal? @db.Decimal(6, 2)
+  fats_g        Decimal? @db.Decimal(6, 2)
+  logged_at     DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model UserXp {
+  id            String   @id @default(uuid())
+  user_id       String   @unique
+  total_xp      Int      @default(0)
+  current_rank  String   @default("Rookie") @db.VarChar(50)
+  xp_this_week  Int      @default(0)
+  week_reset_at DateTime @db.Date
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model XpTransaction {
+  id           String   @id @default(uuid())
+  user_id      String
+  amount       Int
+  reason       String
+  reference_id String?
+  created_at   DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Trophy {
+  id               String  @id @default(uuid())
+  name             String  @db.VarChar(100)
+  description      String?
+  category         String
+  requirement_type String
+  requirement_value Int?
+  xp_reward        Int?
+  icon_url         String?
+
+  userTrophies UserTrophy[]
+}
+
+model UserTrophy {
+  id          String   @id @default(uuid())
+  user_id     String
+  trophy_id   String
+  unlocked_at DateTime
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  trophy Trophy @relation(fields: [trophy_id], references: [id], onDelete: Cascade)
+}
+
+model Streak {
+  id                   String   @id @default(uuid())
+  user_id              String   @unique
+  current_streak       Int      @default(0)
+  longest_streak       Int      @default(0)
+  last_active_date     DateTime @db.Date
+  grace_used_this_week Boolean  @default(false)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ChatbotConversation {
+  id         String   @id @default(uuid())
+  user_id    String
+  title      String?  @db.VarChar(200)
+  created_at DateTime @default(now())
+
+  user     User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages ChatbotMessage[]
+}
+
+model ChatbotMessage {
+  id               String   @id @default(uuid())
+  conversation_id  String
+  role             String
+  content          String
+  context_snapshot Json?
+  created_at       DateTime @default(now())
+
+  conversation ChatbotConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+}
+
+model StrengthStandard {
+  id                String   @id @default(uuid())
+  lift              String
+  gender            String
+  bodyweight_kg_min Decimal? @db.Decimal(5, 1)
+  bodyweight_kg_max Decimal? @db.Decimal(5, 1)
+  beginner_1rm      Decimal? @db.Decimal(6, 2)
+  novice_1rm        Decimal? @db.Decimal(6, 2)
+  intermediate_1rm  Decimal? @db.Decimal(6, 2)
+  advanced_1rm      Decimal? @db.Decimal(6, 2)
+  elite_1rm         Decimal? @db.Decimal(6, 2)
+  source            String?
+}
