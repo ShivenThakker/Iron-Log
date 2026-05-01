@@ -23,3 +23,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+
+# Documentation (MVP specs, implementation plan, context)
+MVP/
+implementation_plan.md
+CONTEXT.md
+apps/api/dev.db
