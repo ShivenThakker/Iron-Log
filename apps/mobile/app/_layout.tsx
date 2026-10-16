@@ -70,8 +70,10 @@ export default function RootLayout() {
         <Stack.Screen name="register" options={{ presentation: 'modal' }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="workout/active" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="workout/summary" options={{ presentation: 'card' }} />
         <Stack.Screen name="ai/chat" options={{ presentation: 'card' }} />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="settings" options={{ presentation: 'card' }} />
       </Stack>
     </QueryClientProvider>
   );
