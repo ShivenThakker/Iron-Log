@@ -50,8 +50,8 @@ export const addSet = async (req: Request, res: Response) => {
 export const finishSession = async (req: Request, res: Response) => {
   try {
     const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const s = await sessionRepository.finishSession(sessionId, req.user!.id);
-    res.json(s);
+    const result = await sessionRepository.finishSession(sessionId, req.user!.id, req.body);
+    res.json(result);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

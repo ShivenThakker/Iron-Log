@@ -1,67 +1,121 @@
-import { PrismaClient } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-
-// singleton imported
+import { usdaService } from '../services/usda.service';
+import { gamificationRepository } from './gamification.repository';
 
 export class NutritionRepository {
   async searchFood(query: string) {
-    const mockFoods = [
-      { id: 'f1', name: 'Chicken Breast (raw)', calories: 120, protein_g: 22.5, carbs_g: 0, fat_g: 2.6, serving_size_g: 100 },
-      { id: 'f2', name: 'White Rice (cooked)', calories: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3, serving_size_g: 100 },
-      { id: 'f3', name: 'Broccoli', calories: 34, protein_g: 2.8, carbs_g: 6.6, fat_g: 0.4, serving_size_g: 100 },
-      { id: 'f4', name: 'Whole Egg', calories: 143, protein_g: 12.6, carbs_g: 0.7, fat_g: 9.5, serving_size_g: 100 },
-      { id: 'f5', name: 'Oats', calories: 389, protein_g: 16.9, carbs_g: 66.3, fat_g: 6.9, serving_size_g: 100 },
-    ];
-    return mockFoods.filter(f => f.name.toLowerCase().includes(query.toLowerCase()));
+    return usdaService.searchFood(query);
   }
 
   async getDailyLog(userId: string, dateStr: string) {
-    const startOfDay = new Date(dateStr);
-    const endOfDay = new Date(dateStr);
-    endOfDay.setDate(endOfDay.getDate() + 1);
+    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
 
-    const logs = await prisma.foodLogEntry.findMany({
-      where: {
-        user_id: userId,
-        logged_at: {
-          gte: startOfDay,
-          lt: endOfDay
-        }
-      }
-    });
+    const [logs, goal] = await Promise.all([
+      prisma.foodLogEntry.findMany({
+        where: {
+          user_id: userId,
+          logged_date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        orderBy: { logged_at: 'asc' },
+      }),
+      prisma.nutritionGoal.findUnique({
+        where: { user_id: userId },
+      }),
+    ]);
 
-    const totals = logs.reduce((acc, log) => ({
-      calories: acc.calories + (log.calories_kcal ?? 0),
-      protein: acc.protein + (log.protein_g ?? 0),
-      carbs: acc.carbs + (log.carbs_g ?? 0),
-      fat: acc.fat + (log.fats_g ?? 0)
-    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    const defaultGoal = {
+      daily_calories: 2200,
+      protein_g: 160,
+      carbs_g: 220,
+      fats_g: 65,
+      water_ml: 2500,
+    };
 
-    return { logs, totals };
+    const activeGoal = goal || defaultGoal;
+
+    const totals = logs.reduce(
+      (acc, log) => ({
+        calories: acc.calories + (log.calories_kcal ?? 0),
+        protein: acc.protein + (log.protein_g ?? 0),
+        carbs: acc.carbs + (log.carbs_g ?? 0),
+        fat: acc.fat + (log.fats_g ?? 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+
+    const remaining = {
+      calories: Math.max((activeGoal.daily_calories ?? 2200) - totals.calories, 0),
+      protein: Math.max((activeGoal.protein_g ?? 160) - totals.protein, 0),
+      carbs: Math.max((activeGoal.carbs_g ?? 220) - totals.carbs, 0),
+      fat: Math.max((activeGoal.fats_g ?? 65) - totals.fat, 0),
+    };
+
+    // Group logs by meal slot
+    const meals = {
+      breakfast: logs.filter((l) => l.meal_slot === 'breakfast'),
+      lunch: logs.filter((l) => l.meal_slot === 'lunch'),
+      dinner: logs.filter((l) => l.meal_slot === 'dinner'),
+      snack: logs.filter((l) => l.meal_slot === 'snack'),
+    };
+
+    return {
+      date: dateStr,
+      logs,
+      meals,
+      totals,
+      goal: activeGoal,
+      remaining,
+    };
   }
 
   async logFood(userId: string, data: any) {
+    const logDate = data.logged_date ? new Date(data.logged_date) : new Date();
+
     const log = await prisma.foodLogEntry.create({
       data: {
         user: { connect: { id: userId } },
-        meal_slot: data.meal_slot || data.meal_type || 'snack',
+        meal_slot: data.meal_slot || 'snack',
         food_name: data.food_name,
-        calories_kcal: data.calories_kcal ?? data.calories,
-        protein_g: data.protein_g,
-        carbs_g: data.carbs_g,
-        fats_g: data.fats_g ?? data.fat_g,
-        quantity_g: data.quantity_g ?? data.serving_amount,
-        logged_date: data.logged_date ? new Date(data.logged_date) : new Date(),
-        logged_at: data.logged_at ? new Date(data.logged_at) : new Date()
-      }
+        calories_kcal: data.calories_kcal ?? data.calories ?? 0,
+        protein_g: data.protein_g ?? 0,
+        carbs_g: data.carbs_g ?? 0,
+        fats_g: data.fats_g ?? data.fat_g ?? 0,
+        quantity_g: data.quantity_g ?? data.serving_amount ?? 100,
+        logged_date: logDate,
+        logged_at: new Date(),
+      },
     });
 
-    // Provide 10XP for logging food efficiently! Gamification touch point.
-    await prisma.xpTransaction.create({
-       data: { user_id: userId, amount: 10, reason: 'Logged Nutrition' }
-    });
-    
+    // Award 5 XP for logging nutrition via gamification repository
+    await gamificationRepository.awardXp(userId, 5, 'Logged Nutrition');
+
     return log;
   }
+
+  async setNutritionGoal(userId: string, goalData: any) {
+    return prisma.nutritionGoal.upsert({
+      where: { user_id: userId },
+      update: {
+        daily_calories: goalData.daily_calories,
+        protein_g: goalData.protein_g,
+        carbs_g: goalData.carbs_g,
+        fats_g: goalData.fats_g,
+        water_ml: goalData.water_ml ?? 2500,
+      },
+      create: {
+        user_id: userId,
+        daily_calories: goalData.daily_calories ?? 2200,
+        protein_g: goalData.protein_g ?? 160,
+        carbs_g: goalData.carbs_g ?? 220,
+        fats_g: goalData.fats_g ?? 65,
+        water_ml: goalData.water_ml ?? 2500,
+      },
+    });
+  }
 }
+
 export const nutritionRepository = new NutritionRepository();

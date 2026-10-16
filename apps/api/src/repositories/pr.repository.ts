@@ -29,9 +29,18 @@ export class PRRepository {
     });
   }
 
+  async getAllPRs(userId: string) {
+    return prisma.personalRecord.findMany({
+      where: { user_id: userId },
+      include: { exercise: true },
+      orderBy: { achieved_at: 'desc' },
+    });
+  }
+
   async getRecentPRs(userId: string, limit = 5) {
     return prisma.personalRecord.findMany({
       where: { user_id: userId },
+      include: { exercise: true },
       orderBy: { achieved_at: 'desc' },
       take: limit,
     });

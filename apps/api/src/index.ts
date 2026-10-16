@@ -12,6 +12,9 @@ import bodyRoutes from './routes/body.routes';
 import aiRoutes from './routes/ai.routes';
 import gamificationRoutes from './routes/gamification.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import equipmentRoutes from './routes/equipment.routes';
+import prRoutes from './routes/pr.routes';
+import cronRoutes from './routes/cron.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { rateLimit } from './middleware/ratelimit.middleware';
 import { logger } from './utils/logger';
@@ -45,6 +48,9 @@ app.use('/body', bodyRoutes);
 app.use('/ai', aiRoutes);
 app.use('/gamification', gamificationRoutes);
 app.use('/analytics', analyticsRoutes);
+app.use('/equipment', equipmentRoutes);
+app.use('/prs', prRoutes);
+app.use('/cron', cronRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
