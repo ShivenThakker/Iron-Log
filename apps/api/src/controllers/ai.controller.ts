@@ -9,7 +9,6 @@ export const chatCompletion = async (req: Request, res: Response) => {
       return;
     }
     
-    // @ts-ignore
     const reply = await geminiService.getTextFeedback(message);
     res.json({ reply });
   } catch (err: any) {
@@ -19,8 +18,7 @@ export const chatCompletion = async (req: Request, res: Response) => {
 
 export const analyzeWorkout = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const mockRoutine = { previousSession: 'Leg Day', setsComplete: 14, avgRpe: 8 };
     const analysis = await geminiService.analyzeRoutine(userId, mockRoutine);
     res.json({ analysis });

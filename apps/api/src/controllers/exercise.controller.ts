@@ -28,8 +28,7 @@ export const getExercise = async (req: Request, res: Response) => {
 export const createCustomExercise = async (req: Request, res: Response) => {
   try {
     const data = req.body;
-    // @ts-ignore
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const ex = await exerciseRepository.createCustom({
       ...data,
       is_custom: true,

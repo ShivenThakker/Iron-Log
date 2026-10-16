@@ -1,49 +1,31 @@
-import { PrismaClient } from '@prisma/client';
-import { sqliteAdapter } from '../lib/prisma-adapter';
-
-const prisma = new PrismaClient({ adapter: sqliteAdapter });
+import { prRepository } from '../repositories/pr.repository';
+import { gamificationRepository } from '../repositories/gamification.repository';
 
 export const calculateEstimated1RM = (weightKg: number, reps: number) => {
   return weightKg * (1 + reps / 30);
 };
 
-export const checkAndCreatePR = async (userId: string, exerciseId: string, weightKg: number, reps: number, sessionId: string) => {
-  const currentPR = await prisma.personalRecord.findFirst({
-    where: { user_id: userId, exercise_id: exerciseId },
-    orderBy: { estimated_1rm_kg: 'desc' }
-  });
-
+export const checkAndCreatePR = async (
+  userId: string,
+  exerciseId: string,
+  weightKg: number,
+  reps: number,
+  sessionId: string
+) => {
+  const currentPR = await prRepository.findCurrentPR(userId, exerciseId);
   const estimated1RM = calculateEstimated1RM(weightKg, reps);
 
   if (!currentPR || estimated1RM > (currentPR.estimated_1rm_kg ?? 0)) {
-    const newPr = await prisma.personalRecord.create({
-      data: {
-        user_id: userId,
-        exercise_id: exerciseId,
-        weight_kg: weightKg,
-        reps,
-        estimated_1rm_kg: estimated1RM,
-        session_id: sessionId,
-        achieved_at: new Date()
-      }
+    const newPr = await prRepository.createPR({
+      userId,
+      exerciseId,
+      weightKg,
+      reps,
+      estimated1RM,
+      sessionId,
     });
 
-    await prisma.xpTransaction.create({
-      data: { user_id: userId, amount: 25, reason: 'New Personal Record' }
-    });
-    
-    // Check if user xp record exists
-    const xpRecord = await prisma.userXp.findUnique({ where: { user_id: userId } });
-    if (!xpRecord) {
-      await prisma.userXp.create({
-        data: { user_id: userId, total_xp: 25, xp_this_week: 25, week_reset_at: new Date() }
-      });
-    } else {
-      await prisma.userXp.update({
-        where: { user_id: userId },
-        data: { total_xp: { increment: 25 }, xp_this_week: { increment: 25 } }
-      });
-    }
+    await gamificationRepository.awardXp(userId, 25, 'New Personal Record');
 
     return { isNewPR: true, record: newPr };
   }

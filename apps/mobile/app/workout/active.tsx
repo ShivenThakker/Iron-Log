@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
-import { api } from '../../services/api';
+import { COLORS, SPACING, RADIUS } from '@/constants/tokens';
+import { api } from '@/services/api';
 
 type WorkoutSet = { id: string; weight: string; reps: string; complete: boolean; synced: boolean };
 type ExerciseBlock = { id: string; exerciseId: string; name: string; sets: WorkoutSet[] };

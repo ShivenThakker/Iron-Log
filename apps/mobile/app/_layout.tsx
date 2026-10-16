@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { View, ActivityIndicator } from 'react-native';
-import { COLORS } from '../constants/tokens';
+import { COLORS } from '@/constants/tokens';
 
 export default function RootLayout() {
   const { isAuthenticated, isHydrated, init } = useAuthStore();

@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@ironlog/shared": "*",
     "@prisma/adapter-better-sqlite3": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "bcryptjs": "^3.0.3",

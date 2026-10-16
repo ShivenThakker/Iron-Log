@@ -4,8 +4,7 @@ import { checkAndCreatePR } from '../services/prDetection';
 
 export const startSession = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const session = await sessionRepository.createSession(req.user.id, req.body);
+    const session = await sessionRepository.createSession(req.user!.id, req.body);
     res.status(201).json(session);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -15,8 +14,7 @@ export const startSession = async (req: Request, res: Response) => {
 export const getSession = async (req: Request, res: Response) => {
   try {
     const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    // @ts-ignore
-    const s = await sessionRepository.getSession(sessionId, req.user.id);
+    const s = await sessionRepository.getSession(sessionId, req.user!.id);
     res.json(s);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -25,8 +23,7 @@ export const getSession = async (req: Request, res: Response) => {
 
 export const getSessions = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    res.json(await sessionRepository.getSessions(req.user.id));
+    res.json(await sessionRepository.getSessions(req.user!.id));
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -34,8 +31,7 @@ export const getSessions = async (req: Request, res: Response) => {
 
 export const addSet = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     
     const sset = await sessionRepository.addSet(id, req.body);
@@ -54,8 +50,7 @@ export const addSet = async (req: Request, res: Response) => {
 export const finishSession = async (req: Request, res: Response) => {
   try {
     const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    // @ts-ignore
-    const s = await sessionRepository.finishSession(sessionId, req.user.id);
+    const s = await sessionRepository.finishSession(sessionId, req.user!.id);
     res.json(s);
   } catch (err: any) {
     res.status(400).json({ error: err.message });

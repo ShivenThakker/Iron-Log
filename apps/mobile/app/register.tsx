@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, RADIUS } from '../constants/tokens';
-import { api } from '../services/api';
-import { useAuthStore } from '../store/useAuthStore';
+import { COLORS, SPACING, RADIUS } from '@/constants/tokens';
+import { api } from '@/services/api';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function RegisterScreen() {
   const router = useRouter();

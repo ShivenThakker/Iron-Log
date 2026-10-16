@@ -19,16 +19,15 @@ const updateProfileSchema = z.object({
 
 export const updateProfile = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const userId = req.user.id; 
+    const userId = req.user!.id; 
     const validated = updateProfileSchema.parse(req.body);
     
+    let updateData: any = { ...validated };
     if (validated.date_of_birth) {
-      // @ts-ignore
-      validated.date_of_birth = new Date(validated.date_of_birth);
+      updateData.date_of_birth = new Date(validated.date_of_birth);
     }
 
-    const updatedUser = await userService.updateProfile(userId, validated);
+    const updatedUser = await userService.updateProfile(userId, updateData);
     res.status(200).json(updatedUser);
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Failed to update profile' });

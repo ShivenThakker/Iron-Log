@@ -1,9 +1,20 @@
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sqliteAdapter } from './prisma-adapter';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
-// Prisma singleton
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter: sqliteAdapter });
+function createPrismaClient(): PrismaClient {
+  const databaseUrl = process.env.DATABASE_URL || `file:${path.resolve(__dirname, '../../dev.db')}`;
+  const adapter = new PrismaBetterSqlite3({ url: databaseUrl });
+  return new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}

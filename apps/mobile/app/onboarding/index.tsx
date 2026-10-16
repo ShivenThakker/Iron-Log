@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
-import { api } from '../../services/api';
+import { COLORS, SPACING, RADIUS } from '@/constants/tokens';
+import { api } from '@/services/api';
 
 const GOALS = ['Build Muscle', 'Lose Fat', 'Recomposition', 'Get Stronger'];
 const EXPERIENCE = ['Beginner', 'Intermediate', 'Advanced'];

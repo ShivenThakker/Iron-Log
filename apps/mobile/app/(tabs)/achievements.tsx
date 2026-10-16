@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
-import { api } from '../../services/api';
+import { COLORS, SPACING, RADIUS } from '@/constants/tokens';
+import { api } from '@/services/api';
 
 type XpRecord = {
   total_xp: number;

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
-import { api } from '../../services/api';
+import { COLORS, SPACING, RADIUS } from '@/constants/tokens';
+import { api } from '@/services/api';
 
 type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type MealEntry = {

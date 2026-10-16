@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { COLORS } from '../../constants/tokens';
+import { COLORS } from '@/constants/tokens';
 
 export default function TabLayout() {
   return (
@@ -11,12 +11,11 @@ export default function TabLayout() {
         tabBarInactiveTintColor: COLORS.dark.textSecondary
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="workouts" options={{ title: 'Workouts' }} />
-      <Tabs.Screen name="progress" options={{ title: 'Body' }} />
-      <Tabs.Screen name="nutrition" options={{ title: 'Diet' }} />
-      <Tabs.Screen name="rank" options={{ title: 'Rank' }} />
-      <Tabs.Screen name="insights" options={{ title: 'Stats' }} />
+      <Tabs.Screen name="index" options={{ title: 'Workout' }} />
+      <Tabs.Screen name="nutrition" options={{ title: 'Nutrition' }} />
+      <Tabs.Screen name="achievements" options={{ title: 'Achievements' }} />
+      <Tabs.Screen name="body" options={{ title: 'Body' }} />
+      <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
     </Tabs>
   );
 }

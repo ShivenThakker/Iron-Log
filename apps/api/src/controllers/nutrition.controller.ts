@@ -14,8 +14,7 @@ export const searchFood = async (req: Request, res: Response) => {
 export const getDailyNutrition = async (req: Request, res: Response) => {
   try {
     const date = req.query.date as string || new Date().toISOString().split('T')[0];
-    // @ts-ignore
-    const data = await nutritionRepository.getDailyLog(req.user.id, date);
+    const data = await nutritionRepository.getDailyLog(req.user!.id, date);
     res.json(data);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -24,8 +23,7 @@ export const getDailyNutrition = async (req: Request, res: Response) => {
 
 export const addNutritionLog = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const log = await nutritionRepository.logFood(req.user.id, req.body);
+    const log = await nutritionRepository.logFood(req.user!.id, req.body);
     res.status(201).json(log);
   } catch (err: any) {
     res.status(400).json({ error: err.message });

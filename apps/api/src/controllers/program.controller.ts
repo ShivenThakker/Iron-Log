@@ -3,8 +3,7 @@ import { programRepository } from '../repositories/program.repository';
 
 export const getPrograms = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const programs = await programRepository.findAll(req.user.id);
+    const programs = await programRepository.findAll(req.user!.id);
     res.json(programs);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -13,8 +12,8 @@ export const getPrograms = async (req: Request, res: Response) => {
 
 export const getProgram = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const program = await programRepository.findById(req.params.id, req.user.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const program = await programRepository.findById(id, req.user!.id);
     if (!program) {
        res.status(404).json({ error: 'Program not found' });
        return;
@@ -27,8 +26,7 @@ export const getProgram = async (req: Request, res: Response) => {
 
 export const createProgram = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const p = await programRepository.create(req.user.id, req.body);
+    const p = await programRepository.create(req.user!.id, req.body);
     res.status(201).json(p);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -37,8 +35,8 @@ export const createProgram = async (req: Request, res: Response) => {
 
 export const updateProgram = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    const p = await programRepository.update(req.params.id, req.user.id, req.body);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const p = await programRepository.update(id, req.user!.id, req.body);
     res.json(p);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -47,8 +45,8 @@ export const updateProgram = async (req: Request, res: Response) => {
 
 export const deleteProgram = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore
-    await programRepository.delete(req.params.id, req.user.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await programRepository.delete(id, req.user!.id);
     res.status(204).send();
   } catch (err: any) {
     res.status(400).json({ error: err.message });

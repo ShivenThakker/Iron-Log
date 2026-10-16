@@ -1,7 +1,7 @@
 import { PrismaClient, User, Prisma } from '@prisma/client';
-import { sqliteAdapter } from '../lib/prisma-adapter';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient({ adapter: sqliteAdapter });
+// singleton imported
 
 export class AuthRepository {
   async findUserByEmail(email: string): Promise<User | null> {

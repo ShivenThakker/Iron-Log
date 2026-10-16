@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, RADIUS } from '../../constants/tokens';
+import { COLORS, SPACING, RADIUS } from '@/constants/tokens';
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function HomeDashboard() {
         {/* Gamification Snippet */}
         <View style={styles.section}>
            <Text style={styles.sectionTitle}>Rank Progress</Text>
-           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/rank')}>
+           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/achievements')}>
              <View>
                <Text style={styles.cardTitle}>Rookie (450 XP)</Text>
                <Text style={styles.cardSub}>550 XP to Iron Novice</Text>
