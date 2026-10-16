@@ -58,3 +58,18 @@ export const generatePlan = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const parsePlan = async (req: Request, res: Response) => {
+  try {
+    const { text, imageBase64, mimeType } = req.body;
+    if (!text && !imageBase64) {
+      res.status(400).json({ error: 'Either text notes or an imageBase64 must be provided to parse workout plan' });
+      return;
+    }
+
+    const program = await geminiService.parseWorkoutPlanFromInput({ text, imageBase64, mimeType });
+    res.json({ program });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};

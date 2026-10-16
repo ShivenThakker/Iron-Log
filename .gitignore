@@ -32,3 +32,4 @@ apps/api/dev.db
 *.db
 *.db-journal
 *.docx
+graphify-out/cache/

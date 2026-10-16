@@ -10,13 +10,26 @@ export const getPrograms = async (req: Request, res: Response) => {
   }
 };
 
+export const getActiveProgram = async (req: Request, res: Response) => {
+  try {
+    const program = await programRepository.getActiveProgram(req.user!.id);
+    if (!program) {
+      res.status(404).json({ error: 'No active program found' });
+      return;
+    }
+    res.json(program);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const getProgram = async (req: Request, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const program = await programRepository.findById(id, req.user!.id);
     if (!program) {
-       res.status(404).json({ error: 'Program not found' });
-       return;
+      res.status(404).json({ error: 'Program not found' });
+      return;
     }
     res.json(program);
   } catch (err: any) {
@@ -28,6 +41,34 @@ export const createProgram = async (req: Request, res: Response) => {
   try {
     const p = await programRepository.create(req.user!.id, req.body);
     res.status(201).json(p);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const createFullProgram = async (req: Request, res: Response) => {
+  try {
+    const program = await programRepository.createFullProgram(req.user!.id, req.body);
+    res.status(201).json(program);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const saveDayPlan = async (req: Request, res: Response) => {
+  try {
+    const program = await programRepository.saveDayPlan(req.user!.id, req.body);
+    res.json(program);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+export const setActiveProgram = async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const program = await programRepository.setActiveProgram(req.user!.id, id);
+    res.json(program);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

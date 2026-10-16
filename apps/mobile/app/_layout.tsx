@@ -49,7 +49,7 @@ export default function RootLayout() {
 
     if (!isAuthenticated && segments[0] === '(tabs)') {
       router.replace('/');
-    } else if (isAuthenticated && (inAuthGroup || segments[0] === '' || !segments[0])) {
+    } else if (isAuthenticated && (inAuthGroup || !segments[0])) {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isHydrated, fontsLoaded, segments]);
@@ -71,6 +71,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="workout/active" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="workout/summary" options={{ presentation: 'card' }} />
+        <Stack.Screen name="program/builder" options={{ presentation: 'card' }} />
         <Stack.Screen name="ai/chat" options={{ presentation: 'card' }} />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />

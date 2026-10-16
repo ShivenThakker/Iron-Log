@@ -26,7 +26,8 @@ const port = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // Global API rate limit (60 requests per minute per IP)
 app.use('/api', rateLimit(60, 60000));
@@ -60,6 +61,6 @@ app.get('/health', (req, res) => {
 // Centralized error handler
 app.use(errorHandler);
 
-app.listen(port, () => {
-  logger.info(`Server listening on port ${port}`);
+app.listen(Number(port), '0.0.0.0', () => {
+  logger.info(`Server listening on port ${port} (0.0.0.0)`);
 });

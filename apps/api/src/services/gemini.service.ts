@@ -5,9 +5,29 @@ export interface ChatMessage {
   parts: string;
 }
 
+export interface ParsedExerciseItem {
+  name: string;
+  target_sets: number;
+  target_reps: string;
+  rest_seconds?: number;
+}
+
+export interface ParsedDayItem {
+  day_name: string;
+  exercises: ParsedExerciseItem[];
+}
+
+export interface ParsedWorkoutPlan {
+  program_name: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  schedule_days_per_week?: number;
+  description?: string;
+  days: ParsedDayItem[];
+}
+
 export class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
-  private readonly defaultModel = 'gemini-2.0-flash';
+  private readonly defaultModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -106,6 +126,114 @@ Include:
     const prompt = `User Profile:\n${JSON.stringify(profile, null, 2)}\nPreferences:\n${JSON.stringify(preferences, null, 2)}`;
     const result = await model.generateContent(prompt);
     return result.response.text();
+  }
+
+  async parseWorkoutPlanFromInput(input: {
+    text?: string;
+    imageBase64?: string;
+    mimeType?: string;
+  }): Promise<ParsedWorkoutPlan> {
+    const systemPrompt = `You are an elite strength and conditioning coach and AI workout program parser.
+Your task is to take workout notes, documents, whiteboard text, or photos/screenshots of a workout sheet and parse them into a structured training routine JSON.
+
+CRITICAL: Return ONLY a raw JSON object (valid JSON, no conversational text, no markdown backticks, no explanations) adhering to this schema:
+{
+  "program_name": "string (descriptive program name, e.g. 4-Day Upper Lower Split)",
+  "difficulty": "beginner" | "intermediate" | "advanced",
+  "schedule_days_per_week": number,
+  "description": "string",
+  "days": [
+    {
+      "day_name": "string (e.g. Day 1 - Push, or Monday - Chest & Triceps)",
+      "exercises": [
+        {
+          "name": "string (e.g. Incline Bench Press)",
+          "target_sets": number (default 3 if not specified),
+          "target_reps": "string (e.g. 8-12, 10, or AMRAP)",
+          "rest_seconds": number (default 90 if not specified)
+        }
+      ]
+    }
+  ]
+}
+If information like sets or reps is missing for an exercise, use sensible defaults (3 sets, 8-12 reps, 90s rest).
+If days are not explicitly named, label them Day 1, Day 2, etc.`;
+
+    const model = this.getModel(systemPrompt);
+
+    if (!model) {
+      const defaultDays: ParsedDayItem[] = [
+        {
+          day_name: 'Push Day (Chest, Shoulders, Triceps)',
+          exercises: [
+            { name: 'Bench Press', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
+            { name: 'Incline Bench Press', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
+            { name: 'Dumbbell Overhead Press', target_sets: 3, target_reps: '10', rest_seconds: 90 },
+            { name: 'Triceps Pushdown (Straight Bar)', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
+          ],
+        },
+        {
+          day_name: 'Pull Day (Back, Biceps)',
+          exercises: [
+            { name: 'Lat Pulldown', target_sets: 4, target_reps: '10-12', rest_seconds: 90 },
+            { name: 'Seated Row', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
+            { name: 'Dumbbell Bicep Curl', target_sets: 3, target_reps: '12', rest_seconds: 60 },
+            { name: 'Hammer Curl', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
+          ],
+        },
+        {
+          day_name: 'Legs & Core',
+          exercises: [
+            { name: 'Barbell Squats', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
+            { name: 'Romanian Deadlifts', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
+            { name: 'Leg Curl Machine', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
+            { name: 'Flat Bench Crunches', target_sets: 3, target_reps: '15-20', rest_seconds: 45 },
+          ],
+        },
+      ];
+
+      return {
+        program_name: input.text ? input.text.slice(0, 30).trim() : 'Custom Parsed Routine',
+        difficulty: 'intermediate',
+        schedule_days_per_week: 3,
+        description: 'Auto-parsed workout plan (Demo Mode). Set GEMINI_API_KEY to enable live Gemini 2.5 Flash parsing.',
+        days: defaultDays,
+      };
+    }
+
+    try {
+      const parts: any[] = [];
+      const userPrompt = input.text
+        ? `Here is the workout plan notes/document to parse:\n\n${input.text}`
+        : 'Please parse the workout schedule in the attached image/screenshot into the structured program JSON.';
+
+      parts.push(userPrompt);
+
+      if (input.imageBase64) {
+        const cleanBase64 = input.imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        parts.push({
+          inlineData: {
+            data: cleanBase64,
+            mimeType: input.mimeType || 'image/jpeg',
+          },
+        });
+      }
+
+      const result = await model.generateContent(parts);
+      const textResponse = result.response.text();
+
+      const cleaned = textResponse
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+      const parsed = JSON.parse(cleaned) as ParsedWorkoutPlan;
+      return parsed;
+    } catch (err: any) {
+      console.error('Failed to parse plan via Gemini:', err?.message || err);
+      throw new Error(`AI plan parsing failed: ${err?.message || 'Invalid format'}`);
+    }
   }
 }
 

@@ -61,12 +61,21 @@ export default function HomeDashboard() {
     },
   });
 
+  const { data: activeProgramData, refetch: refetchActiveProgram } = useQuery({
+    queryKey: ['activeProgram'],
+    queryFn: async () => {
+      const res = await api.get('/programs/active').catch(() => null);
+      return res?.data ?? null;
+    },
+  });
+
   const onRefresh = async () => {
     await Promise.all([
       refetchProfile(),
       refetchGamification(),
       refetchNutrition(),
       refetchSessions(),
+      refetchActiveProgram(),
     ]);
   };
 
@@ -83,6 +92,19 @@ export default function HomeDashboard() {
   const proteinG = nutritionData?.totals?.protein || 135;
   const carbsG = nutritionData?.totals?.carbs || 190;
   const fatG = nutritionData?.totals?.fats || 52;
+
+  // Today's dynamic workout computation
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const todayDayName = daysOfWeek[new Date().getDay()];
+  const activeDays = activeProgramData?.workoutDays || [];
+  const todayWorkoutDay = activeDays.find((d: any) =>
+    d.day_name?.toLowerCase().includes(todayDayName.toLowerCase())
+  ) || activeDays[0];
+
+  const todayWorkoutTitle = todayWorkoutDay?.day_name || (activeProgramData ? activeProgramData.name : 'Upper Body Hypertrophy A');
+  const todayExercises = todayWorkoutDay?.exercises || [];
+  const exerciseCount = todayExercises.length > 0 ? todayExercises.length : 5;
+  const estimatedMin = exerciseCount * 10;
 
   return (
     <ScreenContainer scrollable={false}>
@@ -132,24 +154,30 @@ export default function HomeDashboard() {
             <GlassCard style={styles.carouselCard}>
               <View style={styles.cardHeaderRow}>
                 <Badge label="TODAY'S WORKOUT" variant="red" />
-                <View style={styles.streakBadge}>
-                  <Text style={styles.fireEmoji}>🔥</Text>
-                  <Text variant="bodySmall" style={styles.streakNum}>
-                    {streak} Day Streak
+                <TouchableOpacity onPress={() => router.push('/program/builder')}>
+                  <Text variant="caption" style={styles.seeAllLink}>
+                    Edit Split →
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
-              <Text variant="h2" style={styles.workoutTitle}>
-                Upper Body Hypertrophy A
+              <Text variant="h2" style={styles.workoutTitle} numberOfLines={1}>
+                {todayWorkoutTitle}
               </Text>
 
               <View style={styles.pillsRow}>
-                <Badge label="Chest" variant="default" />
-                <Badge label="Triceps" variant="default" />
-                <Badge label="Shoulders" variant="default" />
+                {todayExercises.length > 0 ? (
+                  todayExercises.slice(0, 3).map((ex: any, i: number) => (
+                    <Badge key={i} label={ex.exercise?.name || ex.exercise_name || `Ex ${i + 1}`} variant="default" />
+                  ))
+                ) : (
+                  <>
+                    <Badge label="Chest" variant="default" />
+                    <Badge label="Triceps" variant="default" />
+                  </>
+                )}
                 <Text variant="caption" style={styles.durationText}>
-                  5 Exercises • ~50 min
+                  {exerciseCount} Exercises • ~{estimatedMin} min
                 </Text>
               </View>
 
@@ -281,25 +309,25 @@ export default function HomeDashboard() {
           <View style={styles.shortcutsRow}>
             <TouchableOpacity
               style={styles.shortcutBtn}
-              onPress={() => router.push('/workout/active')}
+              onPress={() => router.push('/program/builder')}
             >
               <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(233, 69, 96, 0.15)' }]}>
-                <Icon name="Barbell" size={20} color={COLORS.dark.accentRed} />
+                <Icon name="CalendarCheck" size={20} color={COLORS.dark.accentRed} />
               </View>
               <Text variant="caption" style={styles.shortcutText}>
-                Active Session
+                Plan Builder
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.shortcutBtn}
-              onPress={() => router.push('/(tabs)/body')}
+              onPress={() => router.push('/workout/active')}
             >
-              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
-                <Icon name="Scales" size={20} color={COLORS.dark.success} />
+              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                <Icon name="Barbell" size={20} color={COLORS.dark.accentGold} />
               </View>
               <Text variant="caption" style={styles.shortcutText}>
-                Log Weight
+                Active Session
               </Text>
             </TouchableOpacity>
 
@@ -317,13 +345,13 @@ export default function HomeDashboard() {
 
             <TouchableOpacity
               style={styles.shortcutBtn}
-              onPress={() => router.push('/(tabs)/achievements')}
+              onPress={() => router.push('/(tabs)/body')}
             >
-              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                <Icon name="Trophy" size={20} color={COLORS.dark.accentGold} />
+              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                <Icon name="Scales" size={20} color={COLORS.dark.success} />
               </View>
               <Text variant="caption" style={styles.shortcutText}>
-                Trophies
+                Log Weight
               </Text>
             </TouchableOpacity>
           </View>
