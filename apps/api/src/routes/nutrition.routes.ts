@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { searchFood, getDailyNutrition, addNutritionLog } from '../controllers/nutrition.controller';
 import { requireAuth } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { logNutritionSchema } from '../validators/nutrition.validator';
 
 const router = Router();
 router.use(requireAuth);
 
 router.get('/search', searchFood);
 router.get('/daily', getDailyNutrition);
-router.post('/log', addNutritionLog);
+router.post('/log', validate(logNutritionSchema), addNutritionLog);
 
 export default router;

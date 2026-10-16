@@ -12,6 +12,9 @@ import bodyRoutes from './routes/body.routes';
 import aiRoutes from './routes/ai.routes';
 import gamificationRoutes from './routes/gamification.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import { errorHandler } from './middleware/error.middleware';
+import { rateLimit } from './middleware/ratelimit.middleware';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -21,6 +24,15 @@ const port = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// Global API rate limit (60 requests per minute per IP)
+app.use('/api', rateLimit(60, 60000));
+
+// Request logging
+app.use((req, res, next) => {
+  logger.debug({ method: req.method, url: req.url }, 'Incoming request');
+  next();
+});
 
 // Main Routes
 app.use('/auth', authRoutes);
@@ -34,11 +46,14 @@ app.use('/ai', aiRoutes);
 app.use('/gamification', gamificationRoutes);
 app.use('/analytics', analyticsRoutes);
 
-// Main health route for keep-alive
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'IronLog API is alive' });
 });
 
+// Centralized error handler
+app.use(errorHandler);
+
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  logger.info(`Server listening on port ${port}`);
 });

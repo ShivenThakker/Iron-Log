@@ -1,12 +1,22 @@
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient(): PrismaClient {
-  const databaseUrl = process.env.DATABASE_URL || `file:${path.resolve(__dirname, '../../dev.db')}`;
-  const adapter = new PrismaBetterSqlite3({ url: databaseUrl });
+  const databaseUrl = process.env.DATABASE_URL;
+
+  // Native PostgreSQL connection (Supabase production/staging)
+  if (databaseUrl && (databaseUrl.startsWith('postgresql:') || databaseUrl.startsWith('postgres:'))) {
+    return new PrismaClient({
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    });
+  }
+
+  // Local SQLite fallback connection for offline/dev
+  const sqliteUrl = databaseUrl || `file:${path.resolve(__dirname, '../../dev.db')}`;
+  const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
+  const adapter = new PrismaBetterSqlite3({ url: sqliteUrl });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
