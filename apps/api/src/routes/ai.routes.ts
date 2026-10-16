@@ -8,5 +8,6 @@ router.use(requireAuth);
 router.post('/chat', chatCompletion);
 router.post('/analyze', analyzeWorkout);
 router.post('/plan', generatePlan);
+router.post('/generate-plan', generatePlan);
 
 export default router;
