@@ -8,6 +8,10 @@ export const logNutritionSchema = z.object({
   calories_kcal: z.number().nonnegative(),
   protein_g: z.number().nonnegative(),
   carbs_g: z.number().nonnegative(),
-  fat_g: z.number().nonnegative(),
+  fat_g: z.number().nonnegative().optional(),
+  fats_g: z.number().nonnegative().optional(),
   fiber_g: z.number().nonnegative().optional(),
-});
+}).transform((data) => ({
+  ...data,
+  fat_g: data.fat_g ?? data.fats_g ?? 0,
+}));

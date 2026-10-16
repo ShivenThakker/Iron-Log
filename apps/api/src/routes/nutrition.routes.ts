@@ -9,6 +9,7 @@ router.use(requireAuth);
 
 router.get('/search', searchFood);
 router.get('/daily', getDailyNutrition);
+router.get('/daily/:date', getDailyNutrition);
 router.post('/log', validate(logNutritionSchema), addNutritionLog);
 
 export default router;

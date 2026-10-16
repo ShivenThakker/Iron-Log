@@ -13,7 +13,7 @@ export const searchFood = async (req: Request, res: Response) => {
 
 export const getDailyNutrition = async (req: Request, res: Response) => {
   try {
-    const date = req.query.date as string || new Date().toISOString().split('T')[0];
+    const date = (req.params.date as string) || (req.query.date as string) || new Date().toISOString().split('T')[0];
     const data = await nutritionRepository.getDailyLog(req.user!.id, date);
     res.json(data);
   } catch (err: any) {

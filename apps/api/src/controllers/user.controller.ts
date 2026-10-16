@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { userService } from '../services/user.service';
 
 const updateProfileSchema = z.object({
+  name: z.string().optional(),
   fitness_goal: z.string().optional(),
   activity_level: z.string().optional(),
   experience_level: z.string().optional(),
@@ -12,10 +13,26 @@ const updateProfileSchema = z.object({
   height_cm: z.number().positive().optional(),
   unit_system: z.enum(['metric', 'imperial']).optional(),
   target_weight_kg: z.number().positive().optional(),
-  injuries: z.array(z.string()).optional(),
+  injuries: z.union([z.string(), z.array(z.string())]).optional(),
   date_of_birth: z.string().optional(),
-  gender: z.string().optional()
+  gender: z.string().optional(),
+  track_nutrition: z.boolean().optional(),
+  daily_calorie_target: z.number().optional(),
 });
+
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const profile = await userService.getProfile(userId);
+    if (!profile) {
+      res.status(404).json({ error: 'User profile not found' });
+      return;
+    }
+    res.status(200).json(profile);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch profile' });
+  }
+};
 
 export const updateProfile = async (req: Request, res: Response) => {
   try {
@@ -25,6 +42,9 @@ export const updateProfile = async (req: Request, res: Response) => {
     let updateData: any = { ...validated };
     if (validated.date_of_birth) {
       updateData.date_of_birth = new Date(validated.date_of_birth);
+    }
+    if (Array.isArray(validated.injuries)) {
+      updateData.injuries = JSON.stringify(validated.injuries);
     }
 
     const updatedUser = await userService.updateProfile(userId, updateData);

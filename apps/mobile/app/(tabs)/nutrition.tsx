@@ -92,6 +92,7 @@ export default function NutritionScreen() {
         calories_kcal: food.calories,
         protein_g: food.protein,
         carbs_g: food.carbs,
+        fat_g: food.fat,
         fats_g: food.fat,
       });
     },
