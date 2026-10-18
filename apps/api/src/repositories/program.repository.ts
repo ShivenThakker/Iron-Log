@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { NotFoundError } from '../utils/errors';
 
 export interface DayExerciseInput {
   exercise_id?: string;
@@ -113,7 +114,7 @@ export class ProgramRepository {
       where: { id: programId, user_id: userId },
     });
     if (!target) {
-      throw new Error('Program not found');
+      throw new NotFoundError('Program not found');
     }
 
     await prisma.workoutProgram.updateMany({
@@ -254,7 +255,14 @@ export class ProgramRepository {
   async saveDayPlan(userId: string, data: SaveDayPlanInput) {
     let programId = data.program_id;
 
-    if (!programId) {
+    if (programId) {
+      const existingProgram = await prisma.workoutProgram.findFirst({
+        where: { id: programId, user_id: userId },
+      });
+      if (!existingProgram) {
+        throw new NotFoundError('Program not found');
+      }
+    } else {
       // Find active program or create one
       const active = await this.getActiveProgram(userId);
       if (active) {
@@ -348,7 +356,7 @@ export class ProgramRepository {
       where: { id, user_id: userId },
     });
     if (!existing) {
-      throw new Error('Program not found');
+      throw new NotFoundError('Program not found');
     }
 
     return prisma.workoutProgram.update({
@@ -362,7 +370,7 @@ export class ProgramRepository {
       where: { id, user_id: userId },
     });
     if (!existing) {
-      throw new Error('Program not found');
+      throw new NotFoundError('Program not found');
     }
 
     return prisma.workoutProgram.delete({

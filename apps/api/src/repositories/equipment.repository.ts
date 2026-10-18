@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { NotFoundError } from '../utils/errors';
 
 export class EquipmentRepository {
   async getProfiles(userId: string) {
@@ -33,6 +34,13 @@ export class EquipmentRepository {
   }
 
   async setActiveProfile(id: string, userId: string) {
+    const profile = await prisma.equipmentProfile.findFirst({
+      where: { id, user_id: userId },
+    });
+    if (!profile) {
+      throw new NotFoundError('Equipment profile not found');
+    }
+
     await prisma.equipmentProfile.updateMany({
       where: { user_id: userId },
       data: { is_active: false },

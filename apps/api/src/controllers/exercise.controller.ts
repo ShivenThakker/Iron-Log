@@ -1,31 +1,31 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { exerciseRepository } from '../repositories/exercise.repository';
+import { NotFoundError } from '../utils/errors';
 
-export const getAllExercises = async (req: Request, res: Response) => {
+export const getAllExercises = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { q } = req.query;
-    const exercises = await exerciseRepository.findAll(q as string);
+    const exercises = await exerciseRepository.findAll(req.user?.id, q as string);
     res.json(exercises);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-export const getExercise = async (req: Request, res: Response) => {
+export const getExercise = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const exerciseId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const ex = await exerciseRepository.findById(exerciseId);
+    const ex = await exerciseRepository.findById(exerciseId, req.user?.id);
     if (!ex) {
-      res.status(404).json({ error: 'Not found' });
-      return;
+      throw new NotFoundError('Exercise not found');
     }
     res.json(ex);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-export const createCustomExercise = async (req: Request, res: Response) => {
+export const createCustomExercise = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = req.body;
     const userId = req.user!.id;
@@ -36,11 +36,11 @@ export const createCustomExercise = async (req: Request, res: Response) => {
     });
     res.status(201).json(ex);
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    next(err);
   }
 };
 
-export const shuffleExercise = async (req: Request, res: Response) => {
+export const shuffleExercise = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { muscle } = req.query;
     if (!muscle) {
@@ -49,11 +49,10 @@ export const shuffleExercise = async (req: Request, res: Response) => {
     }
     const ex = await exerciseRepository.findShuffle(muscle as string);
     if (!ex) {
-      res.status(404).json({ error: 'No exercises found for this muscle' });
-      return;
+      throw new NotFoundError('No exercises found for this muscle');
     }
     res.json(ex);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };

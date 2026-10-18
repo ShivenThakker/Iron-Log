@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { gamificationRepository } from './gamification.repository';
+import { NotFoundError } from '../utils/errors';
 
 export class SessionRepository {
   async createSession(userId: string, data: any = {}) {
@@ -34,7 +35,15 @@ export class SessionRepository {
     });
   }
 
-  async addSet(sessionId: string, data: any) {
+  async addSet(sessionId: string, userId: string, data: any) {
+    const session = await prisma.workoutSession.findFirst({
+      where: { id: sessionId, user_id: userId },
+    });
+
+    if (!session) {
+      throw new NotFoundError('Workout session not found');
+    }
+
     return prisma.exerciseSet.create({
       data: {
         session_id: sessionId,
@@ -59,7 +68,7 @@ export class SessionRepository {
     });
 
     if (!existing) {
-      throw new Error('Session not found');
+      throw new NotFoundError('Workout session not found');
     }
 
     const finishedAt = new Date();
