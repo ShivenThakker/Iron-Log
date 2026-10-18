@@ -62,4 +62,8 @@ app.use(errorHandler);
 
 app.listen(Number(port), '0.0.0.0', () => {
   logger.info(`Server listening on port ${port} (0.0.0.0)`);
+  logger.info(
+    { geminiModel: env.GEMINI_API_KEY ? env.GEMINI_MODEL : 'disabled (demo mode)' },
+    'AI configuration'
+  );
 });

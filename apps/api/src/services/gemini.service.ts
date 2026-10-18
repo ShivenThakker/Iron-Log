@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { env } from '../lib/env';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -27,27 +28,30 @@ export interface ParsedWorkoutPlan {
 
 export class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
-  private readonly defaultModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  private readonly apiKey = env.GEMINI_API_KEY;
+  private readonly modelName = env.GEMINI_MODEL;
+
+  private get isEnabled(): boolean {
+    return this.apiKey.length > 0 && this.modelName.length > 0;
+  }
 
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-      this.genAI = new GoogleGenerativeAI(apiKey);
+    if (this.isEnabled) {
+      this.genAI = new GoogleGenerativeAI(this.apiKey);
     }
   }
 
   private getModel(systemInstruction?: string) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!this.genAI && apiKey) {
-      this.genAI = new GoogleGenerativeAI(apiKey);
-    }
-
-    if (!this.genAI) {
+    if (!this.isEnabled) {
       return null;
     }
 
+    if (!this.genAI) {
+      this.genAI = new GoogleGenerativeAI(this.apiKey);
+    }
+
     return this.genAI.getGenerativeModel({
-      model: this.defaultModel,
+      model: this.modelName,
       systemInstruction: systemInstruction || 'You are IronLog AI, an expert strength and conditioning coach and nutritionist. Provide concise, evidence-based, motivating advice. Focus on progressive overload, proper recovery, and sustainable nutrition.',
     });
   }
@@ -55,7 +59,7 @@ export class GeminiService {
   async getTextFeedback(prompt: string, history: ChatMessage[] = []): Promise<string> {
     const model = this.getModel();
     if (!model) {
-      return 'IronLog AI is in offline demo mode. Set GEMINI_API_KEY in your environment to enable real-time Gemini 2.0 Flash coaching responses.';
+      return 'IronLog AI is in offline demo mode. Set GEMINI_API_KEY and GEMINI_MODEL in your environment to enable real-time coaching responses.';
     }
 
     try {
@@ -196,7 +200,7 @@ If days are not explicitly named, label them Day 1, Day 2, etc.`;
         program_name: input.text ? input.text.slice(0, 30).trim() : 'Custom Parsed Routine',
         difficulty: 'intermediate',
         schedule_days_per_week: 3,
-        description: 'Auto-parsed workout plan (Demo Mode). Set GEMINI_API_KEY to enable live Gemini 2.5 Flash parsing.',
+        description: 'Auto-parsed workout plan (Demo Mode). Set GEMINI_API_KEY and GEMINI_MODEL to enable live parsing.',
         days: defaultDays,
       };
     }
