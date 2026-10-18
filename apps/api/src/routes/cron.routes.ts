@@ -29,6 +29,9 @@ router.post('/streaks', async (req: Request, res: Response): Promise<void> => {
         data: { grace_used_this_week: false },
       });
       await prisma.userXp.updateMany({
+        where: {
+          week_reset_at: { lt: today },
+        },
         data: { xp_this_week: 0, week_reset_at: today },
       });
       logger.info('Reset weekly streak grace periods and XP counters');

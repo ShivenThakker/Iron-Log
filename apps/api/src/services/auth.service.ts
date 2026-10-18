@@ -81,20 +81,17 @@ export class AuthService {
       let email: string | undefined;
       let name: string | undefined;
 
-      if (GOOGLE_CLIENT_ID) {
-        const ticket = await googleClient.verifyIdToken({
-          idToken,
-          audience: GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        email = payload?.email;
-        name = payload?.name;
-      } else {
-        // Fallback for development decoding if CLIENT_ID not provided
-        const decoded = jwt.decode(idToken) as any;
-        email = decoded?.email;
-        name = decoded?.name;
+      if (!GOOGLE_CLIENT_ID) {
+        throw new AppError('Google sign-in is not configured on this server', 503);
       }
+
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      email = payload?.email;
+      name = payload?.name;
 
       if (!email) {
         throw new UnauthorizedError('Unable to extract email from Google token');

@@ -3,18 +3,16 @@ import { prisma } from '../lib/prisma';
 
 export class GamificationRepository {
   async getOrCreateUserXp(userId: string) {
-    let xpRecord = await prisma.userXp.findUnique({ where: { user_id: userId } });
-    if (!xpRecord) {
-      xpRecord = await prisma.userXp.create({
-        data: {
-          user_id: userId,
-          total_xp: 0,
-          xp_this_week: 0,
-          week_reset_at: new Date(),
-        },
-      });
-    }
-    return xpRecord;
+    return prisma.userXp.upsert({
+      where: { user_id: userId },
+      create: {
+        user_id: userId,
+        total_xp: 0,
+        xp_this_week: 0,
+        week_reset_at: new Date(),
+      },
+      update: {},
+    });
   }
 
   async getRecentTransactions(userId: string, limit = 10) {
@@ -31,25 +29,19 @@ export class GamificationRepository {
       data: { user_id: userId, amount, reason },
     });
 
-    const xpRecord = await client.userXp.findUnique({ where: { user_id: userId } });
-    if (!xpRecord) {
-      return client.userXp.create({
-        data: {
-          user_id: userId,
-          total_xp: amount,
-          xp_this_week: amount,
-          week_reset_at: new Date(),
-        },
-      });
-    } else {
-      return client.userXp.update({
-        where: { user_id: userId },
-        data: {
-          total_xp: { increment: amount },
-          xp_this_week: { increment: amount },
-        },
-      });
-    }
+    return client.userXp.upsert({
+      where: { user_id: userId },
+      create: {
+        user_id: userId,
+        total_xp: amount,
+        xp_this_week: amount,
+        week_reset_at: new Date(),
+      },
+      update: {
+        total_xp: { increment: amount },
+        xp_this_week: { increment: amount },
+      },
+    });
   }
 
   async getTrophyCase(userId: string) {

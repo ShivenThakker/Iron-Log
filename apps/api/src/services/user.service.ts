@@ -1,4 +1,5 @@
 import { userRepository } from '../repositories/user.repository';
+import { nutritionRepository } from '../repositories/nutrition.repository';
 
 export class UserService {
   async getProfile(userId: string) {
@@ -26,6 +27,10 @@ export class UserService {
     
     if (target_weight_kg !== undefined) {
       await userRepository.setWeightGoal(userId, target_weight_kg);
+    }
+
+    if (daily_calorie_target !== undefined) {
+      await nutritionRepository.setNutritionGoal(userId, { daily_calories: daily_calorie_target });
     }
     
     return userRepository.updateUserProfile(userId, userData);
