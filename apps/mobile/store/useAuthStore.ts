@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   userId: string | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
@@ -14,6 +15,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: null,
+  refreshToken: null,
   userId: null,
   isAuthenticated: false,
   isHydrated: false,
@@ -27,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       await SecureStore.setItemAsync('refreshToken', refreshToken);
       await SecureStore.setItemAsync('userId', userId);
     }
-    set({ token, userId, isAuthenticated: true });
+    set({ token, refreshToken, userId, isAuthenticated: true });
   },
   logout: async () => {
     if (Platform.OS === 'web') {
@@ -39,25 +41,28 @@ export const useAuthStore = create<AuthState>((set) => ({
       await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('userId');
     }
-    set({ token: null, userId: null, isAuthenticated: false });
+    set({ token: null, refreshToken: null, userId: null, isAuthenticated: false });
   },
   init: async () => {
     try {
       let token: string | null = null;
+      let refreshToken: string | null = null;
       let userId: string | null = null;
       if (Platform.OS === 'web') {
         token = localStorage.getItem('accessToken');
+        refreshToken = localStorage.getItem('refreshToken');
         userId = localStorage.getItem('userId');
       } else {
         token = await SecureStore.getItemAsync('accessToken');
+        refreshToken = await SecureStore.getItemAsync('refreshToken');
         userId = await SecureStore.getItemAsync('userId');
       }
       if (token && userId) {
-        set({ token, userId, isAuthenticated: true, isHydrated: true });
+        set({ token, refreshToken, userId, isAuthenticated: true, isHydrated: true });
       } else {
         set({ isHydrated: true });
       }
-    } catch (e) {
+    } catch {
       set({ isHydrated: true });
     }
   },

@@ -132,7 +132,19 @@ export default function ActiveWorkoutScreen() {
           setSessionId(sessionRes.data.id);
         }
         if (Array.isArray(exRes.data) && exRes.data.length > 0) {
-          setExerciseDatabase(exRes.data.map((item: any) => ({ id: item.id, name: item.name })));
+          const dbExercises = exRes.data.map((item: any) => ({ id: item.id, name: item.name }));
+          setExerciseDatabase(dbExercises);
+
+          // Map default exercises to real database IDs so foreign key inserts succeed
+          setExercises((prev) =>
+            prev.map((ex, idx) => {
+              const matched = dbExercises.find(
+                (db) => db.name.toLowerCase().includes(ex.name.toLowerCase()) || ex.name.toLowerCase().includes(db.name.toLowerCase())
+              );
+              const resolvedId = matched?.id || dbExercises[idx % dbExercises.length]?.id || ex.exerciseId;
+              return { ...ex, exerciseId: resolvedId };
+            })
+          );
         }
       } catch {
         // Fallback to offline active workout

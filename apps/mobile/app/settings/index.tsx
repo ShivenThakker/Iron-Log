@@ -41,7 +41,8 @@ export default function SettingsScreen() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout').catch(() => null);
+      const refreshToken = useAuthStore.getState().refreshToken;
+      await api.post('/auth/logout', { refreshToken }).catch(() => null);
       await logout();
       router.replace('/');
     } catch {

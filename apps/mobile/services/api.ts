@@ -47,3 +47,31 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/')
+    ) {
+      originalRequest._retry = true;
+      try {
+        const refreshToken = useAuthStore.getState().refreshToken;
+        if (refreshToken) {
+          const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+          const { accessToken, refreshToken: newRefreshToken, userId } = res.data;
+          await useAuthStore.getState().login(accessToken, newRefreshToken, userId);
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          return api(originalRequest);
+        }
+      } catch {
+        await useAuthStore.getState().logout();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
