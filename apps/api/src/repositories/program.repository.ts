@@ -139,18 +139,23 @@ export class ProgramRepository {
     });
   }
 
-  async resolveOrCreateExercise(userId: string, exerciseName: string): Promise<string> {
+  async resolveOrCreateExercise(userId: string, exerciseName: string, tx?: Prisma.TransactionClient): Promise<string> {
+    const client = tx || prisma;
     const trimmed = exerciseName.trim();
     if (!trimmed) {
       throw new Error('Exercise name cannot be empty');
     }
 
-    // Check existing
-    const existing = await prisma.exercise.findFirst({
+    // Check existing (standard exercises or custom exercises created by this user)
+    const existing = await client.exercise.findFirst({
       where: {
         name: {
           equals: trimmed,
         },
+        OR: [
+          { is_custom: false },
+          { created_by_user_id: userId },
+        ],
       },
     });
 
@@ -177,7 +182,7 @@ export class ProgramRepository {
       muscle = 'Core';
     }
 
-    const created = await prisma.exercise.create({
+    const created = await client.exercise.create({
       data: {
         name: trimmed,
         primary_muscle: muscle,
@@ -194,60 +199,64 @@ export class ProgramRepository {
   async createFullProgram(userId: string, data: CreateFullProgramInput) {
     const shouldActivate = data.is_active !== false;
 
-    if (shouldActivate) {
-      await prisma.workoutProgram.updateMany({
-        where: { user_id: userId },
-        data: { is_active: false },
-      });
-    }
-
-    const program = await prisma.workoutProgram.create({
-      data: {
-        user_id: userId,
-        name: data.name || 'Custom Workout Plan',
-        difficulty: data.difficulty || 'intermediate',
-        goal: data.goal || 'hypertrophy',
-        schedule_days_per_week: data.schedule_days_per_week || (data.days?.length || 3),
-        is_active: shouldActivate,
-        is_ai_generated: Boolean(data.is_ai_generated),
-      },
-    });
-
-    if (data.days && data.days.length > 0) {
-      for (let dayIdx = 0; dayIdx < data.days.length; dayIdx++) {
-        const day = data.days[dayIdx];
-        const createdDay = await prisma.workoutDay.create({
-          data: {
-            program_id: program.id,
-            day_name: day.day_name || `Day ${dayIdx + 1}`,
-            sort_order: day.sort_order ?? dayIdx,
-          },
+    const program = await prisma.$transaction(async (tx) => {
+      if (shouldActivate) {
+        await tx.workoutProgram.updateMany({
+          where: { user_id: userId },
+          data: { is_active: false },
         });
+      }
 
-        if (day.exercises && day.exercises.length > 0) {
-          for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
-            const ex = day.exercises[exIdx];
-            let exerciseId = ex.exercise_id;
-            if (!exerciseId && ex.exercise_name) {
-              exerciseId = await this.resolveOrCreateExercise(userId, ex.exercise_name);
-            }
+      const prog = await tx.workoutProgram.create({
+        data: {
+          user_id: userId,
+          name: data.name || 'Custom Workout Plan',
+          difficulty: data.difficulty || 'intermediate',
+          goal: data.goal || 'hypertrophy',
+          schedule_days_per_week: data.schedule_days_per_week || (data.days?.length || 3),
+          is_active: shouldActivate,
+          is_ai_generated: Boolean(data.is_ai_generated),
+        },
+      });
 
-            if (exerciseId) {
-              await prisma.workoutDayExercise.create({
-                data: {
-                  workout_day_id: createdDay.id,
-                  exercise_id: exerciseId,
-                  target_sets: ex.target_sets ?? 3,
-                  target_reps: String(ex.target_reps ?? '8-12'),
-                  rest_seconds: ex.rest_seconds ?? 90,
-                  sort_order: ex.sort_order ?? exIdx,
-                },
-              });
+      if (data.days && data.days.length > 0) {
+        for (let dayIdx = 0; dayIdx < data.days.length; dayIdx++) {
+          const day = data.days[dayIdx];
+          const createdDay = await tx.workoutDay.create({
+            data: {
+              program_id: prog.id,
+              day_name: day.day_name || `Day ${dayIdx + 1}`,
+              sort_order: day.sort_order ?? dayIdx,
+            },
+          });
+
+          if (day.exercises && day.exercises.length > 0) {
+            for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
+              const ex = day.exercises[exIdx];
+              let exerciseId = ex.exercise_id;
+              if (!exerciseId && ex.exercise_name) {
+                exerciseId = await this.resolveOrCreateExercise(userId, ex.exercise_name, tx);
+              }
+
+              if (exerciseId) {
+                await tx.workoutDayExercise.create({
+                  data: {
+                    workout_day_id: createdDay.id,
+                    exercise_id: exerciseId,
+                    target_sets: ex.target_sets ?? 3,
+                    target_reps: String(ex.target_reps ?? '8-12'),
+                    rest_seconds: ex.rest_seconds ?? 90,
+                    sort_order: ex.sort_order ?? exIdx,
+                  },
+                });
+              }
             }
           }
         }
       }
-    }
+
+      return prog;
+    });
 
     return this.findById(program.id, userId);
   }
@@ -280,65 +289,69 @@ export class ProgramRepository {
       }
     }
 
-    // Check if a day with the same name already exists in this program
-    const existingDay = await prisma.workoutDay.findFirst({
-      where: {
-        program_id: programId,
-        day_name: data.day_name,
-      },
-    });
+    const resolvedProgramId = programId!;
 
-    let dayRecord;
-    if (existingDay) {
-      dayRecord = existingDay;
-      // Delete old exercises to replace with new set
-      await prisma.workoutDayExercise.deleteMany({
-        where: { workout_day_id: existingDay.id },
-      });
-      if (data.sort_order !== undefined) {
-        dayRecord = await prisma.workoutDay.update({
-          where: { id: existingDay.id },
-          data: { sort_order: data.sort_order },
-        });
-      }
-    } else {
-      const dayCount = await prisma.workoutDay.count({
-        where: { program_id: programId },
-      });
-      dayRecord = await prisma.workoutDay.create({
-        data: {
-          program_id: programId,
+    await prisma.$transaction(async (tx) => {
+      // Check if a day with the same name already exists in this program
+      const existingDay = await tx.workoutDay.findFirst({
+        where: {
+          program_id: resolvedProgramId,
           day_name: data.day_name,
-          sort_order: data.sort_order ?? dayCount,
         },
       });
-    }
 
-    // Add exercises
-    if (data.exercises && data.exercises.length > 0) {
-      for (let i = 0; i < data.exercises.length; i++) {
-        const ex = data.exercises[i];
-        let exerciseId = ex.exercise_id;
-        if (!exerciseId && ex.exercise_name) {
-          exerciseId = await this.resolveOrCreateExercise(userId, ex.exercise_name);
-        }
-
-        if (exerciseId) {
-          await prisma.workoutDayExercise.create({
-            data: {
-              workout_day_id: dayRecord.id,
-              exercise_id: exerciseId,
-              target_sets: ex.target_sets ?? 3,
-              target_reps: String(ex.target_reps ?? '8-12'),
-              rest_seconds: ex.rest_seconds ?? 90,
-              sort_order: ex.sort_order ?? i,
-            },
+      let dayRecord;
+      if (existingDay) {
+        dayRecord = existingDay;
+        // Delete old exercises to replace with new set
+        await tx.workoutDayExercise.deleteMany({
+          where: { workout_day_id: existingDay.id },
+        });
+        if (data.sort_order !== undefined) {
+          dayRecord = await tx.workoutDay.update({
+            where: { id: existingDay.id },
+            data: { sort_order: data.sort_order },
           });
         }
+      } else {
+        const dayCount = await tx.workoutDay.count({
+          where: { program_id: resolvedProgramId },
+        });
+        dayRecord = await tx.workoutDay.create({
+          data: {
+            program_id: resolvedProgramId,
+            day_name: data.day_name,
+            sort_order: data.sort_order ?? dayCount,
+          },
+        });
       }
-    }
 
-    return this.findById(programId, userId);
+      // Add exercises
+      if (data.exercises && data.exercises.length > 0) {
+        for (let i = 0; i < data.exercises.length; i++) {
+          const ex = data.exercises[i];
+          let exerciseId = ex.exercise_id;
+          if (!exerciseId && ex.exercise_name) {
+            exerciseId = await this.resolveOrCreateExercise(userId, ex.exercise_name, tx);
+          }
+
+          if (exerciseId) {
+            await tx.workoutDayExercise.create({
+              data: {
+                workout_day_id: dayRecord.id,
+                exercise_id: exerciseId,
+                target_sets: ex.target_sets ?? 3,
+                target_reps: String(ex.target_reps ?? '8-12'),
+                rest_seconds: ex.rest_seconds ?? 90,
+                sort_order: ex.sort_order ?? i,
+              },
+            });
+          }
+        }
+      }
+    });
+
+    return this.findById(resolvedProgramId, userId);
   }
 
   async create(userId: string, data: Partial<Prisma.WorkoutProgramCreateInput>) {
