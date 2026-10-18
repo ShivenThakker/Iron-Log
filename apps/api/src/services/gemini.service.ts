@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { AiResponseError } from '../utils/errors';
 import { safeParseJson } from '../utils/aiJson';
 import { parsedWorkoutPlanSchema } from '../validators/ai.validator';
+import { getFallbackResponse, getDefaultParsedPlan } from './gemini.fallbacks';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -71,7 +72,7 @@ export class GeminiService {
 
     const model = this.getModel(coachSystemInstruction);
     if (!model) {
-      return 'IronLog AI is in offline demo mode. Set GEMINI_API_KEY and GEMINI_MODEL in your environment to enable real-time coaching responses.';
+      return getFallbackResponse('textFeedback');
     }
 
     const wrappedPrompt = `<athlete_message>\n${prompt}\n</athlete_message>`;
@@ -101,7 +102,7 @@ export class GeminiService {
     const model = this.getModel(systemPrompt);
 
     if (!model) {
-      return '• Focus on gradual weight increases (2.5kg)\n• Balance push and pull volume across the week\n• Ensure 48 hours recovery before training the same muscle group';
+      return getFallbackResponse('routineAnalysis');
     }
 
     const prompt = `Analyze this user workout routine:\n${JSON.stringify(currentRoutine, null, 2)}`;
@@ -110,7 +111,7 @@ export class GeminiService {
       return result.response.text();
     } catch (error: any) {
       console.error('Routine analysis failed:', error?.message || error);
-      return '• Prioritize progressive overload by adding 1 rep or small weight next session\n• Ensure full range of motion on compound lifts\n• Maintain 1-2 RIR (reps in reserve) on working sets';
+      return getFallbackResponse('routineAnalysisError');
     }
   }
 
@@ -125,20 +126,7 @@ Include:
 
     const model = this.getModel(systemPrompt);
     if (!model) {
-      return JSON.stringify({
-        program_name: 'Custom Foundation Hypertrophy',
-        split_type: 'Upper / Lower',
-        description: 'Balanced 4-day split emphasizing compound lifts and progressive overload.',
-        weekly_schedule: [
-          { day: 'Day 1', workout: 'Upper Body A', focus: 'Chest, Back, Arms' },
-          { day: 'Day 2', workout: 'Lower Body A', focus: 'Quads, Hamstrings, Calves' },
-          { day: 'Day 3', workout: 'Rest', focus: 'Recovery' },
-          { day: 'Day 4', workout: 'Upper Body B', focus: 'Shoulders, Back, Arms' },
-          { day: 'Day 5', workout: 'Lower Body B', focus: 'Glutes, Hamstrings, Core' },
-          { day: 'Day 6', workout: 'Rest', focus: 'Recovery' },
-          { day: 'Day 7', workout: 'Rest', focus: 'Recovery' },
-        ],
-      });
+      return getFallbackResponse('planGeneration');
     }
 
     const prompt = `User Profile:\n${JSON.stringify(profile, null, 2)}\nPreferences:\n${JSON.stringify(preferences, null, 2)}`;
@@ -178,43 +166,7 @@ If information like sets or reps is missing for an exercise, use sensible defaul
 If days are not explicitly named, label them Day 1, Day 2, etc.`;
 
     if (!this.isEnabled) {
-      const defaultDays: ParsedDayItem[] = [
-        {
-          day_name: 'Push Day (Chest, Shoulders, Triceps)',
-          exercises: [
-            { name: 'Bench Press', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
-            { name: 'Incline Bench Press', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-            { name: 'Dumbbell Overhead Press', target_sets: 3, target_reps: '10', rest_seconds: 90 },
-            { name: 'Triceps Pushdown (Straight Bar)', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
-          ],
-        },
-        {
-          day_name: 'Pull Day (Back, Biceps)',
-          exercises: [
-            { name: 'Lat Pulldown', target_sets: 4, target_reps: '10-12', rest_seconds: 90 },
-            { name: 'Seated Row', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-            { name: 'Dumbbell Bicep Curl', target_sets: 3, target_reps: '12', rest_seconds: 60 },
-            { name: 'Hammer Curl', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
-          ],
-        },
-        {
-          day_name: 'Legs & Core',
-          exercises: [
-            { name: 'Barbell Squats', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
-            { name: 'Romanian Deadlifts', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-            { name: 'Leg Curl Machine', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
-            { name: 'Flat Bench Crunches', target_sets: 3, target_reps: '15-20', rest_seconds: 45 },
-          ],
-        },
-      ];
-
-      return {
-        program_name: input.text ? input.text.slice(0, 30).trim() : 'Custom Parsed Routine',
-        difficulty: 'intermediate',
-        schedule_days_per_week: 3,
-        description: 'Auto-parsed workout plan (Demo Mode). Set GEMINI_API_KEY and GEMINI_MODEL to enable live parsing.',
-        days: defaultDays,
-      };
+      return getDefaultParsedPlan(input.text);
     }
 
     if (!this.genAI) {
