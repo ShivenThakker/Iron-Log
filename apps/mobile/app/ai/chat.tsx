@@ -198,6 +198,7 @@ export default function AiChatScreen() {
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleSend()}
+            maxLength={2000}
             multiline
           />
           <TouchableOpacity

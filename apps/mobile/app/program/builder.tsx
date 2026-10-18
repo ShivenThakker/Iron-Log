@@ -820,6 +820,7 @@ export default function WorkoutPlanBuilderScreen() {
                     style={styles.textArea}
                     multiline
                     numberOfLines={7}
+                    maxLength={20000}
                     placeholder={`Paste routine here, e.g.:\nDay 1: Chest & Triceps\n- Flat Bench Press 4x8\n- Incline DB Press 3x10\n- Tricep Pushdown 3x12\n\nDay 2: Back & Biceps\n- Lat Pulldowns 4x10\n- Seated Rows 3x12...`}
                     placeholderTextColor={COLORS.dark.textSecondary}
                     value={aiRoutineText}

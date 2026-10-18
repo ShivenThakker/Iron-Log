@@ -1,4 +1,35 @@
 import { z } from 'zod';
+import { AI_LIMITS, ALLOWED_IMAGE_TYPES, matchesInjectionPattern, sanitizeUserText } from '../utils/promptGuard';
+
+const NOT_ALLOWED = 'That message cannot be processed. Please rephrase it.';
+
+const userText = (max: number) =>
+  z
+    .string()
+    .min(1)
+    .max(max)
+    .transform(sanitizeUserText)
+    .refine((text) => text.length > 0, { message: 'Message is empty.' })
+    .refine((text) => !matchesInjectionPattern(text), { message: NOT_ALLOWED });
+
+export const textFeedbackSchema = z.object({
+  prompt: userText(AI_LIMITS.FEEDBACK_PROMPT_MAX),
+  history: z.array(z.any()).optional(),
+});
+
+export const chatMessageSchema = z.object({
+  message: userText(AI_LIMITS.CHAT_MESSAGE_MAX),
+  history: z.array(z.any()).optional(),
+});
+
+export const parsePlanSchema = z
+  .object({
+    text: userText(AI_LIMITS.PARSE_PLAN_TEXT_MAX).optional(),
+    imageBase64: z.string().min(1).max(AI_LIMITS.IMAGE_BASE64_MAX).optional(),
+    mimeType: z.enum(ALLOWED_IMAGE_TYPES).optional(),
+  })
+  .refine((body) => Boolean(body.text) || Boolean(body.imageBase64), { message: 'Send text or an image.' })
+  .refine((body) => !body.imageBase64 || Boolean(body.mimeType), { message: 'mimeType is required with an image.' });
 
 export const parsedExerciseSchema = z.object({
   name: z.string().min(1).max(100),
