@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { geminiService } from '../services/gemini.service';
 import { prisma } from '../lib/prisma';
 
-export const chatCompletion = async (req: Request, res: Response) => {
+export const chatCompletion = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { message, history } = req.body;
     if (!message) {
@@ -34,32 +34,32 @@ export const chatCompletion = async (req: Request, res: Response) => {
     const reply = await geminiService.getTextFeedback(message + userContext, history || []);
     res.json({ reply });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-export const analyzeWorkout = async (req: Request, res: Response) => {
+export const analyzeWorkout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
     const mockRoutine = req.body?.routine || { previousSession: 'Leg Day', setsComplete: 14, avgRpe: 8 };
     const analysis = await geminiService.analyzeRoutine(userId, mockRoutine);
     res.json({ analysis });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-export const generatePlan = async (req: Request, res: Response) => {
+export const generatePlan = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
     const plan = await geminiService.generatePlan({ userId, ...req.body }, req.body);
     res.json({ plan });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };
 
-export const parsePlan = async (req: Request, res: Response) => {
+export const parsePlan = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { text, imageBase64, mimeType } = req.body;
     if (!text && !imageBase64) {
@@ -70,6 +70,6 @@ export const parsePlan = async (req: Request, res: Response) => {
     const program = await geminiService.parseWorkoutPlanFromInput({ text, imageBase64, mimeType });
     res.json({ program });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 };

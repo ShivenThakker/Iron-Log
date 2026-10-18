@@ -34,3 +34,10 @@ export class ForbiddenError extends AppError {
     super(message, 403);
   }
 }
+
+export class AiResponseError extends AppError {
+  constructor(message = 'The AI could not produce a usable result. Please try again.') {
+    super(message, 502);
+  }
+}
+

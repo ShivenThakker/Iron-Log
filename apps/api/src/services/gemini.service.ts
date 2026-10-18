@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../lib/env';
+import { logger } from '../utils/logger';
+import { AiResponseError } from '../utils/errors';
+import { safeParseJson } from '../utils/aiJson';
+import { parsedWorkoutPlanSchema } from '../validators/ai.validator';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -163,9 +167,7 @@ CRITICAL: Return ONLY a raw JSON object (valid JSON, no conversational text, no 
 If information like sets or reps is missing for an exercise, use sensible defaults (3 sets, 8-12 reps, 90s rest).
 If days are not explicitly named, label them Day 1, Day 2, etc.`;
 
-    const model = this.getModel(systemPrompt);
-
-    if (!model) {
+    if (!this.isEnabled) {
       const defaultDays: ParsedDayItem[] = [
         {
           day_name: 'Push Day (Chest, Shoulders, Triceps)',
@@ -205,10 +207,24 @@ If days are not explicitly named, label them Day 1, Day 2, etc.`;
       };
     }
 
+    if (!this.genAI) {
+      this.genAI = new GoogleGenerativeAI(this.apiKey);
+    }
+
+    const model = this.genAI.getGenerativeModel({
+      model: this.modelName,
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: 8192,
+      },
+    });
+
+    let rawText: string;
     try {
       const parts: any[] = [];
       const userPrompt = input.text
-        ? `Here is the workout plan notes/document to parse:\n\n${input.text}`
+        ? `<plan_text>\n${input.text}\n</plan_text>`
         : 'Please parse the workout schedule in the attached image/screenshot into the structured program JSON.';
 
       parts.push(userPrompt);
@@ -224,20 +240,36 @@ If days are not explicitly named, label them Day 1, Day 2, etc.`;
       }
 
       const result = await model.generateContent(parts);
-      const textResponse = result.response.text();
-
-      const cleaned = textResponse
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim();
-
-      const parsed = JSON.parse(cleaned) as ParsedWorkoutPlan;
-      return parsed;
-    } catch (err: any) {
-      console.error('Failed to parse plan via Gemini:', err?.message || err);
-      throw new Error(`AI plan parsing failed: ${err?.message || 'Invalid format'}`);
+      const finishReason = result.response.candidates?.[0]?.finishReason;
+      if (finishReason === 'MAX_TOKENS') {
+        throw new AiResponseError('That plan is too long to read in one go. Try a shorter one.');
+      }
+      rawText = result.response.text();
+    } catch (error) {
+      if (error instanceof AiResponseError) throw error;
+      logger.warn({ err: error, model: this.modelName }, 'Gemini request failed');
+      throw new AiResponseError();
     }
+
+    const parsed = safeParseJson(rawText);
+    if (!parsed.ok) {
+      logger.warn(
+        { reason: parsed.reason, length: rawText.length, preview: rawText.slice(0, 300) },
+        'AI returned JSON that could not be parsed'
+      );
+      throw new AiResponseError();
+    }
+
+    const checked = parsedWorkoutPlanSchema.safeParse(parsed.data);
+    if (!checked.success) {
+      logger.warn(
+        { issues: checked.error.issues.slice(0, 5) },
+        'AI plan did not match the expected shape'
+      );
+      throw new AiResponseError();
+    }
+
+    return checked.data as ParsedWorkoutPlan;
   }
 }
 
