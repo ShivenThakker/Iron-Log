@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 export class GamificationRepository {
@@ -24,14 +25,15 @@ export class GamificationRepository {
     });
   }
 
-  async awardXp(userId: string, amount: number, reason: string) {
-    await prisma.xpTransaction.create({
+  async awardXp(userId: string, amount: number, reason: string, tx?: Prisma.TransactionClient) {
+    const client = tx || prisma;
+    await client.xpTransaction.create({
       data: { user_id: userId, amount, reason },
     });
 
-    const xpRecord = await prisma.userXp.findUnique({ where: { user_id: userId } });
+    const xpRecord = await client.userXp.findUnique({ where: { user_id: userId } });
     if (!xpRecord) {
-      return prisma.userXp.create({
+      return client.userXp.create({
         data: {
           user_id: userId,
           total_xp: amount,
@@ -40,7 +42,7 @@ export class GamificationRepository {
         },
       });
     } else {
-      return prisma.userXp.update({
+      return client.userXp.update({
         where: { user_id: userId },
         data: {
           total_xp: { increment: amount },

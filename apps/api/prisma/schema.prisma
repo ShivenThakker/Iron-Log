@@ -226,8 +226,8 @@ model PersonalRecord {
   id               String   @id @default(uuid())
   user_id          String
   exercise_id      String
-  weight_kg        Float?
-  reps             Int?
+  weight_kg        Float
+  reps             Int
   estimated_1rm_kg Float?
   session_id       String?
   achieved_at      DateTime
@@ -235,6 +235,8 @@ model PersonalRecord {
   user     User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
   exercise Exercise        @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
   session  WorkoutSession? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, exercise_id, weight_kg, reps])
 }
 
 model NutritionGoal {

@@ -1,4 +1,12 @@
 import { prisma } from '../lib/prisma';
+import { gamificationRepository } from './gamification.repository';
+
+export function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const code = (error as { code?: string }).code;
+  const message = (error as { message?: string }).message || '';
+  return code === 'P2002' || message.includes('UNIQUE constraint failed');
+}
 
 export class PRRepository {
   async findCurrentPR(userId: string, exerciseId: string) {
@@ -6,6 +14,50 @@ export class PRRepository {
       where: { user_id: userId, exercise_id: exerciseId },
       orderBy: { estimated_1rm_kg: 'desc' },
     });
+  }
+
+  async recordPersonalRecordOnce(input: {
+    userId: string;
+    exerciseId: string;
+    weightKg: number;
+    reps: number;
+    estimated1rmKg: number;
+    sessionId: string;
+    xpAmount?: number;
+  }): Promise<{ isNewPR: boolean; record?: any }> {
+    try {
+      const record = await prisma.$transaction(async (tx) => {
+        // 1) Insert FIRST. If duplicate exists, throws unique violation and transaction rolls back
+        const pr = await tx.personalRecord.create({
+          data: {
+            user_id: input.userId,
+            exercise_id: input.exerciseId,
+            weight_kg: input.weightKg,
+            reps: input.reps,
+            estimated_1rm_kg: input.estimated1rmKg,
+            session_id: input.sessionId,
+            achieved_at: new Date(),
+          },
+        });
+
+        // 2) Award XP only after successful insert within the same transaction
+        await gamificationRepository.awardXp(
+          input.userId,
+          input.xpAmount ?? 25,
+          'New Personal Record',
+          tx
+        );
+
+        return pr;
+      });
+
+      return { isNewPR: true, record };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { isNewPR: false };
+      }
+      throw error;
+    }
   }
 
   async createPR(data: {
@@ -16,17 +68,15 @@ export class PRRepository {
     estimated1RM: number;
     sessionId: string;
   }) {
-    return prisma.personalRecord.create({
-      data: {
-        user_id: data.userId,
-        exercise_id: data.exerciseId,
-        weight_kg: data.weightKg,
-        reps: data.reps,
-        estimated_1rm_kg: data.estimated1RM,
-        session_id: data.sessionId,
-        achieved_at: new Date(),
-      },
+    const res = await this.recordPersonalRecordOnce({
+      userId: data.userId,
+      exerciseId: data.exerciseId,
+      weightKg: data.weightKg,
+      reps: data.reps,
+      estimated1rmKg: data.estimated1RM,
+      sessionId: data.sessionId,
     });
+    return res.record;
   }
 
   async getAllPRs(userId: string) {
