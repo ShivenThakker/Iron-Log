@@ -71,6 +71,25 @@ export class SessionRepository {
       throw new NotFoundError('Workout session not found');
     }
 
+    if (existing.finished_at) {
+      const calculatedVolume = existing.exerciseSets.reduce((sum, s) => {
+        if (s.set_type !== 'warmup' && s.weight_kg && s.reps) {
+          return sum + s.weight_kg * s.reps;
+        }
+        return sum;
+      }, 0);
+      return {
+        session: existing,
+        summary: {
+          duration_seconds: existing.duration_seconds || 0,
+          total_volume_kg: calculatedVolume,
+          total_sets: existing.exerciseSets.length,
+          pr_count: existing.personalRecords.length,
+          xp_earned: 50 + (existing.personalRecords.length * 25),
+        },
+      };
+    }
+
     const finishedAt = new Date();
     const durationSeconds = finishData.duration_sec
       ? finishData.duration_sec
