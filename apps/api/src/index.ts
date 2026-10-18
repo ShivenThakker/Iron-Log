@@ -1,7 +1,7 @@
+import './lib/env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import exerciseRoutes from './routes/exercise.routes';
@@ -18,11 +18,10 @@ import cronRoutes from './routes/cron.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { rateLimit } from './middleware/ratelimit.middleware';
 import { logger } from './utils/logger';
-
-dotenv.config();
+import { env } from './lib/env';
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = env.PORT;
 
 app.use(helmet());
 app.use(cors());

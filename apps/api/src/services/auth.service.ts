@@ -5,9 +5,8 @@ import { authRepository } from '../repositories/auth.repository';
 import { redis } from '../lib/redis';
 import { gamificationRepository } from '../repositories/gamification.repository';
 import { AppError, UnauthorizedError } from '../utils/errors';
+import { env } from '../lib/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -54,7 +53,7 @@ export class AuthService {
     }
 
     try {
-      const decoded = jwt.verify(refreshTokenString, REFRESH_SECRET) as { id: string };
+      const decoded = jwt.verify(refreshTokenString, env.JWT_REFRESH_SECRET) as { id: string };
       const user = await authRepository.findUserById(decoded.id);
       if (!user) {
         throw new UnauthorizedError('User not found');
@@ -117,8 +116,8 @@ export class AuthService {
   }
 
   private generateTokens(userId: string) {
-    const accessToken = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ id: userId }, REFRESH_SECRET, { expiresIn: '30d' });
+    const accessToken = jwt.sign({ id: userId }, env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ id: userId }, env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
     return { accessToken, refreshToken, userId };
   }
 }

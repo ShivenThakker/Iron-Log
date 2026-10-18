@@ -1,12 +1,20 @@
 import { Router, Request, Response } from 'express';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { env } from '../lib/env';
 
 const router = Router();
 
+function cronSecretMatches(header: unknown): boolean {
+  if (!env.CRON_SECRET || typeof header !== 'string') return false; // fail closed
+  const a = createHash('sha256').update(header).digest();
+  const b = createHash('sha256').update(env.CRON_SECRET).digest();
+  return timingSafeEqual(a, b);
+}
+
 router.post('/streaks', async (req: Request, res: Response): Promise<void> => {
-  const secret = req.headers['x-cron-secret'];
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+  if (!cronSecretMatches(req.headers['x-cron-secret'])) {
     res.status(401).json({ error: 'Unauthorized cron request' });
     return;
   }
