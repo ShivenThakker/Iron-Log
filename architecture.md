@@ -25,16 +25,18 @@ Iron-Log/
 ├── apps/
 │   ├── api/                    # Express + TypeScript REST API
 │   │   ├── prisma/             # Schema, migrations & exercise seed data
+│   │   │   └── manual/         # Manual SQL migration scripts (pr_unique_per_set.sql)
+│   │   ├── scripts/            # Helper & test scripts (check-ai-json.ts)
 │   │   ├── src/
 │   │   │   ├── controllers/    # HTTP request/response handlers
-│   │   │   ├── lib/            # Prisma client singleton & Redis client
+│   │   │   ├── lib/            # Prisma client, Redis client, env.ts boot validation
 │   │   │   ├── middleware/     # Auth, validation, rate-limiting, error handling
-│   │   │   ├── repositories/   # Prisma data access layer
+│   │   │   ├── repositories/   # Prisma data access layer (ownership enforced)
 │   │   │   ├── routes/         # Domain endpoint definitions
-│   │   │   ├── services/       # Business logic (Gemini 2.5, Auth, USDA, PR detection)
-│   │   │   ├── utils/          # Pino logger, custom AppError classes
-│   │   │   ├── validators/     # Zod request validation schemas
-│   │   │   └── index.ts        # Server entry & middleware pipeline
+│   │   │   ├── services/       # Business logic (Gemini, Fallbacks, Auth, USDA, PR detection)
+│   │   │   ├── utils/          # Pino logger, AppError classes, aiJson, promptGuard
+│   │   │   ├── validators/     # Zod request validation schemas (auth, session, ai, etc.)
+│   │   │   └── index.ts        # Server entry, boot verification & middleware pipeline
 │   │   └── package.json
 │   │
 │   └── mobile/                 # React Native + Expo Mobile Application
@@ -71,7 +73,7 @@ Iron-Log/
 | **Local Dev Database** | SQLite via `better-sqlite3` | `^12.8.0` with `@prisma/adapter-better-sqlite3` | Zero-dependency local prototyping (`dev.db`) |
 | **Production Database** | PostgreSQL (Supabase) | PostgreSQL 16+ | Production database with row security and connection pooling |
 | **Cache & Rate Limiting** | Upstash Redis | `@upstash/redis` `^1.39.0` | USDA food search caching, IP & auth rate limiting |
-| **AI Engine** | Google Gemini 2.5 Flash | `@google/generative-ai` `^0.24.1` | Multimodal workout parsing (doc/screenshot), routine analysis, coaching |
+| **AI Engine** | Google Gemini (configured via `GEMINI_MODEL`, active default `gemini-2.5-flash`) | `@google/generative-ai` `^0.24.1` (Note: Google lists as deprecated/maintenance; `@google/genai` planned) | Multimodal workout parsing (doc/screenshot), routine analysis, coaching |
 | **Mobile Framework** | Expo / React Native | Expo `~54.0.33`, React Native `0.81.5`, React `19.1.0` | New Architecture enabled (`newArchEnabled: true`) |
 | **Mobile Navigation** | Expo Router | `~6.0.23` | File-based typed routing (`typedRoutes: true`) |
 | **Mobile State** | TanStack React Query + Zustand | React Query `^5.104`, Zustand `^5.0.15` | Server cache with auto-invalidation, persisted auth |
@@ -103,7 +105,7 @@ The schema defines **24 core models** covering user profiles, training programs,
 ### 4.4 Live Workout Execution & Records
 - **`WorkoutSession`**: Logged workout event (`started_at`, `finished_at`, `duration_seconds`, `calories_burned`, `rating`, `notes`).
 - **`ExerciseSet`**: Individual set performed (`set_number`, `set_type` ['normal', 'warmup', 'dropset', 'failure', 'amrap'], `reps`, `weight_kg`, `rpe`).
-- **`PersonalRecord`**: Milestone PRs per exercise with computed `estimated_1rm_kg` using Brzycki / Epley formulas.
+- **`PersonalRecord`**: Milestone PRs per exercise with required `weight_kg` and `reps`, composite unique rule `@@unique([user_id, exercise_id, weight_kg, reps])` to guarantee idempotency and eliminate race-condition duplicates, and computed `estimated_1rm_kg` using Brzycki / Epley formulas.
 
 ### 4.5 Nutrition Tracking
 - **`NutritionGoal`**: Daily targets for calories, protein, carbs, fats, and water intake.
@@ -145,7 +147,7 @@ Request
   │      ├── /sessions     ── sessionRoutes      (Live set logging & session finish)
   │      ├── /nutrition    ── nutritionRoutes    (Food search & macro logs)
   │      ├── /body         ── bodyRoutes         (Weight & measurements)
-  │      ├── /ai           ── aiRoutes           (Gemini 2.5 Flash parsing, coach chat)
+  │      ├── /ai           ── aiRoutes           (Gemini parsing & coach chat, rate-limited to 10 req/min, Zod validation & prompt screening)
   │      ├── /gamification ── gamificationRoutes (XP, ranks, trophies, streaks)
   │      ├── /analytics    ── analyticsRoutes    (Heatmaps, radars, stats)
   │      ├── /equipment    ── equipmentRoutes    (Gym gear profiles)
@@ -226,11 +228,23 @@ active routine or creates split   program with days & exercises     structured J
 | **7** | Inconsistent error model | `utils/errors.ts` defines `AppError` subclasses. Controllers are standardizing on throwing `AppError` for global middleware interception. | In Progress |
 | **8** | Overlapping responsibility (`setWeightGoal`) | Consolidating all weight operations under `body.repository.ts`. | Planned |
 | **9** | Undeclared dependency: `axios` in API | **Resolved**: Added `"axios": "^1.13.6"` to `apps/api/package.json`. | **RESOLVED** |
-| **10** | Unprotected route surface (`cron.routes.ts`) | **Resolved & Clarified**: Protected via shared secret header (`x-cron-secret` matching `process.env.CRON_SECRET`), designed for serverless cron invocation (GitHub Actions / Render cron). | **CLARIFIED** |
+| **10** | Unprotected route surface (`cron.routes.ts`) | **Resolved & Hardened (Oct 2026)**: Protected via shared secret header (`x-cron-secret`). Fails closed with timing-safe comparison (`cronSecretMatches()`), preventing timing attacks and unauthorized invocations when secret is unset. | **RESOLVED** |
 | **11** | Shared package underused by mobile | Types and gamification constants (`RANKS`, `XP_RULES`) are shared. Screen types are being mapped directly to `@ironlog/shared`. | In Progress |
 | **12** | Local WatermelonDB not wired | WatermelonDB schema and models are scaffolded in `apps/mobile/database/` for offline-first sync. Active sync adapter is scheduled for Phase 5. | By Design |
 | **13** | Orphaned template files | Leftover template files cleaned up during Phase 0 scaffolding. | **RESOLVED** |
 | **14** | Fixtures embedded in screens | Fallback mock data in screens serves as graceful degradation when the backend is offline or unseeded. | By Design |
+
+### 7.1 Security & Resilience Audit Resolutions (Oct 2026)
+
+| # | Finding & Subsystem | Architectural Fix & Verification | Status |
+|---|---|---|---|
+| **F1** | Default JWT Secret Fallback (`auth.middleware.ts`, `auth.service.ts`) | Removed all `dev_secret` fallbacks. Created boot-time settings validator (`apps/api/src/lib/env.ts`) halting the process if `JWT_SECRET` / `JWT_REFRESH_SECRET` are missing, shorter than 32 chars, or identical. Cron secret fails closed. | **RESOLVED** (Oct 2026) |
+| **F2** | IDOR on Session & Entity Lookups (`session`, `equipment`, `program`, `exercise`) | Ownership verification enforced on `getSession`, `addSet`, `finishSession`, `setActiveProfile`, `saveDayPlan`, `updateProgram`, and custom exercise lookups. Unowned resources return HTTP 404 (`NotFoundError`). | **RESOLVED** (Oct 2026) |
+| **F3** | Unhandled AI JSON Parsing (`gemini.service.ts`) | Created `apps/api/src/utils/aiJson.ts` with fenced markdown extraction and 200k char cap. Structured output validation via Zod `parsedWorkoutPlanSchema`. Explicit `responseMimeType: 'application/json'` and `maxOutputTokens: 8192`. Clean HTTP 502 (`AiResponseError`) on parsing or truncation failures. | **RESOLVED** (Oct 2026) |
+| **F4** | Personal Record Race Condition (`schema.prisma`, `pr.repository.ts`, `prDetection.ts`) | Required `weight_kg` and `reps` on `PersonalRecord` with composite unique constraint `@@unique([user_id, exercise_id, weight_kg, reps])`. Wrapped insert and XP award in `prisma.$transaction`. Catches `P2002` duplicate errors idempotently returning `{ isNewPR: false }`. | **RESOLVED** (Oct 2026) |
+| **F5** | Unscreened & Unbounded AI Inputs (`promptGuard.ts`, `ai.routes.ts`) | Enforced length caps (2,000 chars for coach/feedback, 20,000 for plan parsing, 10MB base64 images). NFKC normalization and control character stripping. Regex screening against prompt injection. System instruction separation and `<athlete_message>` / `<plan_text>` boundaries. Dedicated rate limit (10 req/min). Matching `maxLength` on mobile inputs. | **RESOLVED** (Oct 2026) |
+| **F6** | Hardcoded AI Model in Source Code (`gemini.service.ts`) | Removed in-code model defaults. Required `GEMINI_MODEL` when `GEMINI_API_KEY` is present. Startup logging of active AI model via `index.ts`. Allows zero-code model migration from Render dashboard. | **RESOLVED** (Oct 2026) |
+| **F7** | Decentralized AI Fallback Messages (`gemini.fallbacks.ts`) | Consolidated all offline demo mode responses and error fallbacks into `apps/api/src/services/gemini.fallbacks.ts` with typed helper `getFallbackResponse()`. | **RESOLVED** (Oct 2026) |
 
 ---
 
@@ -240,13 +254,15 @@ active routine or creates split   program with days & exercises     structured J
 - Configured in `render.yaml` as web service `ironlog-api`.
 - Build command: `npm install && npm run build --workspace=api`
 - Start command: `npm run start --workspace=api`
-- Environment Variables required:
+- Environment Variables required (strictly validated at startup via `apps/api/src/lib/env.ts`):
   - `DATABASE_URL`: Supabase PostgreSQL pooled connection URL.
-  - `JWT_SECRET` & `JWT_REFRESH_SECRET`: Secure cryptographic strings.
+  - `JWT_SECRET` & `JWT_REFRESH_SECRET`: Secure cryptographic strings (minimum 32 characters, non-guessable, must be different from each other).
+  - `CRON_SECRET`: Secret key for `/cron` endpoints (required in production; timing-safe check fails closed).
   - `GEMINI_API_KEY`: Google AI Studio API key.
-  - `GEMINI_MODEL`: `gemini-2.5-flash` (or override).
+  - `GEMINI_MODEL`: Model identifier (e.g. `gemini-2.5-flash`; required whenever `GEMINI_API_KEY` is set).
   - `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis instance.
-  - `CRON_SECRET`: Secret key for `/cron` endpoints.
+  - `PORT`: Server listen port (default 3000).
+  - `NODE_ENV`: Runtime mode (`development` or `production`).
 
 ### 8.2 Mobile Deployment (Expo EAS)
 - Configured via `app.json` for iOS and Android builds.
