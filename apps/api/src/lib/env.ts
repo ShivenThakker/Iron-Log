@@ -3,7 +3,7 @@ import 'dotenv/config';
 const problems: string[] = [];
 
 // Values that must never be used as a secret, even on purpose.
-const KNOWN_WEAK_SECRETS = [
+const KNOWN_PLACEHOLDER_SUBSTRINGS = [
   'dev_secret',
   'dev-secret',
   'changeme',
@@ -11,10 +11,19 @@ const KNOWN_WEAK_SECRETS = [
   'change-me',
   'your_secret',
   'your-secret',
-  'example',
+  'your_jwt_secret',
+  'your_refresh_secret',
+  'replace_me',
+  'placeholder',
+];
+
+const KNOWN_WEAK_EXACT_VALUES = [
   'secret',
   'password',
+  'example',
   '123456',
+  '12345678',
+  'admin',
 ];
 
 function readRequired(name: string): string {
@@ -32,7 +41,11 @@ function readSecret(name: string): string {
   if (value.length < 32) {
     problems.push(`${name} is too short (${value.length} characters). Use at least 32.`);
   }
-  if (KNOWN_WEAK_SECRETS.some((weak) => value.toLowerCase().includes(weak))) {
+  const lower = value.toLowerCase();
+  if (
+    KNOWN_PLACEHOLDER_SUBSTRINGS.some((weak) => lower.includes(weak)) ||
+    KNOWN_WEAK_EXACT_VALUES.includes(lower)
+  ) {
     problems.push(`${name} looks like a placeholder. Generate a real random secret.`);
   }
   return value;

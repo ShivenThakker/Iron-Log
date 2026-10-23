@@ -72,13 +72,13 @@ Iron-Log/
 | **ORM / Database Access** | Prisma | `^7.5.0` | Client generation, query building, schema migrations |
 | **Local Dev Database** | SQLite via `better-sqlite3` | `^12.8.0` with `@prisma/adapter-better-sqlite3` | Zero-dependency local prototyping (`dev.db`) |
 | **Production Database** | PostgreSQL (Supabase) | PostgreSQL 16+ | Production database with row security and connection pooling |
-| **Cache & Rate Limiting** | Upstash Redis | `@upstash/redis` `^1.39.0` | USDA food search caching, IP & auth rate limiting |
+| **Cache & Rate Limiting** | Upstash Redis | `@upstash/redis` `^1.39.0` | USDA food search caching, dynamic IP & auth rate limiting |
 | **AI Engine** | Google Gemini (configured via `GEMINI_MODEL`, active default `gemini-2.5-flash`) | `@google/generative-ai` `^0.24.1` (Note: Google lists as deprecated/maintenance; `@google/genai` planned) | Multimodal workout parsing (doc/screenshot), routine analysis, coaching |
-| **Mobile Framework** | Expo / React Native | Expo `~54.0.33`, React Native `0.81.5`, React `19.1.0` | New Architecture enabled (`newArchEnabled: true`) |
-| **Mobile Navigation** | Expo Router | `~6.0.23` | File-based typed routing (`typedRoutes: true`) |
-| **Mobile State** | TanStack React Query + Zustand | React Query `^5.104`, Zustand `^5.0.15` | Server cache with auto-invalidation, persisted auth |
-| **Local Device Storage** | Expo SecureStore & WatermelonDB | SecureStore `^58.0.2`, WatermelonDB `^0.28.0` | Offline-first sync, JWT keychain storage |
-| **Vision & Camera** | Expo Image Picker | `~16.0.6` | Image & screenshot capture with base64 conversion |
+| **Mobile Framework** | Expo / React Native | Expo `~54.0.37`, React Native `0.81.5`, React `19.1.0` | New Architecture enabled (`newArchEnabled: true`) |
+| **Mobile Navigation** | Expo Router | `~6.0.24` | File-based typed routing (`typedRoutes: true`) |
+| **Mobile State** | TanStack React Query + Zustand | React Query `^5.104`, Zustand `^5.0.15` | Server cache with auto-invalidation, persisted auth & refresh token |
+| **Local Device Storage** | Expo SecureStore & WatermelonDB | SecureStore `~15.0.8`, WatermelonDB `^0.28.0` | Offline-first sync, JWT keychain storage |
+| **Vision & Camera** | Expo Image Picker | `~17.0.11` | Image & screenshot capture with base64 conversion |
 | **Styling & Charts** | Custom Glassmorphism + React Native SVG | `react-native-svg` `15.12.1`, `phosphor-react-native` | Dark cyberpunk aesthetic with 60fps animations |
 
 ---
@@ -172,6 +172,13 @@ const resolveBaseUrl = () => {
 ```
 The Express server explicitly binds to `0.0.0.0` to accept connections across all LAN interfaces.
 
+### 5.3 Mobile Token Lifecycle & Resilient Session Sync (`apps/mobile/services/api.ts`)
+
+- **15-Minute Access Token Expiration**: To maintain short-lived access credentials without disrupting 45–90 minute workout sessions, Axios attaches an asynchronous response interceptor on HTTP 401 errors.
+- **Automatic Token Refresh**: The client retrieves `refreshToken` from the hydrated Zustand `useAuthStore` (persisted via `expo-secure-store`), calls `POST /auth/refresh`, updates the auth store, and re-executes the original failed request seamlessly.
+- **Token Revocation on Logout**: When logging out from the settings screen (`apps/mobile/app/settings/index.tsx`), the client sends `{ refreshToken }` to `POST /auth/logout`, enabling Upstash Redis to blacklist the token and prevent replay attacks.
+- **Dynamic Workout Exercise ID Resolution**: In `apps/mobile/app/workout/active.tsx`, default workout sets dynamically resolve their exercise IDs against the database UUIDs returned by `GET /exercises`, preventing foreign-key constraints from failing during set logging.
+
 ---
 
 ## 6. Workout Program Builder Architecture
@@ -245,6 +252,16 @@ active routine or creates split   program with days & exercises     structured J
 | **F5** | Unscreened & Unbounded AI Inputs (`promptGuard.ts`, `ai.routes.ts`) | Enforced length caps (2,000 chars for coach/feedback, 20,000 for plan parsing, 10MB base64 images). NFKC normalization and control character stripping. Regex screening against prompt injection. System instruction separation and `<athlete_message>` / `<plan_text>` boundaries. Dedicated rate limit (10 req/min). Matching `maxLength` on mobile inputs. | **RESOLVED** (Oct 2026) |
 | **F6** | Hardcoded AI Model in Source Code (`gemini.service.ts`) | Removed in-code model defaults. Required `GEMINI_MODEL` when `GEMINI_API_KEY` is present. Startup logging of active AI model via `index.ts`. Allows zero-code model migration from Render dashboard. | **RESOLVED** (Oct 2026) |
 | **F7** | Decentralized AI Fallback Messages (`gemini.fallbacks.ts`) | Consolidated all offline demo mode responses and error fallbacks into `apps/api/src/services/gemini.fallbacks.ts` with typed helper `getFallbackResponse()`. | **RESOLVED** (Oct 2026) |
+| **F8** | Mobile 401 Session Interruption (`apps/mobile/services/api.ts`) | Added Axios 401 response interceptor dynamically calling `/auth/refresh` using stored `refreshToken` in `useAuthStore`, persisting new tokens and replaying failed requests without interrupting live workouts. | **RESOLVED** (Oct 2026) |
+| **F9** | Active Workout Foreign-Key ID Mismatch (`apps/mobile/app/workout/active.tsx`) | Default workout exercises previously used dummy string IDs (`bench-press-1`), causing set logging to fail foreign key checks. Now dynamically resolves against fetched database UUIDs from `/exercises`. | **RESOLVED** (Oct 2026) |
+| **F10** | Unverified Google OAuth Signature Bypass (`auth.service.ts`) | Required `GOOGLE_CLIENT_ID` configuration for Google OAuth. Removed insecure unverified `jwt.decode` fallback that allowed arbitrary token forging. | **RESOLVED** (Oct 2026) |
+| **F11** | Non-Idempotent Weekly Streak / XP Cron Reset (`cron.routes.ts`) | Protected Monday cron reset with `where: { week_reset_at: { lt: today } }` to prevent repeated cron triggers from wiping weekly user XP mid-day. | **RESOLVED** (Oct 2026) |
+| **F12** | Profile Update Dropped Calorie Goal (`user.service.ts`) | Destructured `daily_calorie_target` was previously dropped. Wired to `nutritionRepository.setNutritionGoal(userId, { daily_calories })` to properly persist targets. | **RESOLVED** (Oct 2026) |
+| **F13** | Unrevoked Refresh Tokens on Mobile Logout (`settings/index.tsx`) | Mobile logout previously sent empty payload. Now transmits `refreshToken` in `POST /auth/logout` so Redis can blacklist it against replay. | **RESOLVED** (Oct 2026) |
+| **F14** | Duplicate XP on Session Finish Double-Tap (`session.repository.ts`) | Added idempotent check `if (existing.finished_at)` returning finished session summary immediately, stopping duplicate 50 XP awards and streak recalculations. | **RESOLVED** (Oct 2026) |
+| **F15** | Program Creation Multi-Step Transactional Safety (`program.repository.ts`) | `createFullProgram` and `saveDayPlan` now wrap all program deactivations, day creations, and exercise insertions in `prisma.$transaction`. | **RESOLVED** (Oct 2026) |
+| **F16** | Concurrency Race in Initial XP Awards (`gamification.repository.ts`) | Replaced check-then-write pattern in `getOrCreateUserXp` and `awardXp` with atomic `prisma.userXp.upsert`, eliminating `P2002` duplicate key errors. | **RESOLVED** (Oct 2026) |
+| **F17** | False Positive Substring Checks on Secret Validation (`env.ts`) | Separated placeholder phrases from exact match keywords in `env.ts` so high-entropy secrets containing English substrings like `secret` are not rejected at startup. | **RESOLVED** (Oct 2026) |
 
 ---
 
