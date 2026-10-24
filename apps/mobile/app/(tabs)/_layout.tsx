@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { COLORS } from '@/constants/tokens';
+import { OBSIDIAN_COLORS } from '@/constants/tokens';
 import { Icon } from '@/components/ui/Icon';
 
 export default function TabLayout() {
@@ -9,17 +9,19 @@ export default function TabLayout() {
       screenOptions={{ 
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: COLORS.dark.bgSecondary,
-          borderTopColor: 'rgba(255, 255, 255, 0.08)',
-          height: 62,
+          backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+          borderTopColor: OBSIDIAN_COLORS.borderGhost,
+          borderTopWidth: 1,
+          height: 64,
           paddingBottom: 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: COLORS.dark.accentRed,
-        tabBarInactiveTintColor: COLORS.dark.textSecondary,
+        tabBarActiveTintColor: OBSIDIAN_COLORS.voltLime,
+        tabBarInactiveTintColor: OBSIDIAN_COLORS.textSlate,
         tabBarLabelStyle: {
-          fontFamily: 'Inter_500Medium',
-          fontSize: 11,
+          fontFamily: 'SpaceGrotesk_600SemiBold',
+          fontSize: 10,
+          letterSpacing: 0.5,
         },
       }}
     >
