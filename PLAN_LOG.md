@@ -207,5 +207,14 @@ All 11 mobile screens redesigned with strict adherence to Obsidian tokens, Space
 - [x] `PLAN_LOG.md` has an entry for every step
 - **Status**: PASSED
 
+---
 
+## Post-Redesign Additions: Auth / Login Screen (`login_screen`)
 
+- **Trigger**: User provided `login_screen` Stitch export (HTML + screenshot) in `/home/ConQueso/Desktop/IronLogPP/stitch_gym_tracker_app_frontend/login_screen`.
+- **Assets**: Mirrored `code.html` and `screen.png` to `design/stitch/login_screen/`.
+- **Implementation**:
+  - `apps/mobile/app/index.tsx`: Redesigned auth gateway matching `login_screen` pixel-for-pixel (Volt glow squircle container, angled fill barbell, Space Grotesk `IRONLOG` hero, `Get Started` volt CTA, and `I already have an account` button with Terms & Privacy footer).
+  - `apps/mobile/app/login.tsx`: Redesigned credentials sign-in modal with Obsidian Kinetic surfaces, Space Grotesk typography, and clean validation error banners while keeping full auth store integration (`api.post('/auth/login')`).
+  - `apps/mobile/app/register.tsx`: Redesigned athlete account creation modal with matching Obsidian Volt styling and full auth registration integration (`api.post('/auth/register')`).
+- **Verification**: `npm run typecheck` clean across all workspaces (0 errors).

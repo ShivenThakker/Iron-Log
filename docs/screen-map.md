@@ -42,9 +42,7 @@ The screens will be implemented in this exact sequence:
 | *(No direct Stitch folder)* | `app/ai/chat.tsx` | `api.post('/ai/chat')`, `useAuthStore` | **Kept:** Retains AI coach chat conversation interface, styled with dark obsidian theme tokens. Preserves F5 2,000 char limit. |
 | *(No direct Stitch folder)* | `app/(tabs)/_layout.tsx` | Expo Router Tabs, `phosphor-react-native` | **Changed:** Updated bottom navigation icons, labels (Workout, Nutrition, Rank, Body, Insights), backdrop blur, and Volt active tint. |
 | *(No direct Stitch folder)* | `app/_layout.tsx` | QueryClientProvider, fonts, Stack router | **Changed:** Space Grotesk font loading alongside Inter. Preserves F8 401 refresh interceptor. |
-| *(No direct Stitch folder)* | `app/login.tsx` | `api.post('/auth/login')`, `useAuthStore` | **Kept:** Authentication entry screen styled with design tokens. |
-| *(No direct Stitch folder)* | `app/register.tsx` | `api.post('/auth/register')`, `useAuthStore` | **Kept:** Registration entry screen styled with design tokens. |
-| *(No direct Stitch folder)* | `app/index.tsx` | Root auth redirect | **Kept:** Session redirect logic intact. |
+| `login_screen` | `app/index.tsx` (Gateway), `app/login.tsx` (Credentials), `app/register.tsx` (Signup) | `api.post('/auth/login')`, `api.post('/auth/register')`, `useAuthStore` | **Redesigned:** Auth gateway with Obsidian glow barbell hero, Space Grotesk branding, Volt "Get Started" and Obsidian "I already have an account" buttons, and unified credentials/signup modals matching the Stitch `login_screen` spec. |
 | *(No direct Stitch folder)* | `app/onboarding/_layout.tsx` | Stack router | **Kept:** Onboarding stack wrapper intact. |
 
 ---
