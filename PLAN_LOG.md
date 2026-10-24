@@ -34,3 +34,23 @@ Running record of steps executed according to `REDESIGN_PLAN.md`.
 - **Verification**: `docs/endpoints-before.md` matches all routes across 13 route files + 1 index mount.
 - **Status**: PASSED
 
+---
+
+## Phase 1: Inventory
+
+### Step 1.1 - Stitch Export Reference Setup
+- **Action**: Copied all Stitch exports, screenshots, and design tokens documentation from `/home/ConQueso/Desktop/IronLogPP/stitch_gym_tracker_app_frontend/` to `/home/ConQueso/Desktop/Iron-Log/design/stitch/`.
+- **Verification**: Verified directory contains 12 screen directories + design system markdown (`obsidian_kinetic/DESIGN.md`).
+- **Status**: PASSED
+
+### Step 1.2 - Screen Map
+- **Action**: Created `docs/screen-map.md` mapping all Stitch screens to Expo Router routes in `apps/mobile/app/`.
+- **Verification**: All Stitch folders mapped, and all existing Expo routes accounted for.
+- **Status**: PASSED
+
+### Step 1.3 - Removal Ledger
+- **Action**: Created `REMOVAL_LEDGER.md` documenting all dropped buttons/features, unused prototype endpoints, and route path realignments.
+- **Verification**: Verified zero callers for all 8 `DELETE-ENDPOINT` rows via codebase search across `apps/mobile`.
+- **Status**: PASSED (Ready for Human Review)
+
+
