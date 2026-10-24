@@ -5,18 +5,18 @@ Strict rule: **No endpoint or backend code is deleted without explicit human app
 
 ---
 
-## 1. Dead Endpoints Re-Verified at Step 4.1 (Awaiting User Approval)
+## 1. Dead Endpoints Pruned in Phase 5 (Approved & Completed)
 
-These endpoints have been re-verified against the finished mobile screens (all 11 screens) and confirmed to have exactly **zero callers**. Per user instruction, they remain pending final approval before any backend pruning in Phase 5.
+These 6 candidate items (7 endpoints) had 0 callers in the finished mobile app, were approved by the user, and were pruned with dedicated commits after verifying typecheck and tests.
 
-| # | Method & Endpoint | Purpose / Origin | Frontend Callers | Complete Backend Files | DB Model / Columns Touched | Step 4.1 Verification Status |
+| # | Method & Endpoint | Purpose / Origin | Frontend Callers | Complete Backend Files Modified | DB Model / Columns Touched | Phase 5 Status |
 |---|---|---|:---:|---|---|---|
-| 1 | `GET /exercises/shuffle` | Prototype exercise randomizer | 0 | `apps/api/src/routes/exercise.routes.ts`<br>`apps/api/src/controllers/exercise.controller.ts` | None | **Re-verified: 0 callers**. Awaiting user approval. |
-| 2 | `POST /ai/feedback` | Prototype text feedback submission | 0 | `apps/api/src/routes/ai.routes.ts`<br>`apps/api/src/controllers/ai.controller.ts`<br>`apps/api/src/validators/ai.validator.ts`<br>`apps/api/src/services/gemini.service.ts`<br>`apps/api/src/services/gemini.fallbacks.ts` | None | **Re-verified: 0 callers**. Awaiting user approval. |
-| 3 | `POST /ai/plan` | Duplicate route alias of `/ai/generate-plan` | 0 | `apps/api/src/routes/ai.routes.ts` | None | **Re-verified: 0 callers**. Awaiting user approval. |
-| 6 | `GET /gamification/trophies` | Standalone trophies query (mobile uses unified `GET /gamification`) | 0 | `apps/api/src/routes/gamification.routes.ts`<br>`apps/api/src/controllers/gamification.controller.ts` | `UserTrophy`, `Trophy` (reads only) | **Re-verified: 0 callers**. Awaiting user approval. |
-| 7 | `POST /gamification/check-trophies` | Standalone manual trophy trigger (backend checks automatically on session finish) | 0 | `apps/api/src/routes/gamification.routes.ts`<br>`apps/api/src/controllers/gamification.controller.ts` | `UserTrophy` (writes unlocked trophies) | **Re-verified: 0 callers**. Awaiting user approval. |
-| 8 | `GET /prs`<br>`GET /prs/recent` | Standalone personal record read routes | 0 | `apps/api/src/routes/pr.routes.ts`<br>`apps/api/src/controllers/pr.controller.ts`<br>`apps/api/src/index.ts` (`/prs` mount) | `PersonalRecord` (reads only) | **Re-verified: 0 callers**. Awaiting user approval. |
+| 1 | `GET /exercises/shuffle` | Prototype exercise randomizer | 0 | `apps/api/src/routes/exercise.routes.ts`<br>`apps/api/src/controllers/exercise.controller.ts`<br>`apps/api/src/repositories/exercise.repository.ts` | None | **PRUNED** (`1066a9a`) |
+| 2 | `POST /ai/feedback` | Prototype text feedback submission | 0 | `apps/api/src/routes/ai.routes.ts`<br>`apps/api/src/controllers/ai.controller.ts`<br>`apps/api/src/validators/ai.validator.ts`<br>`apps/api/src/utils/promptGuard.ts`<br>`apps/api/src/services/gemini.service.ts`<br>`apps/api/src/services/gemini.fallbacks.ts` | None | **PRUNED** (`d2dd287`) |
+| 3 | `POST /ai/plan` | Duplicate route alias of `/ai/generate-plan` | 0 | `apps/api/src/routes/ai.routes.ts` | None | **PRUNED** (`68fdb48`) |
+| 6 | `GET /gamification/trophies` | Standalone trophies query (mobile uses unified `GET /gamification`) | 0 | `apps/api/src/routes/gamification.routes.ts`<br>`apps/api/src/controllers/gamification.controller.ts` | `UserTrophy`, `Trophy` (reads only) | **PRUNED** (`11ee9dd`) |
+| 7 | `POST /gamification/check-trophies` | Standalone manual trophy trigger (backend checks automatically on session finish) | 0 | `apps/api/src/routes/gamification.routes.ts`<br>`apps/api/src/controllers/gamification.controller.ts` | `UserTrophy` (writes unlocked trophies) | **PRUNED** (`fa4b9cd`) *(logic kept in repository)* |
+| 8 | `GET /prs`<br>`GET /prs/recent` | Standalone personal record read routes | 0 | `apps/api/src/routes/pr.routes.ts`<br>`apps/api/src/controllers/pr.controller.ts`<br>`apps/api/src/index.ts` (`/prs` mount) | `PersonalRecord` (reads only) | **PRUNED** (`ed37656`) *(F4 detection code kept)* |
 
 ---
 
