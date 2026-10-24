@@ -10,12 +10,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_TYPOGRAPHY,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
 interface ChatMessage {
@@ -40,7 +44,7 @@ export default function AiChatScreen() {
     {
       id: 'welcome-1',
       sender: 'ai',
-      text: "Hey! I'm your IronLog AI Coach, powered by Gemini 2.0 Flash. I have full context on your workouts, current rank, and nutrition. How can I optimize your gains today?",
+      text: "Hey! I'm your IronLog AI Coach, powered by Gemini 2.5 Flash. I have full context on your workouts, current rank, and nutrition. How can I optimize your gains today?",
       timestamp: 'Just now',
     },
   ]);
@@ -51,10 +55,14 @@ export default function AiChatScreen() {
     const text = (messageToSend || inputText).trim();
     if (!text || loading) return;
 
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
-      text,
+      text: text.slice(0, 2000), // Strict F5 safety: maxLength 2,000 characters
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -63,8 +71,11 @@ export default function AiChatScreen() {
     setLoading(true);
 
     try {
-      const response = await api.post('/ai/chat', { message: text });
-      const aiReply = response.data?.reply || response.data?.text || "I've analyzed your progress. Keep progressive overload consistent and ensure you hit your protein targets.";
+      const response = await api.post('/ai/chat', { message: text.slice(0, 2000) });
+      const aiReply =
+        response.data?.reply ||
+        response.data?.text ||
+        "I've analyzed your progress. Keep progressive overload consistent and ensure you hit your protein targets.";
 
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
@@ -91,26 +102,33 @@ export default function AiChatScreen() {
   }, [messages, loading]);
 
   return (
-    <ScreenContainer scrollable={false}>
+    <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
         {/* Top Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Icon name="CaretLeft" size={24} color="#FFFFFF" />
+          <TouchableOpacity
+            style={styles.backBtn}
+            activeOpacity={0.7}
+            onPress={() => router.back()}
+          >
+            <Icon name="CaretLeft" size={22} color={OBSIDIAN_COLORS.textWhite} />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
             <View style={styles.titleRow}>
-              <Text variant="h3" style={styles.title}>IronLog Coach</Text>
-              <Badge label="Gemini 2.0" variant="gold" />
+              <Text style={styles.title}>IronLog Coach</Text>
+              <View style={styles.geminiBadge}>
+                <Icon name="Sparkle" size={11} color={OBSIDIAN_COLORS.voltLime} />
+                <Text style={styles.geminiBadgeText}>Gemini 2.5</Text>
+              </View>
             </View>
-            <Text variant="caption" style={styles.status}>Online • Ready to program</Text>
+            <Text style={styles.status}>Online • Ready to program</Text>
           </View>
 
-          <View style={{ width: 32 }} />
+          <View style={{ width: 36 }} />
         </View>
 
         {/* Message Feed */}
@@ -118,6 +136,7 @@ export default function AiChatScreen() {
           ref={scrollViewRef}
           style={styles.feed}
           contentContainerStyle={styles.feedContent}
+          showsVerticalScrollIndicator={false}
         >
           {messages.map((msg) => {
             const isAi = msg.sender === 'ai';
@@ -128,7 +147,7 @@ export default function AiChatScreen() {
               >
                 {isAi && (
                   <View style={styles.aiAvatar}>
-                    <Icon name="Sparkle" size={16} color="#FFFFFF" />
+                    <Icon name="Sparkle" size={14} color={OBSIDIAN_COLORS.voltLime} />
                   </View>
                 )}
 
@@ -138,15 +157,14 @@ export default function AiChatScreen() {
                     isAi ? styles.bubbleAi : styles.bubbleUser,
                   ]}
                 >
-                  <Text
-                    variant="body"
-                    style={[styles.bubbleText, isAi ? styles.textAi : styles.textUser]}
-                  >
+                  <Text style={[styles.bubbleText, isAi ? styles.textAi : styles.textUser]}>
                     {msg.text}
                   </Text>
                   <Text
-                    variant="caption"
-                    style={[styles.timestamp, isAi ? styles.timestampAi : styles.timestampUser]}
+                    style={[
+                      styles.timestamp,
+                      isAi ? styles.timestampAi : styles.timestampUser,
+                    ]}
                   >
                     {msg.timestamp}
                   </Text>
@@ -158,30 +176,29 @@ export default function AiChatScreen() {
           {loading && (
             <View style={[styles.messageWrapper, styles.wrapperAi]}>
               <View style={styles.aiAvatar}>
-                <Icon name="Sparkle" size={16} color="#FFFFFF" />
+                <Icon name="Sparkle" size={14} color={OBSIDIAN_COLORS.voltLime} />
               </View>
-              <GlassCard style={styles.typingCard}>
-                <ActivityIndicator size="small" color={COLORS.dark.accentGold} />
-                <Text variant="caption" style={styles.typingText}>Coach is thinking...</Text>
-              </GlassCard>
+              <View style={styles.typingCard}>
+                <ActivityIndicator size="small" color={OBSIDIAN_COLORS.voltLime} />
+                <Text style={styles.typingText}>Coach is thinking...</Text>
+              </View>
             </View>
           )}
 
           {/* Suggested Starter Prompt Chips */}
           {messages.length <= 2 && (
             <View style={styles.starterSection}>
-              <Text variant="caption" style={styles.starterLabel}>SUGGESTED QUESTIONS</Text>
+              <Text style={styles.starterLabel}>SUGGESTED QUESTIONS</Text>
               <View style={styles.starterChips}>
                 {STARTER_PROMPTS.map((prompt, idx) => (
                   <TouchableOpacity
                     key={idx}
                     style={styles.starterChip}
+                    activeOpacity={0.8}
                     onPress={() => handleSend(prompt)}
                   >
-                    <Icon name="Sparkle" size={14} color={COLORS.dark.accentGold} />
-                    <Text variant="caption" style={styles.starterChipText}>
-                      {prompt}
-                    </Text>
+                    <Icon name="Sparkle" size={13} color={OBSIDIAN_COLORS.voltLime} />
+                    <Text style={styles.starterChipText}>{prompt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -189,24 +206,30 @@ export default function AiChatScreen() {
           )}
         </ScrollView>
 
-        {/* Bottom Input Area */}
+        {/* Bottom Input Bar */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.textInput}
             placeholder="Ask about workouts, form, or nutrition..."
-            placeholderTextColor={COLORS.dark.textSecondary}
+            placeholderTextColor={OBSIDIAN_COLORS.textMuted}
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleSend()}
-            maxLength={2000}
+            maxLength={2000} // Strict F5 Character Limit
             multiline
           />
           <TouchableOpacity
             style={[styles.sendButton, (!inputText.trim() || loading) && styles.sendButtonDisabled]}
             disabled={!inputText.trim() || loading}
+            activeOpacity={0.85}
             onPress={() => handleSend()}
           >
-            <Icon name="PaperPlaneTilt" size={20} color="#FFFFFF" />
+            <Icon
+              name="PaperPlaneTilt"
+              size={18}
+              color={!inputText.trim() || loading ? OBSIDIAN_COLORS.textMuted : OBSIDIAN_COLORS.onPrimary}
+              weight="bold"
+            />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -217,18 +240,25 @@ export default function AiChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: OBSIDIAN_COLORS.surface,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingTop: OBSIDIAN_SPACING.xs,
+    paddingBottom: OBSIDIAN_SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   backBtn: {
-    padding: SPACING.xs,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerCenter: {
     alignItems: 'center',
@@ -236,27 +266,46 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 6,
   },
   title: {
-    color: COLORS.dark.textPrimary,
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  geminiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
+  },
+  geminiBadgeText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 9,
   },
   status: {
-    color: COLORS.dark.success,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.cyanAccent,
+    fontSize: 10,
     marginTop: 2,
   },
   feed: {
     flex: 1,
   },
   feedContent: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.lg,
-    gap: SPACING.md,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.md,
+    gap: OBSIDIAN_SPACING.md,
   },
   messageWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: SPACING.xs,
+    gap: 6,
     maxWidth: '85%',
   },
   wrapperAi: {
@@ -270,112 +319,138 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.dark.aiPurple,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
   },
   bubble: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
-    borderRadius: RADIUS.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: OBSIDIAN_RADIUS.lg,
   },
   bubbleAi: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderBottomLeftRadius: 4,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderBottomLeftRadius: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   bubbleUser: {
-    backgroundColor: COLORS.dark.accentRed,
-    borderBottomRightRadius: 4,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderBottomRightRadius: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
   },
   bubbleText: {
-    lineHeight: 22,
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    lineHeight: 20,
+    fontSize: 14,
   },
   textAi: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   textUser: {
-    color: '#FFFFFF',
+    color: OBSIDIAN_COLORS.textWhite,
   },
   timestamp: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
     fontSize: 9,
     marginTop: 4,
   },
   timestampAi: {
-    color: COLORS.dark.textSecondary,
+    color: OBSIDIAN_COLORS.textMuted,
     alignSelf: 'flex-start',
   },
   timestampUser: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: OBSIDIAN_COLORS.voltLime,
     alignSelf: 'flex-end',
   },
   typingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.lg,
+    gap: 8,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   typingText: {
-    color: COLORS.dark.textSecondary,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
   starterSection: {
-    marginTop: SPACING.lg,
-    gap: SPACING.sm,
+    marginTop: OBSIDIAN_SPACING.sm,
+    gap: 8,
   },
   starterLabel: {
-    color: COLORS.dark.accentGold,
-    letterSpacing: 1.5,
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+    letterSpacing: 1.2,
   },
   starterChips: {
-    gap: SPACING.sm,
+    gap: 6,
   },
   starterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.dark.bgSecondary,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.full,
+    gap: 6,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: OBSIDIAN_RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   starterChipText: {
-    color: COLORS.dark.textPrimary,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 12,
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.dark.bgSecondary,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    gap: SPACING.sm,
+    borderTopColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 8,
   },
   textInput: {
     flex: 1,
-    backgroundColor: COLORS.dark.bgInput,
-    color: COLORS.dark.textPrimary,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    color: OBSIDIAN_COLORS.textWhite,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     maxHeight: 100,
-    fontSize: 15,
+    fontSize: 14,
+    fontFamily: 'Inter',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.dark.accentRed,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });
