@@ -13,8 +13,14 @@ import { Text } from '@/components/ui/Text';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Icon } from '@/components/ui/Icon';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import { GradientButton } from '@/components/ui/GradientButton';
+import { Icon, IconName } from '@/components/ui/Icon';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_SHADOWS,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
 interface TrophyItem {
@@ -22,45 +28,38 @@ interface TrophyItem {
   name: string;
   description: string;
   category: 'STREAK' | 'WORKOUTS' | 'MILESTONES' | 'SPECIAL';
-  icon: string;
+  icon: IconName;
+  badgeLabel: string;
   unlocked: boolean;
   unlockedAt?: string;
 }
 
 const DEFAULT_TROPHIES: TrophyItem[] = [
   // STREAK
-  { id: 't-1', name: 'Consistency', description: 'Maintain a 7-day workout streak', category: 'STREAK', icon: '🔥', unlocked: true, unlockedAt: 'Yesterday' },
-  { id: 't-2', name: 'Dedicated', description: 'Maintain a 30-day workout streak', category: 'STREAK', icon: '⚡', unlocked: false },
-  { id: 't-3', name: 'Year Strong', description: 'Maintain a 365-day workout streak', category: 'STREAK', icon: '👑', unlocked: false },
+  { id: 't-1', name: 'Consistency', description: 'Maintain a 7-day workout streak', category: 'STREAK', icon: 'Flame', badgeLabel: '7D STREAK', unlocked: true, unlockedAt: 'Yesterday' },
+  { id: 't-2', name: 'Dedicated', description: 'Maintain a 30-day workout streak', category: 'STREAK', icon: 'Lightning', badgeLabel: '30 DAYS', unlocked: false },
+  { id: 't-3', name: 'Year Strong', description: 'Maintain a 365-day workout streak', category: 'STREAK', icon: 'Trophy', badgeLabel: '365 DAYS', unlocked: false },
 
   // WORKOUTS
-  { id: 't-4', name: 'Getting Started', description: 'Complete your first workout session', category: 'WORKOUTS', icon: '🏋️', unlocked: true, unlockedAt: 'Oct 12' },
-  { id: 't-5', name: 'Regular', description: 'Complete 25 total workout sessions', category: 'WORKOUTS', icon: '💪', unlocked: false },
-  { id: 't-6', name: 'Century Club', description: 'Complete 100 total workout sessions', category: 'WORKOUTS', icon: '💯', unlocked: false },
+  { id: 't-4', name: 'Getting Started', description: 'Complete your first workout session', category: 'WORKOUTS', icon: 'Barbell', badgeLabel: '1ST SESSION', unlocked: true, unlockedAt: 'Oct 12' },
+  { id: 't-5', name: 'Regular', description: 'Complete 25 total workout sessions', category: 'WORKOUTS', icon: 'CalendarCheck', badgeLabel: '25 WORKOUTS', unlocked: false },
+  { id: 't-6', name: 'Century Club', description: 'Complete 100 total workout sessions', category: 'WORKOUTS', icon: 'Sparkle', badgeLabel: '100 WORKOUTS', unlocked: false },
 
   // MILESTONES
-  { id: 't-7', name: 'Rising Star', description: 'Hit your very first Personal Record (PR)', category: 'MILESTONES', icon: '⭐', unlocked: true, unlockedAt: 'Oct 14' },
-  { id: 't-8', name: 'Achiever', description: 'Set 10 Personal Records', category: 'MILESTONES', icon: '🎯', unlocked: false },
-  { id: 't-9', name: 'Champion', description: 'Set 50 Personal Records', category: 'MILESTONES', icon: '🏆', unlocked: false },
+  { id: 't-7', name: 'Rising Star', description: 'Hit your very first Personal Record (PR)', category: 'MILESTONES', icon: 'Trophy', badgeLabel: '1ST PR', unlocked: true, unlockedAt: 'Oct 14' },
+  { id: 't-8', name: 'Achiever', description: 'Set 10 Personal Records', category: 'MILESTONES', icon: 'ChartLineUp', badgeLabel: '10 PRS', unlocked: false },
+  { id: 't-9', name: 'Champion', description: 'Set 50 Personal Records', category: 'MILESTONES', icon: 'Trophy', badgeLabel: '50 PRS', unlocked: false },
 
   // SPECIAL
-  { id: 't-10', name: 'First Step', description: 'Complete your onboarding assessment', category: 'SPECIAL', icon: '🚀', unlocked: true, unlockedAt: 'Oct 10' },
-  { id: 't-11', name: 'Early Bird', description: 'Finish a workout before 7:00 AM', category: 'SPECIAL', icon: '🌅', unlocked: false },
-  { id: 't-12', name: 'Night Owl', description: 'Finish a workout after 10:00 PM', category: 'SPECIAL', icon: '🌙', unlocked: false },
-];
-
-const XP_ACTIONS = [
-  { action: 'Complete a Workout', xp: '+50 XP', icon: 'Barbell' },
-  { action: 'Set Personal Record (PR)', xp: '+25 XP', icon: 'Trophy' },
-  { action: 'Maintain Weekly Streak', xp: '+10 XP', icon: 'Flame' },
-  { action: 'Log Daily Nutrition', xp: '+5 XP', icon: 'ForkKnife' },
-  { action: 'Log Body Weight', xp: '+5 XP', icon: 'Scales' },
-  { action: 'Complete Onboarding', xp: '+100 XP', icon: 'CheckCircle' },
+  { id: 't-10', name: 'First Step', description: 'Complete your onboarding assessment', category: 'SPECIAL', icon: 'CheckCircle', badgeLabel: 'ONBOARDING', unlocked: true, unlockedAt: 'Oct 10' },
+  { id: 't-11', name: 'Early Bird', description: 'Finish a workout before 7:00 AM', category: 'SPECIAL', icon: 'Sun', badgeLabel: 'BEFORE 7 AM', unlocked: false },
+  { id: 't-12', name: 'Night Owl', description: 'Finish a workout after 10:00 PM', category: 'SPECIAL', icon: 'Moon', badgeLabel: 'AFTER 10 PM', unlocked: false },
 ];
 
 export default function AchievementsTab() {
   const [selectedTrophy, setSelectedTrophy] = useState<TrophyItem | null>(null);
 
+  // Read gamification data from GET /gamification
   const { data: gamificationData, refetch, isRefetching } = useQuery({
     queryKey: ['gamificationData'],
     queryFn: async () => {
@@ -70,7 +69,7 @@ export default function AchievementsTab() {
   });
 
   const currentRank = gamificationData?.currentRank?.name || 'Rookie';
-  const totalXp = gamificationData?.xpRecord?.total_xp || 140;
+  const totalXp = gamificationData?.xpRecord?.total_xp ?? 155;
   const nextRank = gamificationData?.nextRank?.name || 'Grinder';
   const nextRankMinXp = gamificationData?.nextRank?.minXp || 251;
   const currentRankMinXp = gamificationData?.currentRank?.minXp || 0;
@@ -80,14 +79,20 @@ export default function AchievementsTab() {
   const progressRatio = Math.min(xpInRank / span, 1);
   const remainingXp = Math.max(nextRankMinXp - totalXp, 0);
 
-  const trophies: TrophyItem[] = gamificationData?.trophies?.length
-    ? gamificationData.trophies
-    : DEFAULT_TROPHIES;
+  // Reconcile API trophies with our defined icons
+  const trophies: TrophyItem[] = React.useMemo(() => {
+    if (!gamificationData?.trophies?.length) return DEFAULT_TROPHIES;
+    return DEFAULT_TROPHIES.map((def) => {
+      const found = gamificationData.trophies.find((t: any) => t.id === def.id || t.name === def.name);
+      return found ? { ...def, unlocked: !!found.unlocked, unlockedAt: found.unlockedAt } : def;
+    });
+  }, [gamificationData]);
 
+  const unlockedCount = trophies.filter((t) => t.unlocked).length;
   const categories = ['STREAK', 'WORKOUTS', 'MILESTONES', 'SPECIAL'] as const;
 
   return (
-    <ScreenContainer scrollable={false}>
+    <ScreenContainer scrollable={false} theme="obsidian">
       <View style={styles.container}>
         <ScrollView
           style={styles.scroll}
@@ -97,124 +102,166 @@ export default function AchievementsTab() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor={COLORS.dark.accentGold}
+              tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }
         >
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text variant="caption" style={styles.kicker}>ATHLETE RANKING</Text>
-              <Text variant="h1" style={styles.title}>Achievements</Text>
+              <Text variant="labelCaps" style={styles.kicker}>ATHLETE RANKING</Text>
+              <Text variant="headlineLgMobile" style={styles.title}>Achievements</Text>
             </View>
-            <Badge label="Season 1" variant="gold" />
+            <Badge label="Season 1" variant="volt" />
           </View>
 
-          {/* Hero Rank Emblem Card (GymStreak Inspired) */}
-          <GlassCard style={styles.heroRankCard}>
-            <View style={styles.rankEmblem}>
-              <Text style={styles.emblemEmoji}>🛡️</Text>
-              <View style={styles.rankGlow} />
+          {/* Hero Status Card: Tier, XP, Progress Bar */}
+          <GlassCard variant="obsidianLevel1" style={styles.heroRankCard}>
+            {/* Center Emblem & Rank Identity */}
+            <View style={styles.rankCenterIdentity}>
+              <View style={styles.shieldEmblemContainer}>
+                <View style={styles.shieldCircle}>
+                  <Icon name="Trophy" size={32} color={OBSIDIAN_COLORS.cyanAccent} weight="fill" />
+                </View>
+                <View style={styles.tierPill}>
+                  <Text style={styles.tierPillText}>1</Text>
+                </View>
+              </View>
+
+              <Text variant="headlineMd" style={styles.rankTitle}>
+                {currentRank.toUpperCase()}
+              </Text>
+
+              {/* Total XP Pill */}
+              <View style={styles.xpPill}>
+                <Icon name="Flame" size={16} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                <Text style={styles.xpNumber}>{totalXp}</Text>
+                <Text variant="labelCaps" style={styles.xpLabel}>TOTAL XP</Text>
+              </View>
             </View>
 
-            <Badge label="CURRENT STATUS" variant="gold" style={styles.statusBadge} />
-            <Text variant="h1" style={styles.rankName}>
-              {currentRank.toUpperCase()}
-            </Text>
-
-            <View style={styles.xpRow}>
-              <Text style={styles.fireEmoji}>🔥</Text>
-              <Text variant="mono" style={styles.xpCount}>
-                {totalXp}
-              </Text>
-              <Text variant="body" style={styles.xpSuffix}>
-                TOTAL XP
-              </Text>
-            </View>
-
-            <View style={styles.progressContainer}>
-              <View style={styles.progressLabelRow}>
-                <Text variant="caption" style={styles.rankStep}>
+            {/* Tier Progress Gauge */}
+            <View style={styles.gaugeContainer}>
+              <View style={styles.gaugeHeader}>
+                <Text variant="labelCaps" style={{ color: OBSIDIAN_COLORS.textWhite }}>
                   {currentRank}
                 </Text>
-                <Text variant="caption" style={styles.xpRemaining}>
+                <Text variant="labelCaps" style={{ color: OBSIDIAN_COLORS.voltLime, fontWeight: '700' }}>
                   {remainingXp} XP TO {nextRank.toUpperCase()}
                 </Text>
-                <Text variant="caption" style={styles.rankStep}>
+                <Text variant="labelCaps" style={{ color: OBSIDIAN_COLORS.textSlate }}>
                   {nextRank}
                 </Text>
               </View>
-              <ProgressBar progress={progressRatio} color={COLORS.dark.accentGold} height={10} />
+
+              <ProgressBar
+                progress={progressRatio}
+                color={OBSIDIAN_COLORS.voltLime}
+                trackColor={OBSIDIAN_COLORS.surfaceContainerHighest}
+                height={8}
+              />
+
+              <View style={styles.gaugeFooter}>
+                <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textSlate }}>
+                  {currentRankMinXp} XP
+                </Text>
+                <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textSlate }}>
+                  {nextRankMinXp} XP
+                </Text>
+              </View>
             </View>
           </GlassCard>
 
           {/* Trophy Case Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text variant="h3" style={styles.sectionTitle}>
-                Trophy Case
-              </Text>
-              <Text variant="caption" style={styles.trophyCount}>
-                {trophies.filter((t) => t.unlocked).length} / {trophies.length} Unlocked
-              </Text>
+          <View style={styles.trophySection}>
+            <View style={styles.trophySectionHeader}>
+              <View style={styles.trophySectionTitleRow}>
+                <Icon name="Trophy" size={20} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                <Text variant="headlineSm" style={styles.trophySectionTitle}>
+                  Trophy Case
+                </Text>
+              </View>
+              <View style={styles.trophyCounterPill}>
+                <Text style={styles.trophyCounterBold}>{unlockedCount}</Text>
+                <Text style={styles.trophyCounterMuted}>/ {trophies.length} UNLOCKED</Text>
+              </View>
             </View>
 
-            {categories.map((cat) => {
-              const catTrophies = trophies.filter((t) => t.category === cat);
-              return (
-                <View key={cat} style={styles.categoryBlock}>
-                  <Text variant="caption" style={styles.categoryTitle}>
-                    {cat}
-                  </Text>
-                  <View style={styles.trophiesGrid}>
-                    {catTrophies.map((trophy) => (
-                      <TouchableOpacity
-                        key={trophy.id}
-                        style={[styles.trophyCard, trophy.unlocked && styles.trophyCardUnlocked]}
-                        onPress={() => setSelectedTrophy(trophy)}
-                      >
-                        <View style={[styles.trophyIconCircle, trophy.unlocked && styles.trophyIconUnlocked]}>
-                          <Text style={styles.trophyEmoji}>
-                            {trophy.unlocked ? trophy.icon : '🔒'}
-                          </Text>
-                        </View>
-                        <Text
-                          variant="caption"
-                          style={[styles.trophyName, trophy.unlocked && styles.trophyNameUnlocked]}
-                          numberOfLines={1}
+            {/* Trophy Categories */}
+            <View style={styles.categoriesStack}>
+              {categories.map((cat) => {
+                const catTrophies = trophies.filter((t) => t.category === cat);
+                const catUnlocked = catTrophies.filter((t) => t.unlocked).length;
+
+                return (
+                  <View key={cat} style={styles.categoryBlock}>
+                    <View style={styles.categoryHeader}>
+                      <Text variant="labelCaps" style={styles.categoryLabel}>{cat}</Text>
+                      <Text variant="labelCaps" style={{ color: OBSIDIAN_COLORS.voltLime }}>
+                        {catUnlocked} OF {catTrophies.length}
+                      </Text>
+                    </View>
+
+                    <View style={styles.trophiesGrid}>
+                      {catTrophies.map((trophy) => (
+                        <TouchableOpacity
+                          key={trophy.id}
+                          style={[
+                            styles.trophyTile,
+                            trophy.unlocked ? styles.trophyTileUnlocked : styles.trophyTileLocked,
+                          ]}
+                          onPress={() => setSelectedTrophy(trophy)}
+                          activeOpacity={0.8}
                         >
-                          {trophy.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                          {trophy.unlocked ? (
+                            <View style={styles.trophyActiveStripe} />
+                          ) : null}
 
-          {/* How to Earn XP Card */}
-          <GlassCard style={styles.howToCard}>
-            <Text variant="h3" style={styles.howToTitle}>
-              How to Earn XP
-            </Text>
-            <View style={styles.howToList}>
-              {XP_ACTIONS.map((item, idx) => (
-                <View key={idx} style={styles.howToRow}>
-                  <View style={styles.howToLeft}>
-                    <Icon name={item.icon as any} size={18} color={COLORS.dark.accentGold} />
-                    <Text variant="bodySmall" style={styles.howToAction}>
-                      {item.action}
-                    </Text>
+                          <View
+                            style={[
+                              styles.trophyIconContainer,
+                              trophy.unlocked ? styles.trophyIconUnlocked : styles.trophyIconLocked,
+                            ]}
+                          >
+                            <Icon
+                              name={trophy.unlocked ? trophy.icon : 'Lock'}
+                              size={20}
+                              color={trophy.unlocked ? OBSIDIAN_COLORS.voltLime : OBSIDIAN_COLORS.textSlate}
+                              weight={trophy.unlocked ? 'fill' : 'regular'}
+                            />
+                          </View>
+
+                          <Text
+                            variant="labelCaps"
+                            style={[
+                              styles.trophyTileName,
+                              { color: trophy.unlocked ? OBSIDIAN_COLORS.textWhite : OBSIDIAN_COLORS.textSlate },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {trophy.name}
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.trophyTileBadge,
+                              { color: trophy.unlocked ? OBSIDIAN_COLORS.voltLime : OBSIDIAN_COLORS.textSlate },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {trophy.badgeLabel}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                  <Badge label={item.xp} variant="gold" />
-                </View>
-              ))}
+                );
+              })}
             </View>
-          </GlassCard>
+          </View>
         </ScrollView>
 
-        {/* Trophy Detail Modal */}
+        {/* Trophy Detail Inspection Modal */}
         <Modal
           visible={!!selectedTrophy}
           transparent
@@ -222,41 +269,47 @@ export default function AchievementsTab() {
           onRequestClose={() => setSelectedTrophy(null)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={[styles.modalTrophyCircle, selectedTrophy?.unlocked && styles.modalTrophyUnlocked]}>
-                <Text style={{ fontSize: 50 }}>
-                  {selectedTrophy?.unlocked ? selectedTrophy.icon : '🔒'}
-                </Text>
+            <View style={styles.modalCard}>
+              <View style={styles.modalTrophyCircle}>
+                <Icon
+                  name={selectedTrophy?.unlocked ? selectedTrophy.icon : 'Lock'}
+                  size={36}
+                  color={selectedTrophy?.unlocked ? OBSIDIAN_COLORS.voltLime : OBSIDIAN_COLORS.textSlate}
+                  weight={selectedTrophy?.unlocked ? 'fill' : 'regular'}
+                />
               </View>
 
               <Badge
-                label={selectedTrophy?.unlocked ? 'UNLOCKED TROPHY' : 'LOCKED'}
-                variant={selectedTrophy?.unlocked ? 'gold' : 'default'}
-                style={styles.modalBadge}
+                label={selectedTrophy?.unlocked ? 'UNLOCKED' : 'LOCKED'}
+                variant={selectedTrophy?.unlocked ? 'volt' : 'darkSlate'}
+                style={{ marginBottom: OBSIDIAN_SPACING.sm }}
               />
 
-              <Text variant="h2" style={styles.modalTrophyTitle}>
+              <Text variant="headlineSm" style={styles.modalTitle}>
                 {selectedTrophy?.name}
               </Text>
 
-              <Text variant="body" style={styles.modalTrophyDesc}>
+              <Text variant="bodyMd" style={styles.modalDescription}>
                 {selectedTrophy?.description}
               </Text>
 
-              {selectedTrophy?.unlockedAt && (
-                <Text variant="caption" style={styles.modalUnlockedDate}>
+              {selectedTrophy?.unlockedAt ? (
+                <Text variant="bodySm" style={styles.modalUnlockedTime}>
                   Unlocked: {selectedTrophy.unlockedAt}
                 </Text>
-              )}
+              ) : null}
 
-              <TouchableOpacity
-                style={styles.modalDismissBtn}
+              <View style={styles.modalXpRewardRow}>
+                <Icon name="Lightning" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                <Text style={styles.modalXpText}>+25 XP Achievement</Text>
+              </View>
+
+              <GradientButton
+                variant="volt"
+                title="Got it"
                 onPress={() => setSelectedTrophy(null)}
-              >
-                <Text variant="body" style={styles.modalDismissText}>
-                  Close
-                </Text>
-              </TouchableOpacity>
+                style={{ width: '100%', marginTop: OBSIDIAN_SPACING.md }}
+              />
             </View>
           </View>
         </Modal>
@@ -273,239 +326,272 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 80,
+    paddingBottom: 90,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
   kicker: {
-    color: COLORS.dark.accentGold,
+    color: OBSIDIAN_COLORS.voltLime,
     letterSpacing: 1.5,
   },
   title: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginTop: 2,
   },
   heroRankCard: {
-    padding: SPACING.xl,
-    borderRadius: RADIUS.lg,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.lg,
+    marginBottom: OBSIDIAN_SPACING.lg,
     alignItems: 'center',
-    marginBottom: SPACING.xl,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
   },
-  rankEmblem: {
+  rankCenterIdentity: {
+    alignItems: 'center',
+    marginBottom: OBSIDIAN_SPACING.md,
+  },
+  shieldEmblemContainer: {
     position: 'relative',
-    marginBottom: SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
-  emblemEmoji: {
-    fontSize: 64,
+  shieldCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  rankGlow: {
+  tierPill: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    bottom: 10,
-    borderRadius: 30,
-    backgroundColor: 'rgba(245, 158, 11, 0.25)',
-    zIndex: -1,
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  statusBadge: {
-    marginBottom: 4,
+  tierPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.onPrimary,
   },
-  rankName: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: SPACING.xs,
+  rankTitle: {
+    color: OBSIDIAN_COLORS.textWhite,
+    letterSpacing: 1,
   },
-  xpRow: {
+  xpPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: SPACING.lg,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingVertical: 5,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    marginTop: OBSIDIAN_SPACING.xs + 2,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
-  fireEmoji: {
-    fontSize: 22,
+  xpNumber: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: OBSIDIAN_COLORS.voltLime,
   },
-  xpCount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.dark.accentGold,
+  xpLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
   },
-  xpSuffix: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: 'bold',
-  },
-  progressContainer: {
+  gaugeContainer: {
     width: '100%',
+    marginTop: OBSIDIAN_SPACING.xs,
   },
-  progressLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  rankStep: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: '600',
-  },
-  xpRemaining: {
-    color: COLORS.dark.accentGold,
-    fontWeight: 'bold',
-  },
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionHeader: {
+  gaugeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: 6,
   },
-  sectionTitle: {
-    color: COLORS.dark.textPrimary,
+  gaugeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  trophyCount: {
-    color: COLORS.dark.textSecondary,
+  trophySection: {
+    marginTop: OBSIDIAN_SPACING.xs,
+  },
+  trophySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: OBSIDIAN_SPACING.md,
+    paddingHorizontal: 2,
+  },
+  trophySectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: OBSIDIAN_SPACING.xs + 2,
+  },
+  trophySectionTitle: {
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  trophyCounterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+  },
+  trophyCounterBold: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  trophyCounterMuted: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textSlate,
+  },
+  categoriesStack: {
+    gap: OBSIDIAN_SPACING.lg,
   },
   categoryBlock: {
-    marginBottom: SPACING.lg,
+    gap: OBSIDIAN_SPACING.xs + 2,
   },
-  categoryTitle: {
-    color: COLORS.dark.accentGold,
-    letterSpacing: 1.5,
-    marginBottom: SPACING.sm,
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  categoryLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
   },
   trophiesGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: OBSIDIAN_SPACING.xs + 2,
   },
-  trophyCard: {
-    width: '31%',
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
+  trophyTile: {
+    flex: 1,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    paddingVertical: OBSIDIAN_SPACING.md,
+    paddingHorizontal: 6,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 110,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  trophyTileUnlocked: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    opacity: 0.6,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
+    ...OBSIDIAN_SHADOWS.cardLevel1,
   },
-  trophyCardUnlocked: {
-    opacity: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+  trophyTileLocked: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    opacity: 0.7,
   },
-  trophyIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.dark.bgInput,
+  trophyActiveStripe: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  trophyIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.xs,
+    marginBottom: 8,
   },
   trophyIconUnlocked: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
   },
-  trophyEmoji: {
-    fontSize: 24,
+  trophyIconLocked: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
   },
-  trophyName: {
-    color: COLORS.dark.textSecondary,
+  trophyTileName: {
     textAlign: 'center',
+    marginBottom: 3,
   },
-  trophyNameUnlocked: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: 'bold',
-  },
-  howToCard: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.xl,
-  },
-  howToTitle: {
-    color: COLORS.dark.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  howToList: {
-    gap: SPACING.sm,
-  },
-  howToRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  howToLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  howToAction: {
-    color: COLORS.dark.textPrimary,
+  trophyTileBadge: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 9,
+    textTransform: 'uppercase',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 12, 24, 0.88)',
+    backgroundColor: 'rgba(9, 11, 16, 0.90)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: OBSIDIAN_SPACING.xl,
   },
-  modalContent: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
+  modalCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.xl,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 340,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    ...OBSIDIAN_SHADOWS.cardLevel3,
   },
   modalTrophyCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.dark.bgInput,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
-  modalTrophyUnlocked: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-  },
-  modalBadge: {
-    marginBottom: SPACING.xs,
-  },
-  modalTrophyTitle: {
-    color: COLORS.dark.textPrimary,
-    marginBottom: SPACING.xs,
+  modalTitle: {
+    color: OBSIDIAN_COLORS.textWhite,
     textAlign: 'center',
+    marginBottom: 6,
   },
-  modalTrophyDesc: {
-    color: COLORS.dark.textSecondary,
+  modalDescription: {
+    color: OBSIDIAN_COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
-  modalUnlockedDate: {
-    color: COLORS.dark.accentGold,
-    marginBottom: SPACING.md,
+  modalUnlockedTime: {
+    color: OBSIDIAN_COLORS.voltLime,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
-  modalDismissBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: RADIUS.full,
-    width: '100%',
+  modalXpRewardRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: OBSIDIAN_COLORS.voltOverlay10,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    marginTop: OBSIDIAN_SPACING.xs,
   },
-  modalDismissText: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: 'bold',
+  modalXpText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.voltLime,
   },
 });
