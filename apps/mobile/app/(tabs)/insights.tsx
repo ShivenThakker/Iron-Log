@@ -15,7 +15,11 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Icon } from '@/components/ui/Icon';
 import { MuscleHeatmap, MuscleHeatmapData } from '@/components/charts/MuscleHeatmap';
 import { MuscleRadar, MuscleBalanceScores } from '@/components/charts/MuscleRadar';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
 const DEFAULT_HEATMAP_DATA: MuscleHeatmapData = {
@@ -41,73 +45,109 @@ const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {
 };
 
 const DEFAULT_EQUIPMENT_DATA = [
-  { name: 'Barbell', percentage: 42, color: COLORS.dark.accentRed },
-  { name: 'Dumbbells', percentage: 28, color: COLORS.dark.accentGold },
-  { name: 'Cables', percentage: 18, color: COLORS.dark.accentCyan },
-  { name: 'Machines', percentage: 12, color: COLORS.dark.success },
+  { name: 'Barbell', percentage: 42, color: OBSIDIAN_COLORS.voltLime },
+  { name: 'Dumbbells', percentage: 28, color: OBSIDIAN_COLORS.cyanAccent },
+  { name: 'Cables', percentage: 18, color: OBSIDIAN_COLORS.secondary },
+  { name: 'Machines', percentage: 12, color: OBSIDIAN_COLORS.primaryFixedDim },
 ];
 
 export default function InsightsTab() {
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90' | 'all'>('30');
 
-  // Fetch overview stats
-  const { data: overviewData, refetch: refetchOverview, isRefetching } = useQuery({
-    queryKey: ['analyticsOverview', timeRange],
+  // Realigned endpoint 1: GET /analytics/stats
+  const { data: statsData, refetch: refetchStats, isRefetching } = useQuery({
+    queryKey: ['analyticsStats'],
     queryFn: async () => {
-      const res = await api.get(`/analytics/overview?days=${timeRange}`).catch(() => null);
+      const res = await api.get('/analytics/stats').catch(() => null);
       return res?.data ?? null;
     },
   });
 
-  // Fetch heatmap data
+  // Realigned endpoint 2: GET /analytics/heatmap?period=...
+  const periodDays = timeRange === 'all' ? 365 : parseInt(timeRange, 10);
   const { data: heatmapApiData, refetch: refetchHeatmap } = useQuery({
-    queryKey: ['muscleHeatmap', timeRange],
+    queryKey: ['muscleHeatmap', periodDays],
     queryFn: async () => {
-      const res = await api.get(`/analytics/muscle-heatmap?days=${timeRange}`).catch(() => null);
+      const res = await api.get(`/analytics/heatmap?period=${periodDays}`).catch(() => null);
       return res?.data ?? null;
     },
   });
 
-  // Fetch radar balance data
+  // Realigned endpoint 3: GET /analytics/radar
   const { data: radarApiData, refetch: refetchRadar } = useQuery({
-    queryKey: ['muscleBalance', timeRange],
+    queryKey: ['muscleRadar'],
     queryFn: async () => {
-      const res = await api.get(`/analytics/muscle-balance?days=${timeRange}`).catch(() => null);
+      const res = await api.get('/analytics/radar').catch(() => null);
       return res?.data ?? null;
     },
   });
 
-  // Fetch equipment usage distribution
+  // Realigned endpoint 4: GET /analytics/equipment
   const { data: equipmentApiData, refetch: refetchEquipment } = useQuery({
-    queryKey: ['equipmentDistribution', timeRange],
+    queryKey: ['equipmentUsage'],
     queryFn: async () => {
-      const res = await api.get('/analytics/equipment-distribution').catch(() => null);
+      const res = await api.get('/analytics/equipment').catch(() => null);
       return res?.data ?? null;
     },
   });
 
   const onRefresh = async () => {
     await Promise.all([
-      refetchOverview(),
+      refetchStats(),
       refetchHeatmap(),
       refetchRadar(),
       refetchEquipment(),
     ]);
   };
 
-  const heatmapData: MuscleHeatmapData = heatmapApiData?.muscles || DEFAULT_HEATMAP_DATA;
-  const radarScores: MuscleBalanceScores = radarApiData?.scores || DEFAULT_RADAR_SCORES;
-  const equipmentData = equipmentApiData?.distribution || DEFAULT_EQUIPMENT_DATA;
+  // Process Heatmap Data: API returns { muscles: { Chest: { intensity }, ... } }
+  const heatmapData: MuscleHeatmapData = React.useMemo(() => {
+    if (!heatmapApiData?.muscles) return DEFAULT_HEATMAP_DATA;
+    const mapped: MuscleHeatmapData = {};
+    for (const [key, val] of Object.entries(heatmapApiData.muscles)) {
+      const lower = key.toLowerCase();
+      mapped[lower] = (val as any)?.intensity ?? 0;
+    }
+    return mapped;
+  }, [heatmapApiData]);
 
-  const totalVolume = overviewData?.total_volume_kg
-    ? `${(overviewData.total_volume_kg / 1000).toFixed(1)}k`
-    : '24.5k';
-  const totalSessions = overviewData?.total_sessions || 14;
-  const avgDuration = overviewData?.avg_duration_minutes || 48;
-  const prsCount = overviewData?.prs_hit || 6;
+  // Process Radar Data: API returns [ { axis: 'Chest', value: 85 }, ... ]
+  const radarScores: MuscleBalanceScores = React.useMemo(() => {
+    if (!Array.isArray(radarApiData)) return DEFAULT_RADAR_SCORES;
+    const scores: MuscleBalanceScores = {};
+    for (const item of radarApiData) {
+      const key = item.axis.toLowerCase() as keyof MuscleBalanceScores;
+      scores[key] = item.value ?? 0;
+    }
+    return scores;
+  }, [radarApiData]);
+
+  // Process Equipment Data: API returns [ { name, count, percentage }, ... ]
+  const equipmentData = React.useMemo(() => {
+    if (!Array.isArray(equipmentApiData) || equipmentApiData.length === 0) {
+      return DEFAULT_EQUIPMENT_DATA;
+    }
+    const colorMap: Record<string, string> = {
+      Barbell: OBSIDIAN_COLORS.voltLime,
+      Dumbbells: OBSIDIAN_COLORS.cyanAccent,
+      Cables: OBSIDIAN_COLORS.secondary,
+      Machines: OBSIDIAN_COLORS.primaryFixedDim,
+    };
+    return equipmentApiData.map((item: any) => ({
+      name: item.name,
+      percentage: Math.round(item.percentage),
+      color: colorMap[item.name] || OBSIDIAN_COLORS.voltLime,
+    }));
+  }, [equipmentApiData]);
+
+  const totalVolumeKg = statsData?.totalVolumeKg ?? 24500;
+  const totalVolumeStr = totalVolumeKg >= 1000 ? `${(totalVolumeKg / 1000).toFixed(1)}k` : `${totalVolumeKg}`;
+  const totalSessions = statsData?.totalSessions ?? 14;
+  const avgDuration = Math.round(statsData?.avgSessionDurationMin ?? 48);
+  const prsCount = statsData?.prCount ?? 6;
 
   return (
-    <ScreenContainer scrollable={false}>
+    <ScreenContainer scrollable={false} theme="obsidian">
       <View style={styles.container}>
         <ScrollView
           style={styles.scroll}
@@ -117,35 +157,38 @@ export default function InsightsTab() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={onRefresh}
-              tintColor={COLORS.dark.accentRed}
+              tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }
         >
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text variant="caption" style={styles.kicker}>ADVANCED ANALYTICS</Text>
-              <Text variant="h1" style={styles.title}>Insights</Text>
+              <Text variant="labelCaps" style={styles.kicker}>ADVANCED ANALYTICS</Text>
+              <Text variant="headlineLgMobile" style={styles.title}>Insights</Text>
             </View>
-            <Badge label="AI Powered" variant="gold" />
+            <Badge label="AI Powered" variant="volt" />
           </View>
 
-          {/* Time Range Filter Bar */}
+          {/* Time Period Filter Pills */}
           <View style={styles.filterBar}>
             {[
-              { key: '7', label: '7 Days' },
-              { key: '30', label: '30 Days' },
-              { key: '90', label: '90 Days' },
-              { key: 'all', label: 'All Time' },
+              { key: '7', label: '7 DAYS' },
+              { key: '30', label: '30 DAYS' },
+              { key: '90', label: '90 DAYS' },
+              { key: 'all', label: 'ALL TIME' },
             ].map((f) => (
               <TouchableOpacity
                 key={f.key}
                 style={[styles.filterBtn, timeRange === f.key && styles.filterBtnActive]}
                 onPress={() => setTimeRange(f.key as any)}
+                activeOpacity={0.8}
               >
                 <Text
-                  variant="caption"
-                  style={[styles.filterBtnText, timeRange === f.key && styles.filterBtnTextActive]}
+                  style={[
+                    styles.filterBtnText,
+                    timeRange === f.key && styles.filterBtnTextActive,
+                  ]}
                 >
                   {f.label}
                 </Text>
@@ -153,118 +196,189 @@ export default function InsightsTab() {
             ))}
           </View>
 
-          {/* 2x2 Workout Stats Grid */}
-          <View style={styles.statsGrid}>
-            <GlassCard style={styles.statBox}>
-              <View style={styles.statIconCircle}>
-                <Icon name="Barbell" size={18} color={COLORS.dark.accentRed} />
+          {/* Key Metrics 2x2 Bento Grid */}
+          <View style={styles.bentoGrid}>
+            {/* Total Volume */}
+            <GlassCard variant="obsidianLevel1" style={styles.bentoCard}>
+              <View style={styles.bentoHeader}>
+                <Text variant="labelCaps" style={styles.bentoLabel}>Total Volume</Text>
+                <View style={styles.bentoIconBox}>
+                  <Icon name="Barbell" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                </View>
               </View>
-              <Text variant="mono" style={styles.statVal}>
-                {totalVolume} kg
-              </Text>
-              <Text variant="caption" style={styles.statLabel}>
-                Total Volume Lifted
-              </Text>
+              <View>
+                <View style={styles.bentoValRow}>
+                  <Text style={styles.bentoVal}>{totalVolumeStr}</Text>
+                  <Text style={styles.bentoUnit}>KG</Text>
+                </View>
+                <View style={styles.bentoSubRow}>
+                  <Icon name="ChartLineUp" size={12} color={OBSIDIAN_COLORS.voltLime} />
+                  <Text style={styles.bentoTrendingText}>+8.4%</Text>
+                  <Text style={styles.bentoSubMuted}>vs avg</Text>
+                </View>
+              </View>
             </GlassCard>
 
-            <GlassCard style={styles.statBox}>
-              <View style={styles.statIconCircle}>
-                <Icon name="CalendarCheck" size={18} color={COLORS.dark.accentGold} />
+            {/* Completed Workouts */}
+            <GlassCard variant="obsidianLevel1" style={styles.bentoCard}>
+              <View style={styles.bentoHeader}>
+                <Text variant="labelCaps" style={styles.bentoLabel}>Completed</Text>
+                <View style={styles.bentoIconBox}>
+                  <Icon name="CalendarCheck" size={16} color={OBSIDIAN_COLORS.cyanAccent} />
+                </View>
               </View>
-              <Text variant="mono" style={styles.statVal}>
-                {totalSessions}
-              </Text>
-              <Text variant="caption" style={styles.statLabel}>
-                Workouts Completed
-              </Text>
+              <View>
+                <View style={styles.bentoValRow}>
+                  <Text style={styles.bentoVal}>{totalSessions}</Text>
+                  <Text style={styles.bentoUnitMuted}>SESSIONS</Text>
+                </View>
+                <View style={styles.bentoSubRow}>
+                  <View style={[styles.statusDot, { backgroundColor: OBSIDIAN_COLORS.cyanAccent }]} />
+                  <Text style={[styles.bentoTrendingText, { color: OBSIDIAN_COLORS.cyanAccent }]}>Consistent</Text>
+                  <Text style={styles.bentoSubMuted}>cadence</Text>
+                </View>
+              </View>
             </GlassCard>
 
-            <GlassCard style={styles.statBox}>
-              <View style={styles.statIconCircle}>
-                <Icon name="Clock" size={18} color={COLORS.dark.accentCyan} />
+            {/* Avg Session Length */}
+            <GlassCard variant="obsidianLevel1" style={styles.bentoCard}>
+              <View style={styles.bentoHeader}>
+                <Text variant="labelCaps" style={styles.bentoLabel}>Avg Duration</Text>
+                <View style={styles.bentoIconBox}>
+                  <Icon name="Timer" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                </View>
               </View>
-              <Text variant="mono" style={styles.statVal}>
-                {avgDuration}m
-              </Text>
-              <Text variant="caption" style={styles.statLabel}>
-                Avg. Session Length
-              </Text>
+              <View>
+                <View style={styles.bentoValRow}>
+                  <Text style={styles.bentoVal}>{avgDuration}</Text>
+                  <Text style={styles.bentoUnit}>MIN</Text>
+                </View>
+                <View style={styles.bentoSubRow}>
+                  <Icon name="Lightning" size={12} color={OBSIDIAN_COLORS.voltLime} />
+                  <Text style={styles.bentoSubMuted}>Target zone met</Text>
+                </View>
+              </View>
             </GlassCard>
 
-            <GlassCard style={styles.statBox}>
-              <View style={styles.statIconCircle}>
-                <Icon name="Trophy" size={18} color={COLORS.dark.success} />
+            {/* PRs Set */}
+            <GlassCard variant="obsidianLevel1" style={styles.bentoCard}>
+              <View style={styles.bentoHeader}>
+                <Text variant="labelCaps" style={styles.bentoLabel}>Records</Text>
+                <View style={styles.bentoIconBox}>
+                  <Icon name="Trophy" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                </View>
               </View>
-              <Text variant="mono" style={styles.statVal}>
-                {prsCount}
-              </Text>
-              <Text variant="caption" style={styles.statLabel}>
-                Personal Records Set
-              </Text>
+              <View>
+                <View style={styles.bentoValRow}>
+                  <Text style={[styles.bentoVal, { color: OBSIDIAN_COLORS.voltLime }]}>{prsCount}</Text>
+                  <Text style={styles.bentoUnitMuted}>NEW PRS</Text>
+                </View>
+                <View style={styles.bentoSubRow}>
+                  <Icon name="Sparkle" size={12} color={OBSIDIAN_COLORS.voltLime} />
+                  <Text style={[styles.bentoTrendingText, { color: OBSIDIAN_COLORS.voltLime }]}>Peak strength</Text>
+                </View>
+              </View>
             </GlassCard>
           </View>
 
-          {/* Signature GymStreak Feature: Muscle Heatmap */}
-          <GlassCard style={styles.chartCard}>
-            <View style={styles.chartHeader}>
+          {/* Muscle Volume Heatmap Card */}
+          <GlassCard variant="obsidianLevel1" style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
               <View>
-                <Text variant="h3" style={styles.chartTitle}>
+                <Text variant="headlineSm" style={styles.sectionCardTitle}>
                   Muscle Volume Heatmap
                 </Text>
-                <Text variant="caption" style={styles.chartSubtitle}>
-                  Dynamic 3D body volume distribution
+                <Text variant="labelCaps" style={styles.sectionCardSub}>
+                  Dynamic 3D Biometric Distribution
                 </Text>
               </View>
-              <Badge label="GymStreak Engine" variant="red" />
+              <Badge label="GYMSTREAK" variant="volt" size="sm" />
             </View>
 
-            <MuscleHeatmap data={heatmapData} />
+            <MuscleHeatmap data={heatmapData} theme="obsidian" />
           </GlassCard>
 
-          {/* 6-Axis Muscle Balance Radar Chart */}
-          <GlassCard style={styles.chartCard}>
-            <View style={styles.chartHeader}>
+          {/* Muscle Balance Radar Card */}
+          <GlassCard variant="obsidianLevel1" style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
               <View>
-                <Text variant="h3" style={styles.chartTitle}>
+                <Text variant="headlineSm" style={styles.sectionCardTitle}>
                   Muscle Balance Radar
                 </Text>
-                <Text variant="caption" style={styles.chartSubtitle}>
-                  6-axis symmetry and muscular equilibrium
+                <Text variant="labelCaps" style={styles.sectionCardSub}>
+                  6-Axis Muscular Equilibrium
                 </Text>
               </View>
-              <Badge label="Radar" variant="blue" />
+              <Badge label="RADAR" variant="cyan" size="sm" />
             </View>
 
-            <MuscleRadar scores={radarScores} size={280} />
+            <View style={{ alignItems: 'center', marginVertical: OBSIDIAN_SPACING.sm }}>
+              <MuscleRadar scores={radarScores} size={280} theme="obsidian" />
+            </View>
+
+            <View style={styles.equilibriumRow}>
+              <View style={styles.equilibriumLeft}>
+                <Icon name="CheckCircle" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textWhite }}>
+                  Equilibrium Score
+                </Text>
+              </View>
+              <Text variant="labelCaps" style={{ color: OBSIDIAN_COLORS.voltLime, fontWeight: '700' }}>
+                94% OPTIMAL
+              </Text>
+            </View>
           </GlassCard>
 
-          {/* Equipment Distribution Card */}
-          <GlassCard style={styles.chartCard}>
-            <View style={styles.chartHeader}>
+          {/* Equipment Distribution Section */}
+          <GlassCard variant="obsidianLevel1" style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
               <View>
-                <Text variant="h3" style={styles.chartTitle}>
+                <Text variant="headlineSm" style={styles.sectionCardTitle}>
                   Equipment Distribution
                 </Text>
-                <Text variant="caption" style={styles.chartSubtitle}>
-                  Breakdown of training tools used
+                <Text variant="labelCaps" style={styles.sectionCardSub}>
+                  Breakdown of Training Tools Used
                 </Text>
+              </View>
+              <View style={styles.bentoIconBox}>
+                <Icon name="ChartLineUp" size={16} color={OBSIDIAN_COLORS.textMuted} />
               </View>
             </View>
 
-            <View style={styles.equipmentBars}>
-              {equipmentData.map((item: any, idx: number) => (
-                <View key={idx} style={styles.equipItem}>
-                  <View style={styles.equipHeader}>
-                    <Text variant="bodySmall" style={styles.equipName}>
+            <View style={styles.equipmentStack}>
+              {equipmentData.map((item, idx) => (
+                <View key={idx} style={styles.equipmentRow}>
+                  <View style={styles.equipmentHeader}>
+                    <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textWhite, fontWeight: '500' }}>
                       {item.name}
                     </Text>
-                    <Text variant="caption" style={styles.equipPct}>
+                    <Text variant="labelCaps" style={{ color: item.color, fontWeight: '700' }}>
                       {item.percentage}%
                     </Text>
                   </View>
-                  <ProgressBar progress={item.percentage / 100} color={item.color || COLORS.dark.accentRed} />
+                  <ProgressBar
+                    progress={item.percentage / 100}
+                    color={item.color}
+                    trackColor={OBSIDIAN_COLORS.surfaceContainerHighest}
+                    height={6}
+                  />
                 </View>
               ))}
+            </View>
+          </GlassCard>
+
+          {/* Weekly AI Coaching Summary Prompt */}
+          <GlassCard variant="obsidianLevel2" style={styles.aiCoachingCard}>
+            <View style={styles.aiIconCircle}>
+              <Icon name="Robot" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
+            </View>
+            <View style={styles.aiTextCol}>
+              <Text variant="headlineSm" style={{ color: OBSIDIAN_COLORS.textWhite }}>
+                Hypertrophy Recommendation
+              </Text>
+              <Text variant="bodySm" style={styles.aiSummaryText}>
+                Chest & Triceps are stimulated at peak volume, with Delts & Lats at moderate intensity. Prioritize horizontal rowing and posterior chain in your next 3 sessions to retain peak balance symmetry.
+              </Text>
             </View>
           </GlassCard>
         </ScrollView>
@@ -281,108 +395,190 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 80,
+    paddingBottom: 90,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
   kicker: {
-    color: COLORS.dark.accentGold,
+    color: OBSIDIAN_COLORS.voltLime,
     letterSpacing: 1.5,
   },
   title: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginTop: 2,
   },
   filterBar: {
     flexDirection: 'row',
-    backgroundColor: COLORS.dark.bgInput,
-    borderRadius: RADIUS.full,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.lg,
     padding: 3,
-    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   filterBtn: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderRadius: RADIUS.full,
+    borderRadius: OBSIDIAN_RADIUS.sm,
   },
   filterBtnActive: {
-    backgroundColor: COLORS.dark.accentRed,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
   filterBtnText: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.textSlate,
+    letterSpacing: 0.5,
   },
   filterBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontWeight: '700',
   },
-  statsGrid: {
+  bentoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
+    gap: OBSIDIAN_SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
-  statBox: {
+  bentoCard: {
     width: '48.5%',
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
+    padding: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    justifyContent: 'space-between',
+    minHeight: 104,
   },
-  statIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  bentoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  bentoLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  bentoIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.xs,
   },
-  statVal: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  statLabel: {
-    color: COLORS.dark.textSecondary,
-    marginTop: 2,
-  },
-  chartCard: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.lg,
-  },
-  chartHeader: {
+  bentoValRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.md,
-  },
-  chartTitle: {
-    color: COLORS.dark.textPrimary,
-  },
-  chartSubtitle: {
-    color: COLORS.dark.textSecondary,
-    marginTop: 2,
-  },
-  equipmentBars: {
-    gap: SPACING.md,
-  },
-  equipItem: {
+    alignItems: 'baseline',
     gap: 4,
   },
-  equipHeader: {
+  bentoVal: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 26,
+    lineHeight: 30,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  bentoUnit: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  bentoUnitMuted: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textSlate,
+  },
+  bentoSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  bentoTrendingText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  bentoSubMuted: {
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textSlate,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  sectionCard: {
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
+  },
+  sectionCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
-  equipName: {
-    color: COLORS.dark.textPrimary,
+  sectionCardTitle: {
+    color: OBSIDIAN_COLORS.textWhite,
   },
-  equipPct: {
-    color: COLORS.dark.accentGold,
-    fontWeight: 'bold',
+  sectionCardSub: {
+    color: OBSIDIAN_COLORS.textSlate,
+    marginTop: 2,
+  },
+  equilibriumRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    paddingVertical: OBSIDIAN_SPACING.sm,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    marginTop: OBSIDIAN_SPACING.xs,
+  },
+  equilibriumLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  equipmentStack: {
+    gap: OBSIDIAN_SPACING.md,
+    marginTop: OBSIDIAN_SPACING.xs,
+  },
+  equipmentRow: {
+    gap: 6,
+  },
+  equipmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aiCoachingCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
+  },
+  aiIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  aiTextCol: {
+    flex: 1,
+  },
+  aiSummaryText: {
+    color: OBSIDIAN_COLORS.textMuted,
+    lineHeight: 20,
+    marginTop: 4,
   },
 });

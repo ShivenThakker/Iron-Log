@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Polygon, Line, Circle, Text as SvgText } from 'react-native-svg';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import { COLORS, RADIUS, SPACING, OBSIDIAN_COLORS, OBSIDIAN_RADIUS } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
 
@@ -17,6 +17,7 @@ export interface MuscleBalanceScores {
 interface MuscleRadarProps {
   scores: MuscleBalanceScores;
   size?: number;
+  theme?: 'default' | 'obsidian';
 }
 
 const AXES = [
@@ -28,7 +29,8 @@ const AXES = [
   { key: 'back', label: 'Back', angle: 210 },
 ] as const;
 
-export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) => {
+export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280, theme = 'default' }) => {
+  const isObsidian = theme === 'obsidian';
   const center = size / 2;
   const maxRadius = size * 0.36;
 
@@ -37,9 +39,9 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
 
   if (nonZeroCount < 3) {
     return (
-      <View style={[styles.emptyCard, { width: size, height: size * 0.85 }]}>
-        <Icon name="Barbell" size={32} color={COLORS.dark.textSecondary} />
-        <Text variant="bodySmall" style={styles.emptyText}>
+      <View style={[styles.emptyCard, isObsidian && styles.emptyCardObsidian, { width: size, height: size * 0.85 }]}>
+        <Icon name="Barbell" size={32} color={isObsidian ? OBSIDIAN_COLORS.textSlate : COLORS.dark.textSecondary} />
+        <Text variant="bodySmall" color={isObsidian ? OBSIDIAN_COLORS.textMuted : COLORS.dark.textSecondary} style={styles.emptyText}>
           Train at least 3 muscle groups to unlock your 6-axis Muscle Balance radar.
         </Text>
       </View>
@@ -60,13 +62,18 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
   // Calculate polygon points for actual scores (clamped 0 to 100)
   const scorePoints = AXES.map((axis) => {
     const rawVal = scores[axis.key] ?? 0;
-    const clamped = Math.min(Math.max(rawVal, 10), 100) / 100; // minimum radius so points are visible
+    const clamped = Math.min(Math.max(rawVal, 10), 100) / 100;
     const rad = (axis.angle * Math.PI) / 180;
     const r = maxRadius * clamped;
     const x = center + r * Math.cos(rad);
     const y = center + r * Math.sin(rad);
     return `${x},${y}`;
   }).join(' ');
+
+  const gridStroke = isObsidian ? OBSIDIAN_COLORS.borderGhost : 'rgba(255, 255, 255, 0.08)';
+  const spokeStroke = isObsidian ? OBSIDIAN_COLORS.borderElevated : 'rgba(255, 255, 255, 0.12)';
+  const dataFill = isObsidian ? 'rgba(0, 229, 255, 0.22)' : 'rgba(233, 69, 96, 0.35)';
+  const dataStroke = isObsidian ? OBSIDIAN_COLORS.cyanAccent : COLORS.dark.accentRed;
 
   return (
     <View style={styles.container}>
@@ -76,8 +83,8 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
           <Polygon
             key={level}
             points={getRingPoints(level)}
-            fill={level === 1.0 ? 'rgba(255, 255, 255, 0.02)' : 'none'}
-            stroke="rgba(255, 255, 255, 0.08)"
+            fill={level === 1.0 ? (isObsidian ? 'rgba(0, 229, 255, 0.03)' : 'rgba(255, 255, 255, 0.02)') : 'none'}
+            stroke={gridStroke}
             strokeWidth="1"
           />
         ))}
@@ -94,7 +101,7 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
               y1={center}
               x2={x}
               y2={y}
-              stroke="rgba(255, 255, 255, 0.12)"
+              stroke={spokeStroke}
               strokeWidth="1"
             />
           );
@@ -103,8 +110,8 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
         {/* Data Area Polygon */}
         <Polygon
           points={scorePoints}
-          fill="rgba(233, 69, 96, 0.35)"
-          stroke={COLORS.dark.accentRed}
+          fill={dataFill}
+          stroke={dataStroke}
           strokeWidth="2.5"
         />
 
@@ -121,9 +128,9 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
               cx={x}
               cy={y}
               r="4"
-              fill={COLORS.dark.accentRed}
-              stroke="#FFFFFF"
-              strokeWidth="1.5"
+              fill={isObsidian ? OBSIDIAN_COLORS.canvas : COLORS.dark.accentRed}
+              stroke={dataStroke}
+              strokeWidth="2"
             />
           );
         })}
@@ -142,7 +149,11 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280 }) 
               y={y + 4}
               fontSize="11"
               fontWeight="600"
-              fill={val > 0 ? COLORS.dark.textPrimary : COLORS.dark.textSecondary}
+              fill={
+                val > 0
+                  ? (isObsidian ? OBSIDIAN_COLORS.textWhite : COLORS.dark.textPrimary)
+                  : (isObsidian ? OBSIDIAN_COLORS.textSlate : COLORS.dark.textSecondary)
+              }
               textAnchor="middle"
             >
               {axis.label}
@@ -167,6 +178,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.xl,
+  },
+  emptyCardObsidian: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    borderRadius: OBSIDIAN_RADIUS.xl,
   },
   emptyText: {
     textAlign: 'center',
