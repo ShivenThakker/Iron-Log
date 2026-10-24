@@ -139,19 +139,18 @@ Request
   ├── 5. logger.debug()                         (Pino request logging)
   ├── 6. rateLimit(60, 60000)                   (Global IP rate limiting)
   │
-  ├── 7. Domain Router Binding:
+  ├── 7. Domain Router Binding (12 active domain routers):
   │      ├── /auth         ── authRoutes         (Login, Register, Refresh, OAuth)
   │      ├── /users        ── userRoutes         (Profile management)
   │      ├── /exercises    ── exerciseRoutes     (Library search & custom creation)
   │      ├── /programs     ── programRoutes      (Active program, splits, day plans)
-  │      ├── /sessions     ── sessionRoutes      (Live set logging & session finish)
+  │      ├── /sessions     ── sessionRoutes      (Live set logging, PR detection via F4, session finish)
   │      ├── /nutrition    ── nutritionRoutes    (Food search & macro logs)
   │      ├── /body         ── bodyRoutes         (Weight & measurements)
   │      ├── /ai           ── aiRoutes           (Gemini parsing & coach chat, rate-limited to 10 req/min, Zod validation & prompt screening)
   │      ├── /gamification ── gamificationRoutes (XP, ranks, trophies, streaks)
   │      ├── /analytics    ── analyticsRoutes    (Heatmaps, radars, stats)
   │      ├── /equipment    ── equipmentRoutes    (Gym gear profiles)
-  │      ├── /prs          ── prRoutes           (PR records)
   │      └── /cron         ── cronRoutes         (Protected background automation)
   │
   └── 8. errorHandler                           (Central AppError translation & 500 safety)
@@ -262,6 +261,46 @@ active routine or creates split   program with days & exercises     structured J
 | **F15** | Program Creation Multi-Step Transactional Safety (`program.repository.ts`) | `createFullProgram` and `saveDayPlan` now wrap all program deactivations, day creations, and exercise insertions in `prisma.$transaction`. | **RESOLVED** (Oct 2026) |
 | **F16** | Concurrency Race in Initial XP Awards (`gamification.repository.ts`) | Replaced check-then-write pattern in `getOrCreateUserXp` and `awardXp` with atomic `prisma.userXp.upsert`, eliminating `P2002` duplicate key errors. | **RESOLVED** (Oct 2026) |
 | **F17** | False Positive Substring Checks on Secret Validation (`env.ts`) | Separated placeholder phrases from exact match keywords in `env.ts` so high-entropy secrets containing English substrings like `secret` are not rejected at startup. | **RESOLVED** (Oct 2026) |
+
+### 7.2 Intentionally Unused (Planned) Endpoints
+
+These endpoints are intentionally retained in the codebase for future roadmap milestones. **Future audits must NOT flag them as dead code.** They are preserved with their validators, error handling, and fail-closed checks, but are unwired from the current mobile client:
+
+| Method & Endpoint | Roadmap Purpose | Complete Implementation Files | DB Model / Columns Touched | Fail-Closed Check & Safeguards | Status |
+|---|---|---|---|---|---|
+| `POST /ai/analyze` | Planned for future automated workout routine and periodization analysis in Insights/Coach. | `apps/api/src/routes/ai.routes.ts`<br>`apps/api/src/controllers/ai.controller.ts`<br>`apps/api/src/services/gemini.service.ts` (`analyzeRoutine`)<br>`apps/api/src/services/gemini.fallbacks.ts` (`routineAnalysis`, `routineAnalysisError`) | `AiPeriodizationSuggestion` (unwritten) | Safe demo fallback responses when Gemini is offline or unconfigured. | **KEEP (Planned)** |
+| `POST /auth/google` | Planned for future Google Sign-In on mobile platforms; hardened in fix F10. | `apps/api/src/routes/auth.routes.ts`<br>`apps/api/src/controllers/auth.controller.ts`<br>`apps/api/src/validators/auth.validator.ts` (`googleAuthSchema`)<br>`apps/api/src/services/auth.service.ts` (`googleAuth`)<br>`apps/api/src/lib/env.ts` (`GOOGLE_CLIENT_ID`) | `User` (`email`, `name`, `password_hash: null`) | Verified: throws clean error (`Google sign-in is not configured on this server`) and returns HTTP 401/503 without crashing when `GOOGLE_CLIENT_ID` is unset. | **KEEP (Planned)** |
+
+### 7.3 Features & Endpoints Pruned During UI Redesign (Phase 5)
+
+During the UI redesign to the Obsidian Kinetic design system, 6 candidate items (7 dead Express routes) with 0 callers in the completed mobile application were formally approved and pruned:
+
+| # | Endpoint | Original Purpose | Pruning Details & Kept Logic | Commit |
+|---|---|---|---|---|
+| **1** | `GET /exercises/shuffle` | Prototype exercise randomizer | Removed route and controller handler; removed unused `findShuffle` from `exercise.repository.ts`. | `1066a9a` |
+| **2** | `POST /ai/feedback` | Prototype feedback text submission | Removed route, `textFeedbackSchema` validator, and `FEEDBACK_PROMPT_MAX`. Consolidated offline coaching response under `coachChat` in `gemini.fallbacks.ts`. Kept all chat, parse-plan, and generate-plan logic. | `d2dd287` |
+| **3** | `POST /ai/plan` | Duplicate route alias of `/ai/generate-plan` | Removed redundant alias from `ai.routes.ts`. Canonical endpoint `POST /ai/generate-plan` is active in onboarding. | `68fdb48` |
+| **4** | `GET /gamification/trophies` | Standalone trophy case query | Removed route and handler. The mobile application queries `GET /gamification`, which returns the complete user profile, level, XP, streaks, and unlocked trophy case in a unified payload. | `11ee9dd` |
+| **5** | `POST /gamification/check-trophies` | Standalone manual trophy trigger | Removed standalone manual trigger route and handler. The automated trophy unlocking evaluation logic in `gamification.repository.ts` (`checkAndUnlockTrophies`) is strictly preserved and triggered automatically when finalizing sessions via `PUT /sessions/:id/finish`. | `fa4b9cd` |
+| **6** | `GET /prs`<br>`GET /prs/recent` | Standalone personal record read routes | Removed read routes, `pr.controller.ts`, and unmounted `/prs` in `index.ts`. All PR detection algorithms (`prDetection.ts`) and idempotent concurrency handling (`recordPersonalRecordOnce` with SQLite/Postgres `P2002` handling in `pr.repository.ts`, audit fix F4) are strictly preserved and executed when adding sets in `apps/mobile/app/workout/active.tsx`. | `ed37656` |
+
+### 7.4 Post-Redesign API Endpoint Map (44 Endpoints)
+
+Total Express endpoints: **44** (43 router endpoints + 1 root health endpoint).
+
+- **Health (1)**: `GET /health`
+- **Auth (5)**: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/google` *(Planned)*
+- **Users (2)**: `GET /users/profile`, `PUT /users/profile`
+- **Exercises (3)**: `GET /exercises/`, `POST /exercises/`, `GET /exercises/:id`
+- **Programs (9)**: `GET /programs/`, `GET /programs/active`, `POST /programs/full`, `POST /programs/day`, `PUT /programs/:id/activate`, `POST /programs/`, `GET /programs/:id`, `PUT /programs/:id`, `DELETE /programs/:id`
+- **Sessions (5)**: `GET /sessions/`, `POST /sessions/`, `GET /sessions/:id`, `POST /sessions/:id/sets`, `PUT /sessions/:id/finish`
+- **Nutrition (4)**: `GET /nutrition/search`, `GET /nutrition/daily`, `GET /nutrition/daily/:date`, `POST /nutrition/log`
+- **Body Tracking (3)**: `POST /body/weight`, `GET /body/weight`, `POST /body/measurement`
+- **AI Engine (4)**: `POST /ai/chat`, `POST /ai/analyze` *(Planned)*, `POST /ai/generate-plan`, `POST /ai/parse-plan`
+- **Gamification (1)**: `GET /gamification/`
+- **Analytics (4)**: `GET /analytics/stats`, `GET /analytics/heatmap`, `GET /analytics/radar`, `GET /analytics/equipment`
+- **Equipment (3)**: `GET /equipment/`, `POST /equipment/`, `PUT /equipment/:id/active`
+- **Cron Automation (1)**: `POST /cron/streaks`
 
 ---
 
