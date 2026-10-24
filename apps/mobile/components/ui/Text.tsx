@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextProps as RNTextProps, StyleSheet, TextStyle, StyleProp } from 'react-native';
-import { COLORS } from '@/constants/tokens';
+import { COLORS, OBSIDIAN_COLORS, OBSIDIAN_TYPOGRAPHY } from '@/constants/tokens';
 
 export type TextVariant =
   | 'h1'
@@ -11,7 +11,20 @@ export type TextVariant =
   | 'caption'
   | 'mono'
   | 'heroStat'
-  | 'xp';
+  | 'xp'
+  | 'displayHero'
+  | 'displayHeroMobile'
+  | 'headlineLg'
+  | 'headlineLgMobile'
+  | 'headlineMd'
+  | 'headlineSm'
+  | 'metricNumeral'
+  | 'labelCaps'
+  | 'labelInteractive'
+  | 'bodyLg'
+  | 'bodyMd'
+  | 'bodySm'
+  | 'bodySmMedium';
 
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;
@@ -19,7 +32,7 @@ export interface TextProps extends RNTextProps {
   weight?: 'regular' | 'medium' | 'semibold' | 'bold';
   align?: 'left' | 'center' | 'right';
   style?: StyleProp<TextStyle>;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const Text: React.FC<TextProps> = ({
@@ -53,6 +66,7 @@ export const Text: React.FC<TextProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // Existing variants
   h1: {
     fontFamily: 'Inter_700Bold',
     fontSize: 28,
@@ -106,5 +120,59 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 24,
     color: COLORS.dark.accentGold,
+  },
+
+  // Obsidian Kinetic presets
+  displayHero: {
+    ...OBSIDIAN_TYPOGRAPHY.displayHero,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  displayHeroMobile: {
+    ...OBSIDIAN_TYPOGRAPHY.displayHeroMobile,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  headlineLg: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineLg,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  headlineLgMobile: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineLgMobile,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  headlineMd: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineMd,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  headlineSm: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  metricNumeral: {
+    ...OBSIDIAN_TYPOGRAPHY.metricNumeral,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  labelCaps: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  labelInteractive: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  bodyLg: {
+    ...OBSIDIAN_TYPOGRAPHY.bodyLg,
+    color: OBSIDIAN_COLORS.onSurface,
+  },
+  bodyMd: {
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    color: OBSIDIAN_COLORS.onSurface,
+  },
+  bodySm: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  bodySmMedium: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySmMedium,
+    color: OBSIDIAN_COLORS.onSurface,
   },
 });

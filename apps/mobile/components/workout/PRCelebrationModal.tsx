@@ -1,7 +1,13 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, Modal, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  COLORS,
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_SHADOWS,
+} from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { Badge } from '@/components/ui/Badge';
@@ -36,34 +42,34 @@ export const PRCelebrationModal: React.FC<PRCelebrationModalProps> = ({
             <Text style={styles.trophyEmoji}>🏆</Text>
           </View>
 
-          <Badge label="PERSONAL RECORD" variant="gold" style={styles.badge} />
+          <Badge label="PERSONAL RECORD" variant="volt" style={styles.badge} />
 
-          <Text variant="h1" style={styles.title}>
+          <Text variant="headlineLg" style={styles.title}>
             NEW PR!
           </Text>
 
-          <Text variant="h3" style={styles.exerciseName}>
+          <Text variant="headlineSm" style={styles.exerciseName}>
             {exerciseName}
           </Text>
 
           <View style={styles.statBox}>
-            <Text variant="caption" style={styles.prTypeLabel}>
+            <Text variant="labelCaps" style={styles.prTypeLabel}>
               {prType.toUpperCase()}
             </Text>
-            <Text variant="mono" style={styles.statValue}>
+            <Text variant="metricNumeral" style={styles.statValue}>
               {value}
             </Text>
           </View>
 
           <View style={styles.xpRow}>
-            <Text style={styles.fireEmoji}>🔥</Text>
-            <Text variant="h3" style={styles.xpText}>
+            <Text style={styles.fireEmoji}>⚡</Text>
+            <Text variant="headlineSm" style={styles.xpText}>
               +25 XP Awarded!
             </Text>
           </View>
 
           <View style={styles.buttonWrapper}>
-            <GradientButton title="Hell Yeah! 💥" onPress={onDismiss} />
+            <GradientButton variant="volt" title="Hell Yeah! 💥" onPress={onDismiss} />
           </View>
         </View>
       </View>
@@ -74,81 +80,78 @@ export const PRCelebrationModal: React.FC<PRCelebrationModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 12, 24, 0.88)',
+    backgroundColor: 'rgba(9, 11, 16, 0.90)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: OBSIDIAN_SPACING.xl,
   },
   card: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS['2xl'],
+    padding: OBSIDIAN_SPACING.xl,
     width: '100%',
     maxWidth: 340,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.dark.accentGold,
-    shadowColor: COLORS.dark.accentGold,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 25,
+    borderColor: OBSIDIAN_COLORS.voltLime,
+    ...OBSIDIAN_SHADOWS.voltGlowLarge,
   },
   iconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: OBSIDIAN_COLORS.voltOverlay15,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   trophyEmoji: {
     fontSize: 44,
   },
   badge: {
-    marginBottom: SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
   title: {
-    color: COLORS.dark.accentGold,
-    fontWeight: '900',
+    color: OBSIDIAN_COLORS.voltLime,
     letterSpacing: 1.5,
-    marginBottom: SPACING.xs,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
   exerciseName: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
     textAlign: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: OBSIDIAN_SPACING.lg,
   },
   statBox: {
-    backgroundColor: COLORS.dark.bgInput,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    borderWidth: 1,
+    paddingVertical: OBSIDIAN_SPACING.md,
+    paddingHorizontal: OBSIDIAN_SPACING.xl,
+    borderRadius: OBSIDIAN_RADIUS.lg,
     alignItems: 'center',
     width: '100%',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   prTypeLabel: {
-    color: COLORS.dark.textSecondary,
+    color: OBSIDIAN_COLORS.textMuted,
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OBSIDIAN_COLORS.textWhite,
   },
   xpRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    marginBottom: SPACING.xl,
+    gap: OBSIDIAN_SPACING.xs,
+    marginBottom: OBSIDIAN_SPACING.xl,
   },
   fireEmoji: {
     fontSize: 20,
   },
   xpText: {
-    color: COLORS.dark.accentGold,
+    color: OBSIDIAN_COLORS.voltLime,
   },
   buttonWrapper: {
     width: '100%',
