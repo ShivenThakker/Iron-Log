@@ -42,14 +42,6 @@ export class ExerciseRepository {
     return prisma.exercise.create({ data });
   }
 
-  async findShuffle(muscle: string) {
-    // Basic random selection for same muscle group
-    const exercises = await prisma.exercise.findMany({
-      where: { primary_muscle: muscle, is_custom: false },
-    });
-    if (!exercises.length) return null;
-    return exercises[Math.floor(Math.random() * exercises.length)];
-  }
 }
 
 export const exerciseRepository = new ExerciseRepository();

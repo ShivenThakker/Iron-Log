@@ -40,19 +40,3 @@ export const createCustomExercise = async (req: Request, res: Response, next: Ne
   }
 };
 
-export const shuffleExercise = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { muscle } = req.query;
-    if (!muscle) {
-      res.status(400).json({ error: 'Muscle group required' });
-      return;
-    }
-    const ex = await exerciseRepository.findShuffle(muscle as string);
-    if (!ex) {
-      throw new NotFoundError('No exercises found for this muscle');
-    }
-    res.json(ex);
-  } catch (err: any) {
-    next(err);
-  }
-};
