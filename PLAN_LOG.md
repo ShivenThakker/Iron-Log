@@ -1,0 +1,36 @@
+# Plan Execution Log: IronLog UI Redesign
+
+Running record of steps executed according to `REDESIGN_PLAN.md`.
+
+---
+
+## Phase 0: Safety Setup
+
+### Step 0.1 - Branch Creation
+- **Action**: Created and checked out new git branch `ui-redesign` from `main`.
+- **Command**: `git checkout -b ui-redesign`
+- **Verification**: `git branch --show-current` confirmed `ui-redesign`.
+- **Status**: PASSED
+
+### Step 0.2 - Baseline Typecheck & Tests
+- **Action**: Ran baseline typecheck and test commands across workspaces (`apps/api`, `apps/mobile`, `packages/shared`).
+- **Commands**:
+  - `npm run typecheck`:
+    - `api@1.0.0 typecheck` (`tsc --noEmit`): PASSED (0 errors)
+    - `mobile@1.0.0 typecheck` (`tsc --noEmit`): PASSED (0 errors)
+    - `@ironlog/shared@1.0.0 typecheck`: PASSED (0 errors)
+    - Total: Clean (0 errors across entire monorepo).
+  - Tests:
+    - `apps/api`: No test runner specified in `package.json` (`echo "Error: no test specified"`).
+    - `apps/mobile`: No test script specified.
+- **Status**: PASSED (clean baseline)
+
+### Step 0.3 - Endpoint Snapshot
+- **Action**: Cataloged every Express endpoint into `docs/endpoints-before.md`.
+- **Route Count Verification**:
+  - `grep -rn "router\.\(get\|post\|put\|patch\|delete\)" apps/api/src | wc -l` returned 50.
+  - Plus 1 top-level endpoint (`GET /health` mounted on `app` directly in `apps/api/src/index.ts:56`).
+  - Total cataloged: 51 endpoints.
+- **Verification**: `docs/endpoints-before.md` matches all routes across 13 route files + 1 index mount.
+- **Status**: PASSED
+
