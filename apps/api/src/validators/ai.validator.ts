@@ -12,11 +12,6 @@ const userText = (max: number) =>
     .refine((text) => text.length > 0, { message: 'Message is empty.' })
     .refine((text) => !matchesInjectionPattern(text), { message: NOT_ALLOWED });
 
-export const textFeedbackSchema = z.object({
-  prompt: userText(AI_LIMITS.FEEDBACK_PROMPT_MAX),
-  history: z.array(z.any()).optional(),
-});
-
 export const chatMessageSchema = z.object({
   message: userText(AI_LIMITS.CHAT_MESSAGE_MAX),
   history: z.array(z.any()).optional(),

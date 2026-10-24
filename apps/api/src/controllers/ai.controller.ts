@@ -31,7 +31,7 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
       }
     }
 
-    const reply = await geminiService.getTextFeedback(message + userContext, history || []);
+    const reply = await geminiService.getCoachResponse(message + userContext, history || []);
     res.json({ reply });
   } catch (err: any) {
     next(err);

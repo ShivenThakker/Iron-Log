@@ -3,7 +3,7 @@ import { chatCompletion, analyzeWorkout, generatePlan, parsePlan } from '../cont
 import { requireAuth } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { rateLimit } from '../middleware/ratelimit.middleware';
-import { chatMessageSchema, parsePlanSchema, textFeedbackSchema } from '../validators/ai.validator';
+import { chatMessageSchema, parsePlanSchema } from '../validators/ai.validator';
 
 const router = Router();
 router.use(requireAuth);
@@ -12,10 +12,6 @@ router.use(requireAuth);
 router.use(rateLimit(10, 60000));
 
 router.post('/chat', validate(chatMessageSchema), chatCompletion);
-router.post('/feedback', validate(textFeedbackSchema), (req, res, next) => {
-  req.body.message = req.body.prompt;
-  return chatCompletion(req, res, next);
-});
 router.post('/analyze', analyzeWorkout);
 router.post('/plan', generatePlan);
 router.post('/generate-plan', generatePlan);
