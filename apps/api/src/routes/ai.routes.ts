@@ -13,7 +13,6 @@ router.use(rateLimit(10, 60000));
 
 router.post('/chat', validate(chatMessageSchema), chatCompletion);
 router.post('/analyze', analyzeWorkout);
-router.post('/plan', generatePlan);
 router.post('/generate-plan', generatePlan);
 router.post('/parse-plan', validate(parsePlanSchema), parsePlan);
 
