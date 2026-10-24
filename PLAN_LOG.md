@@ -48,9 +48,18 @@ Running record of steps executed according to `REDESIGN_PLAN.md`.
 - **Verification**: All Stitch folders mapped, and all existing Expo routes accounted for.
 - **Status**: PASSED
 
-### Step 1.3 - Removal Ledger
-- **Action**: Created `REMOVAL_LEDGER.md` documenting all dropped buttons/features, unused prototype endpoints, and route path realignments.
-- **Verification**: Verified zero callers for all 8 `DELETE-ENDPOINT` rows via codebase search across `apps/mobile`.
-- **Status**: PASSED (Ready for Human Review)
+### Step 1.3 - Removal Ledger Revision
+- **Action**: Revised `REMOVAL_LEDGER.md` and `docs/screen-map.md`:
+  1. Added `DB Model / Columns Touched` column to every entry.
+  2. Completed backend files list for all candidate rows (including `gemini.service.ts`, `gemini.fallbacks.ts`, `auth.service.ts`, `env.ts`, and `index.ts`).
+  3. Separated dead backend endpoints discovered by model (Rows 1-8) from user redesign feature changes (Row 9).
+  4. Placed Row 4 (`/ai/analyze`) and Row 5 (`/auth/google`) ON HOLD pending user confirmation.
+  5. Moved frontend shortcut button removals (Active Session and AI Coach) to `docs/screen-map.md`.
+  6. Reclassified old rows 12-14 as Client Realignments in `docs/screen-map.md`, verifying response shapes against real endpoints (`/analytics/stats`, `/analytics/heatmap`, `/analytics/radar`, `/analytics/equipment`, `GET /body/weight`, `POST /body/measurement`, and `GET /sessions`).
+  7. Verified 4-step onboarding against `updateProfileSchema` (all fields optional, `session_duration_min` defaults to 60, AI coach reads only `name`, `fitness_goal`, `experience_level`).
+  8. Added Achievements, Workout Summary, AI Chat, and Onboarding to screen map and defined the complete 11-screen execution sequence for Phase 3.
+  9. Documented database protocol: development uses SQLite while production uses Supabase Postgres; any schema changes will follow hand-crafted manual SQL scripts (`apps/api/prisma/manual/`).
+- **Status**: PASSED (Ready for Human Approval)
+
 
 
