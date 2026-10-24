@@ -41,12 +41,3 @@ export const getGamificationProfile = async (req: Request, res: Response) => {
 };
 
 
-export const checkTrophies = async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const newlyUnlocked = await gamificationRepository.checkAndUnlockTrophies(userId);
-    res.json({ newlyUnlocked });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
