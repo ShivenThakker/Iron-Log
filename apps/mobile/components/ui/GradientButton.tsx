@@ -7,15 +7,31 @@ import {
   TextStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  COLORS,
+  RADIUS,
+  SPACING,
+  OBSIDIAN_COLORS,
+  OBSIDIAN_SHADOWS,
+  OBSIDIAN_RADIUS,
+} from '@/constants/tokens';
 import { Text } from './Text';
+
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'danger'
+  | 'volt'
+  | 'voltSecondary'
+  | 'voltGhost';
 
 interface GradientButtonProps {
   title: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  variant?: ButtonVariant;
   size?: 'sm' | 'md' | 'lg';
   style?: ViewStyle;
   textStyle?: TextStyle;
@@ -53,10 +69,15 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
 
   const getTextColor = () => {
     if (disabled) return COLORS.dark.textSecondary;
+    if (variant === 'volt') return OBSIDIAN_COLORS.onPrimary;
+    if (variant === 'voltSecondary') return OBSIDIAN_COLORS.textWhite;
+    if (variant === 'voltGhost') return OBSIDIAN_COLORS.voltLime;
     if (variant === 'outline') return COLORS.dark.accentRed;
     if (variant === 'secondary') return COLORS.dark.textPrimary;
     return '#FFFFFF';
   };
+
+  const isVoltFamily = variant === 'volt' || variant === 'voltSecondary' || variant === 'voltGhost';
 
   return (
     <TouchableOpacity
@@ -74,7 +95,12 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
             variant={size === 'sm' ? 'bodySmall' : 'body'}
             weight="semibold"
             color={getTextColor()}
-            style={[styles.text, icon ? { marginLeft: SPACING.sm } : undefined, textStyle]}
+            style={[
+              styles.text,
+              isVoltFamily && styles.voltText,
+              icon ? { marginLeft: SPACING.sm } : undefined,
+              textStyle,
+            ]}
           >
             {title}
           </Text>
@@ -113,6 +139,20 @@ const styles = StyleSheet.create({
   danger: {
     backgroundColor: COLORS.dark.destructive,
   },
+  volt: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    ...OBSIDIAN_SHADOWS.voltGlowSmall,
+  },
+  voltSecondary: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
+  },
+  voltGhost: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+  },
   disabled: {
     opacity: 0.45,
     shadowOpacity: 0,
@@ -133,5 +173,10 @@ const styles = StyleSheet.create({
   },
   text: {
     textAlign: 'center',
+  },
+  voltText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

@@ -29,10 +29,19 @@ export const createCustomExercise = async (req: Request, res: Response, next: Ne
   try {
     const data = req.body;
     const userId = req.user!.id;
+    const secondaryMuscles = Array.isArray(data.secondary_muscles)
+      ? JSON.stringify(data.secondary_muscles)
+      : data.secondary_muscles;
+
     const ex = await exerciseRepository.createCustom({
-      ...data,
+      name: data.name,
+      primary_muscle: data.primary_muscle,
+      secondary_muscles: secondaryMuscles,
+      equipment: data.equipment,
+      exercise_type: data.exercise_type || 'reps',
+      instructions: data.instructions,
       is_custom: true,
-      createdBy: { connect: { id: userId } }
+      createdBy: { connect: { id: userId } },
     });
     res.status(201).json(ex);
   } catch (err: any) {
@@ -40,19 +49,3 @@ export const createCustomExercise = async (req: Request, res: Response, next: Ne
   }
 };
 
-export const shuffleExercise = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { muscle } = req.query;
-    if (!muscle) {
-      res.status(400).json({ error: 'Muscle group required' });
-      return;
-    }
-    const ex = await exerciseRepository.findShuffle(muscle as string);
-    if (!ex) {
-      throw new NotFoundError('No exercises found for this muscle');
-    }
-    res.json(ex);
-  } catch (err: any) {
-    next(err);
-  }
-};

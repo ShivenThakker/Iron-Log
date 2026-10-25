@@ -61,7 +61,7 @@ export class GeminiService {
     });
   }
 
-  async getTextFeedback(prompt: string, history: ChatMessage[] = []): Promise<string> {
+  async getCoachResponse(prompt: string, history: ChatMessage[] = []): Promise<string> {
     const coachSystemInstruction = [
       'You are IronLog Coach, a fitness assistant inside a workout-tracking app.',
       'Answer only questions about training, nutrition, recovery and using the app.',
@@ -72,7 +72,7 @@ export class GeminiService {
 
     const model = this.getModel(coachSystemInstruction);
     if (!model) {
-      return getFallbackResponse('textFeedback');
+      return getFallbackResponse('coachChat');
     }
 
     const wrappedPrompt = `<athlete_message>\n${prompt}\n</athlete_message>`;
@@ -92,7 +92,7 @@ export class GeminiService {
       const result = await model.generateContent(wrappedPrompt);
       return result.response.text();
     } catch (error: any) {
-      logger.warn({ err: error, model: this.modelName }, 'Gemini text feedback failed');
+      logger.warn({ err: error, model: this.modelName }, 'Gemini coach chat failed');
       throw new AiResponseError();
     }
   }

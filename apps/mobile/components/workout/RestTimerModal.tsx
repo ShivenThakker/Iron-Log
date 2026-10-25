@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  COLORS,
+  RADIUS,
+  SPACING,
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_SHADOWS,
+} from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { ProgressRing } from '@/components/charts/ProgressRing';
 import { Icon } from '@/components/ui/Icon';
@@ -65,9 +73,9 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text variant="caption" style={styles.kicker}>REST TIMER</Text>
+          <Text variant="labelCaps" style={styles.kicker}>REST TIMER</Text>
           {exerciseName && (
-            <Text variant="h3" style={styles.title} numberOfLines={1}>
+            <Text variant="headlineSm" style={styles.title} numberOfLines={1}>
               {exerciseName}
             </Text>
           )}
@@ -77,13 +85,13 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
               size={180}
               strokeWidth={12}
               progress={progress}
-              color={secondsLeft === 0 ? COLORS.dark.success : COLORS.dark.accentRed}
+              color={secondsLeft === 0 ? OBSIDIAN_COLORS.voltLime : OBSIDIAN_COLORS.cyanAccent}
             >
               <View style={styles.innerContent}>
-                <Text variant="mono" style={styles.timerText}>
+                <Text style={styles.timerText}>
                   {timeFormatted}
                 </Text>
-                <Text variant="caption" style={styles.timerSub}>
+                <Text variant="bodySm" style={styles.timerSub}>
                   {secondsLeft === 0 ? 'Ready to Lift!' : 'Resting'}
                 </Text>
               </View>
@@ -93,13 +101,13 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
           {/* Quick Adjustment Buttons */}
           <View style={styles.adjustRow}>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => addTime(-15)}>
-              <Text variant="bodySmall" style={styles.adjustText}>-15s</Text>
+              <Text style={styles.adjustText}>-15s</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => addTime(30)}>
-              <Text variant="bodySmall" style={styles.adjustText}>+30s</Text>
+              <Text style={styles.adjustText}>+30s</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => addTime(60)}>
-              <Text variant="bodySmall" style={styles.adjustText}>+60s</Text>
+              <Text style={styles.adjustText}>+60s</Text>
             </TouchableOpacity>
           </View>
 
@@ -108,7 +116,7 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
             style={[styles.actionBtn, secondsLeft === 0 && styles.actionBtnDone]}
             onPress={onClose}
           >
-            <Text variant="h3" style={styles.actionBtnText}>
+            <Text style={[styles.actionBtnText, secondsLeft === 0 && styles.actionBtnTextDone]}>
               {secondsLeft === 0 ? 'Next Set →' : 'Skip Rest'}
             </Text>
           </TouchableOpacity>
@@ -121,82 +129,89 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 12, 24, 0.85)',
+    backgroundColor: 'rgba(9, 11, 16, 0.88)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: OBSIDIAN_SPACING.xl,
   },
   card: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS['2xl'],
+    padding: OBSIDIAN_SPACING.xl,
     width: '100%',
     maxWidth: 340,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 20,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    ...OBSIDIAN_SHADOWS.cardLevel3,
   },
   kicker: {
-    color: COLORS.dark.accentGold,
-    letterSpacing: 2,
-    marginBottom: SPACING.xs,
+    color: OBSIDIAN_COLORS.voltLime,
+    letterSpacing: 1.5,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
   title: {
-    color: COLORS.dark.textPrimary,
-    marginBottom: SPACING.lg,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginBottom: OBSIDIAN_SPACING.md,
     textAlign: 'center',
   },
   ringWrapper: {
-    marginVertical: SPACING.md,
+    marginVertical: OBSIDIAN_SPACING.sm,
   },
   innerContent: {
     alignItems: 'center',
   },
   timerText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 42,
+    lineHeight: 48,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   timerSub: {
-    color: COLORS.dark.textSecondary,
+    color: OBSIDIAN_COLORS.textMuted,
     marginTop: 2,
   },
   adjustRow: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-    marginVertical: SPACING.md,
+    gap: OBSIDIAN_SPACING.sm,
+    marginVertical: OBSIDIAN_SPACING.md,
   },
   adjustBtn: {
-    backgroundColor: COLORS.dark.bgInput,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.full,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingVertical: OBSIDIAN_SPACING.xs + 2,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   adjustText: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   actionBtn: {
-    marginTop: SPACING.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: OBSIDIAN_SPACING.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
     width: '100%',
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
+    paddingVertical: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.lg,
     alignItems: 'center',
   },
   actionBtnDone: {
-    backgroundColor: COLORS.dark.accentRed,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    borderColor: OBSIDIAN_COLORS.voltLime,
+    ...OBSIDIAN_SHADOWS.voltGlowSmall,
   },
   actionBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.textWhite,
     fontSize: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  actionBtnTextDone: {
+    color: OBSIDIAN_COLORS.onPrimary,
   },
 });

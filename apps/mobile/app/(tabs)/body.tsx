@@ -16,7 +16,11 @@ import { Badge } from '@/components/ui/Badge';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { Icon } from '@/components/ui/Icon';
 import { WeightChart, WeightPoint } from '@/components/charts/WeightChart';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
 const DEFAULT_WEIGHT_HISTORY: WeightPoint[] = [
@@ -30,7 +34,7 @@ const DEFAULT_WEIGHT_HISTORY: WeightPoint[] = [
 
 export default function BodyTab() {
   const queryClient = useQueryClient();
-  const [timeRange, setTimeRange] = useState<'30' | '90'>('30');
+  const [timeRange, setTimeRange] = useState<'30' | '90' | 'all'>('30');
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showMeasureModal, setShowMeasureModal] = useState(false);
 
@@ -41,30 +45,29 @@ export default function BodyTab() {
   const [waistInput, setWaistInput] = useState('');
   const [thighsInput, setThighsInput] = useState('');
 
-  // Fetch weight history & target weight from API
-  const { data: weightData, refetch, isRefetching } = useQuery({
-    queryKey: ['weightHistory', timeRange],
+  // Realigned to real backend endpoint: GET /body/weight
+  const { data: weightData, refetch: refetchWeight, isRefetching } = useQuery({
+    queryKey: ['weightHistory'],
     queryFn: async () => {
-      const res = await api.get(`/body/weight/history?days=${timeRange}`).catch(() => null);
+      const res = await api.get('/body/weight').catch(() => null);
       return res?.data ?? null;
     },
   });
 
-  // Fetch measurements history
-  const { data: measureData } = useQuery({
-    queryKey: ['measurementsHistory'],
+  // Realigned to real backend endpoint: GET /body/measurement
+  const { data: measurementData, refetch: refetchMeasurements } = useQuery({
+    queryKey: ['bodyMeasurements'],
     queryFn: async () => {
-      const res = await api.get('/body/measurements/history').catch(() => null);
+      const res = await api.get('/body/measurement').catch(() => null);
       return res?.data ?? null;
     },
   });
 
-  // Log weight mutation
+  // Log weight mutation: POST /body/weight
   const logWeightMutation = useMutation({
     mutationFn: async (weight: number) => {
       await api.post('/body/weight', {
         weight_kg: weight,
-        logged_at: new Date().toISOString(),
       });
     },
     onSuccess: () => {
@@ -74,19 +77,18 @@ export default function BodyTab() {
     },
   });
 
-  // Log measurements mutation
+  // Log measurements mutation: POST /body/measurement (realigned singular endpoint)
   const logMeasureMutation = useMutation({
     mutationFn: async (measurements: Record<string, number>) => {
-      await api.post('/body/measurements', {
+      await api.post('/body/measurement', {
         chest_cm: measurements.chest,
-        arms_cm: measurements.arms,
+        left_arm_cm: measurements.arms,
         waist_cm: measurements.waist,
-        thighs_cm: measurements.thighs,
-        logged_at: new Date().toISOString(),
+        left_thigh_cm: measurements.thighs,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['measurementsHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['bodyMeasurements'] });
       setShowMeasureModal(false);
       setChestInput('');
       setArmsInput('');
@@ -95,25 +97,47 @@ export default function BodyTab() {
     },
   });
 
-  const chartPoints: WeightPoint[] = Array.isArray(weightData?.history) && weightData.history.length > 0
-    ? weightData.history.map((item: any) => ({
+  // Extract logs from backend response (flattened or backwards-compatible nested)
+  const rawLogs = Array.isArray(weightData?.history)
+    ? weightData.history
+    : (weightData?.history?.history ?? []);
+  const historyList = Array.isArray(rawLogs) ? rawLogs : [];
+
+  const filteredLogs = React.useMemo(() => {
+    if (historyList.length === 0) return [];
+    if (timeRange === 'all') return historyList;
+    const days = timeRange === '30' ? 30 : 90;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const filtered = historyList.filter((item: any) => new Date(item.logged_at) >= cutoff);
+    return filtered.length > 0 ? filtered : historyList.slice(-days);
+  }, [historyList, timeRange]);
+
+  const chartPoints: WeightPoint[] = filteredLogs.length > 0
+    ? filteredLogs.map((item: any) => ({
         date: new Date(item.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         weight: Number(item.weight_kg),
-        movingAvg: item.moving_avg_7d ? Number(item.moving_avg_7d) : undefined,
+        movingAvg: item.moving_avg_kg ? Number(item.moving_avg_kg) : undefined,
       }))
     : DEFAULT_WEIGHT_HISTORY;
 
-  const currentWeight = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].weight : 78.5;
-  const startWeight = chartPoints.length > 0 ? chartPoints[0].weight : 80.5;
+  const currentWeight = weightData?.currentWeight ??
+    weightData?.history?.currentWeight ??
+    (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].weight : 78.5);
+  const startWeight = weightData?.startingWeight ??
+    weightData?.history?.startingWeight ??
+    (chartPoints.length > 0 ? chartPoints[0].weight : 80.5);
   const deltaWeight = (currentWeight - startWeight).toFixed(1);
   const isLoss = Number(deltaWeight) <= 0;
-  const goalWeight = weightData?.targetWeight || 75.0;
+  const goalWeight = weightData?.goal?.goal_weight_kg ??
+    weightData?.history?.goal?.goal_weight_kg ?? 75.0;
 
-  const measurements = measureData?.latest || {
-    chest: 104,
-    arms: 39.5,
-    waist: 83,
-    thighs: 60,
+  const latestMsmt = measurementData?.latest;
+  const measurements = {
+    chest: latestMsmt?.chest_cm ?? 104,
+    arms: latestMsmt?.left_arm_cm ?? latestMsmt?.right_arm_cm ?? 39.5,
+    waist: latestMsmt?.waist_cm ?? 83,
+    thighs: latestMsmt?.left_thigh_cm ?? latestMsmt?.right_thigh_cm ?? 60,
   };
 
   const handleWeightSubmit = () => {
@@ -132,7 +156,7 @@ export default function BodyTab() {
   };
 
   return (
-    <ScreenContainer scrollable={false}>
+    <ScreenContainer scrollable={false} theme="obsidian">
       <View style={styles.container}>
         <ScrollView
           style={styles.scroll}
@@ -141,38 +165,42 @@ export default function BodyTab() {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={refetch}
-              tintColor={COLORS.dark.accentRed}
+              onRefresh={() => {
+                refetchWeight();
+                refetchMeasurements();
+              }}
+              tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }
         >
-          {/* Header */}
+          {/* Header Row */}
           <View style={styles.header}>
             <View>
-              <Text variant="caption" style={styles.kicker}>BODY COMPOSITION</Text>
-              <Text variant="h1" style={styles.title}>Body Progress</Text>
+              <Text variant="labelCaps" style={styles.kicker}>BODY COMPOSITION</Text>
+              <Text variant="headlineLgMobile" style={styles.title}>BODY PROGRESS</Text>
             </View>
             <TouchableOpacity
               style={styles.quickLogBtn}
               onPress={() => setShowWeightModal(true)}
+              activeOpacity={0.8}
             >
-              <Icon name="Plus" size={16} color="#FFFFFF" />
-              <Text variant="caption" style={styles.quickLogText}>
+              <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />
+              <Text style={styles.quickLogText}>
                 Log Weight
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Current Weight Hero Card */}
-          <GlassCard style={styles.heroCard}>
+          {/* Primary Weight Analytics Card */}
+          <GlassCard variant="obsidianLevel1" style={styles.heroCard}>
             <View style={styles.heroHeader}>
               <View>
-                <Text variant="caption" style={styles.heroLabel}>CURRENT WEIGHT</Text>
+                <Text variant="labelCaps" style={styles.heroLabel}>CURRENT WEIGHT</Text>
                 <View style={styles.weightNumRow}>
-                  <Text variant="mono" style={styles.weightMainNum}>
+                  <Text style={styles.weightMainNum}>
                     {currentWeight}
                   </Text>
-                  <Text variant="h2" style={styles.weightUnit}>
+                  <Text style={styles.weightUnit}>
                     kg
                   </Text>
                 </View>
@@ -181,10 +209,10 @@ export default function BodyTab() {
               <View style={styles.deltaBox}>
                 <Badge
                   label={`${isLoss ? '↓' : '↑'} ${Math.abs(Number(deltaWeight))} kg`}
-                  variant={isLoss ? 'green' : 'gold'}
+                  variant="volt"
                 />
-                <Text variant="caption" style={styles.deltaSub}>
-                  vs. 30 days ago
+                <Text variant="bodySm" style={styles.deltaSub}>
+                  vs 30 days ago
                 </Text>
               </View>
             </View>
@@ -192,69 +220,111 @@ export default function BodyTab() {
             {/* Time range filters */}
             <View style={styles.rangeRow}>
               <View style={styles.rangeTabs}>
-                <TouchableOpacity
-                  style={[styles.rangeTab, timeRange === '30' && styles.rangeTabActive]}
-                  onPress={() => setTimeRange('30')}
-                >
-                  <Text variant="caption" style={[styles.rangeTabText, timeRange === '30' && styles.rangeTabTextActive]}>
-                    Last 30 Days
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.rangeTab, timeRange === '90' && styles.rangeTabActive]}
-                  onPress={() => setTimeRange('90')}
-                >
-                  <Text variant="caption" style={[styles.rangeTabText, timeRange === '90' && styles.rangeTabTextActive]}>
-                    Last 90 Days
-                  </Text>
-                </TouchableOpacity>
+                {(['30', '90', 'all'] as const).map((range) => (
+                  <TouchableOpacity
+                    key={range}
+                    style={[styles.rangeTab, timeRange === range && styles.rangeTabActive]}
+                    onPress={() => setTimeRange(range)}
+                  >
+                    <Text
+                      style={[
+                        styles.rangeTabText,
+                        timeRange === range && styles.rangeTabTextActive,
+                      ]}
+                    >
+                      {range === '30' ? 'Last 30 Days' : range === '90' ? 'Last 90 Days' : 'All Time'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-
-              <Text variant="caption" style={styles.goalText}>
-                Goal: {goalWeight} kg
-              </Text>
             </View>
 
-            {/* Interactive Weight Chart with Moving Average */}
-            <WeightChart data={chartPoints} goalWeight={goalWeight} />
+            {/* Interactive Weight Chart with Moving Average and Volt glow */}
+            <WeightChart data={chartPoints} goalWeight={goalWeight} theme="obsidian" />
           </GlassCard>
 
           {/* Body Measurements Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text variant="h3" style={styles.sectionTitle}>
-                Body Measurements
-              </Text>
+              <View style={styles.sectionTitleRow}>
+                <Icon name="Sparkle" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                <Text variant="headlineSm" style={styles.sectionTitle}>
+                  Body Measurements
+                </Text>
+              </View>
               <TouchableOpacity
                 style={styles.measureLogBtn}
                 onPress={() => setShowMeasureModal(true)}
+                activeOpacity={0.7}
               >
-                <Text variant="caption" style={styles.measureLogBtnText}>
-                  + Log Measurements
-                </Text>
+                <Icon name="Plus" size={14} color={OBSIDIAN_COLORS.voltLime} />
+                <Text style={styles.measureLogBtnText}>Log</Text>
               </TouchableOpacity>
             </View>
 
-            <GlassCard style={styles.measurementsCard}>
+            <View style={styles.measureGridStack}>
               {[
-                { label: 'Chest', value: measurements.chest, unit: 'cm', change: '+1.5 cm', changeType: 'green' },
-                { label: 'Arms / Biceps', value: measurements.arms, unit: 'cm', change: '+0.8 cm', changeType: 'green' },
-                { label: 'Waist', value: measurements.waist, unit: 'cm', change: '-2.0 cm', changeType: 'green' },
-                { label: 'Thighs', value: measurements.thighs, unit: 'cm', change: '+1.0 cm', changeType: 'green' },
+                { label: 'Chest', value: measurements.chest, unit: 'cm', change: '+1.5 cm', isPositive: true, icon: 'ArrowFatUp' as const },
+                { label: 'Arms / Biceps', value: measurements.arms, unit: 'cm', change: '+0.8 cm', isPositive: true, icon: 'ArrowFatUp' as const },
+                { label: 'Waist', value: measurements.waist, unit: 'cm', change: '-2.0 cm', isPositive: true, icon: 'ArrowFatDown' as const },
+                { label: 'Thighs', value: measurements.thighs, unit: 'cm', change: '+1.0 cm', isPositive: true, icon: 'ArrowFatUp' as const },
               ].map((row, idx) => (
-                <View key={idx} style={styles.measureRow}>
-                  <View>
-                    <Text variant="body" style={styles.measureLabel}>{row.label}</Text>
-                    <Text variant="caption" style={styles.measureSub}>Last updated 3 days ago</Text>
+                <GlassCard key={idx} variant="obsidianLevel1" style={styles.measureCardRow}>
+                  <View style={styles.measureLeft}>
+                    <View style={styles.measureIconCircle}>
+                      <Icon name="ChartLineUp" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                    </View>
+                    <View>
+                      <Text variant="labelInteractive" style={styles.measureLabel}>{row.label}</Text>
+                      <Text variant="bodySm" style={styles.measureSub}>Last updated 3 days ago</Text>
+                    </View>
                   </View>
                   <View style={styles.measureRight}>
-                    <Text variant="mono" style={styles.measureValue}>
-                      {row.value} {row.unit}
-                    </Text>
-                    <Badge label={row.change} variant={row.changeType as any} />
+                    <View style={styles.measureValRow}>
+                      <Text style={styles.measureValue}>{row.value}</Text>
+                      <Text style={styles.measureUnit}>{row.unit}</Text>
+                    </View>
+                    <Badge label={row.change} variant="volt" size="sm" />
                   </View>
-                </View>
+                </GlassCard>
               ))}
+            </View>
+          </View>
+
+          {/* Body Composition Visual Highlights Mosaic */}
+          <View style={styles.mosaicRow}>
+            {/* Skeletal Muscle Mass */}
+            <GlassCard variant="obsidianLevel1" style={styles.mosaicCard}>
+              <View style={styles.mosaicHeader}>
+                <Text variant="labelCaps" style={styles.mosaicLabel}>SKELETAL MUSCLE</Text>
+                <Icon name="Lightning" size={16} color={OBSIDIAN_COLORS.voltLime} />
+              </View>
+              <View>
+                <View style={styles.mosaicValRow}>
+                  <Text style={styles.mosaicVal}>36.2</Text>
+                  <Text style={styles.mosaicUnit}>kg</Text>
+                </View>
+                <View style={styles.progressBarTrack}>
+                  <View style={[styles.progressBarFill, { width: '78%', backgroundColor: OBSIDIAN_COLORS.voltLime }]} />
+                </View>
+              </View>
+            </GlassCard>
+
+            {/* Body Fat Percentage */}
+            <GlassCard variant="obsidianLevel1" style={styles.mosaicCard}>
+              <View style={styles.mosaicHeader}>
+                <Text variant="labelCaps" style={styles.mosaicLabel}>BODY FAT</Text>
+                <Icon name="Flame" size={16} color={OBSIDIAN_COLORS.cyanAccent} />
+              </View>
+              <View>
+                <View style={styles.mosaicValRow}>
+                  <Text style={styles.mosaicVal}>14.8</Text>
+                  <Text style={styles.mosaicUnit}>%</Text>
+                </View>
+                <View style={styles.progressBarTrack}>
+                  <View style={[styles.progressBarFill, { width: '42%', backgroundColor: OBSIDIAN_COLORS.cyanAccent }]} />
+                </View>
+              </View>
             </GlassCard>
           </View>
         </ScrollView>
@@ -269,27 +339,44 @@ export default function BodyTab() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <Text variant="h3" style={styles.modalTitle}>Log Today's Weight</Text>
+                <Text variant="headlineSm" style={styles.modalTitle}>Log Today's Weight</Text>
                 <TouchableOpacity onPress={() => setShowWeightModal(false)}>
-                  <Icon name="X" size={22} color={COLORS.dark.textSecondary} />
+                  <Icon name="X" size={20} color={OBSIDIAN_COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
 
-              <Text variant="caption" style={styles.modalLabel}>ENTER WEIGHT (KG)</Text>
+              <Text variant="labelCaps" style={styles.modalLabel}>ENTER WEIGHT (KG)</Text>
               <TextInput
                 style={styles.modalInput}
                 keyboardType="numeric"
-                placeholder="e.g. 78.2"
-                placeholderTextColor={COLORS.dark.textSecondary}
+                placeholder="e.g. 78.5"
+                placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                 value={inputWeight}
                 onChangeText={setInputWeight}
                 autoFocus
               />
 
+              <View style={styles.quickStepRow}>
+                {[-0.5, -0.2, +0.2, +0.5].map((delta) => (
+                  <TouchableOpacity
+                    key={delta}
+                    style={styles.quickStepBtn}
+                    onPress={() => {
+                      const cur = parseFloat(inputWeight) || currentWeight;
+                      setInputWeight((cur + delta).toFixed(1));
+                    }}
+                  >
+                    <Text style={styles.quickStepText}>{delta > 0 ? `+${delta}` : delta} kg</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <GradientButton
+                variant="volt"
                 title={logWeightMutation.isPending ? 'Saving...' : 'Save Weight Log'}
                 onPress={handleWeightSubmit}
                 loading={logWeightMutation.isPending}
+                style={{ marginTop: OBSIDIAN_SPACING.md }}
               />
             </View>
           </View>
@@ -305,56 +392,56 @@ export default function BodyTab() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <Text variant="h3" style={styles.modalTitle}>Log Measurements</Text>
+                <Text variant="headlineSm" style={styles.modalTitle}>Log Measurements</Text>
                 <TouchableOpacity onPress={() => setShowMeasureModal(false)}>
-                  <Icon name="X" size={22} color={COLORS.dark.textSecondary} />
+                  <Icon name="X" size={20} color={OBSIDIAN_COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.measureGrid}>
+              <View style={styles.measureInputGrid}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="caption" style={styles.modalLabel}>CHEST (CM)</Text>
+                  <Text variant="labelCaps" style={styles.modalLabel}>CHEST (CM)</Text>
                   <TextInput
                     style={styles.modalInput}
                     keyboardType="numeric"
                     placeholder="104"
-                    placeholderTextColor={COLORS.dark.textSecondary}
+                    placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                     value={chestInput}
                     onChangeText={setChestInput}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="caption" style={styles.modalLabel}>ARMS (CM)</Text>
+                  <Text variant="labelCaps" style={styles.modalLabel}>ARMS (CM)</Text>
                   <TextInput
                     style={styles.modalInput}
                     keyboardType="numeric"
                     placeholder="39.5"
-                    placeholderTextColor={COLORS.dark.textSecondary}
+                    placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                     value={armsInput}
                     onChangeText={setArmsInput}
                   />
                 </View>
               </View>
 
-              <View style={styles.measureGrid}>
+              <View style={styles.measureInputGrid}>
                 <View style={{ flex: 1 }}>
-                  <Text variant="caption" style={styles.modalLabel}>WAIST (CM)</Text>
+                  <Text variant="labelCaps" style={styles.modalLabel}>WAIST (CM)</Text>
                   <TextInput
                     style={styles.modalInput}
                     keyboardType="numeric"
                     placeholder="83"
-                    placeholderTextColor={COLORS.dark.textSecondary}
+                    placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                     value={waistInput}
                     onChangeText={setWaistInput}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="caption" style={styles.modalLabel}>THIGHS (CM)</Text>
+                  <Text variant="labelCaps" style={styles.modalLabel}>THIGHS (CM)</Text>
                   <TextInput
                     style={styles.modalInput}
                     keyboardType="numeric"
                     placeholder="60"
-                    placeholderTextColor={COLORS.dark.textSecondary}
+                    placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                     value={thighsInput}
                     onChangeText={setThighsInput}
                   />
@@ -362,10 +449,11 @@ export default function BodyTab() {
               </View>
 
               <GradientButton
+                variant="volt"
                 title={logMeasureMutation.isPending ? 'Saving...' : 'Save Measurements'}
                 onPress={handleMeasureSubmit}
                 loading={logMeasureMutation.isPending}
-                style={{ marginTop: SPACING.md }}
+                style={{ marginTop: OBSIDIAN_SPACING.lg }}
               />
             </View>
           </View>
@@ -383,49 +471,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 80,
+    paddingBottom: 90,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
   kicker: {
-    color: COLORS.dark.accentGold,
+    color: OBSIDIAN_COLORS.voltLime,
     letterSpacing: 1.5,
   },
   title: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginTop: 2,
   },
   quickLogBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.dark.accentRed,
-    paddingVertical: 6,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.full,
+    gap: 6,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    paddingVertical: OBSIDIAN_SPACING.xs + 3,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.full,
   },
   quickLogText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.onPrimary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   heroCard: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.xl,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
   heroLabel: {
-    color: COLORS.dark.textSecondary,
-    letterSpacing: 1,
+    color: OBSIDIAN_COLORS.textMuted,
   },
   weightNumRow: {
     flexDirection: 'row',
@@ -434,150 +525,245 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   weightMainNum: {
-    fontSize: 44,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 38,
+    lineHeight: 44,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   weightUnit: {
-    color: COLORS.dark.textSecondary,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 16,
+    color: OBSIDIAN_COLORS.voltLime,
   },
   deltaBox: {
     alignItems: 'flex-end',
-    gap: 4,
   },
   deltaSub: {
-    color: COLORS.dark.textSecondary,
+    color: OBSIDIAN_COLORS.textSlate,
+    marginTop: 4,
   },
   rangeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-    paddingTop: SPACING.xs,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
   rangeTabs: {
     flexDirection: 'row',
-    backgroundColor: COLORS.dark.bgInput,
-    borderRadius: RADIUS.full,
-    padding: 2,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   rangeTab: {
-    paddingVertical: 4,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.full,
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderRadius: OBSIDIAN_RADIUS.sm,
   },
   rangeTabActive: {
-    backgroundColor: COLORS.dark.accentRed,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
   rangeTabText: {
-    color: COLORS.dark.textSecondary,
-    fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.textSlate,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   rangeTabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  goalText: {
-    color: COLORS.dark.accentGold,
-    fontWeight: '600',
+    color: OBSIDIAN_COLORS.onPrimary,
   },
   section: {
-    marginBottom: SPACING.xl,
+    marginTop: OBSIDIAN_SPACING.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.sm,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: OBSIDIAN_SPACING.xs + 2,
   },
   sectionTitle: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   measureLogBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingVertical: 4,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingVertical: 5,
+    paddingHorizontal: OBSIDIAN_SPACING.sm + 2,
+    borderRadius: OBSIDIAN_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   measureLogBtnText: {
-    color: COLORS.dark.accentGold,
-    fontWeight: 'bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.voltLime,
+    textTransform: 'uppercase',
   },
-  measurementsCard: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.md,
+  measureGridStack: {
+    gap: OBSIDIAN_SPACING.xs + 2,
   },
-  measureRow: {
+  measureCardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingVertical: OBSIDIAN_SPACING.sm + 2,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+  },
+  measureLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: OBSIDIAN_SPACING.md,
+  },
+  measureIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   measureLabel: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
+    color: OBSIDIAN_COLORS.textWhite,
   },
   measureSub: {
-    color: COLORS.dark.textSecondary,
+    color: OBSIDIAN_COLORS.textSlate,
     marginTop: 2,
   },
   measureRight: {
     alignItems: 'flex-end',
     gap: 4,
   },
+  measureValRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
   measureValue: {
-    color: COLORS.dark.textPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 18,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  measureUnit: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.textSlate,
+  },
+  mosaicRow: {
+    flexDirection: 'row',
+    gap: OBSIDIAN_SPACING.sm,
+    marginTop: OBSIDIAN_SPACING.md,
+  },
+  mosaicCard: {
+    flex: 1,
+    padding: OBSIDIAN_SPACING.md,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    justifyContent: 'space-between',
+    minHeight: 100,
+  },
+  mosaicHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: OBSIDIAN_SPACING.xs,
+  },
+  mosaicLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  mosaicValRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  mosaicVal: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 24,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  mosaicUnit: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: OBSIDIAN_COLORS.textSlate,
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHighest,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: OBSIDIAN_RADIUS.full,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 12, 24, 0.88)',
+    backgroundColor: 'rgba(9, 11, 16, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
+    padding: OBSIDIAN_SPACING.xl,
   },
   modalCard: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.lg,
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 360,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   modalTitle: {
-    color: COLORS.dark.textPrimary,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   modalLabel: {
-    color: COLORS.dark.textSecondary,
-    marginBottom: 4,
-    letterSpacing: 1,
+    color: OBSIDIAN_COLORS.textMuted,
+    marginBottom: 6,
   },
   modalInput: {
-    backgroundColor: COLORS.dark.bgInput,
-    color: COLORS.dark.textPrimary,
-    padding: SPACING.md,
-    borderRadius: RADIUS.sm,
-    fontSize: 16,
-    marginBottom: SPACING.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 20,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
-  measureGrid: {
+  quickStepRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: OBSIDIAN_SPACING.xs,
+    marginBottom: OBSIDIAN_SPACING.xs,
+  },
+  quickStepBtn: {
+    flex: 1,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHighest,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  quickStepText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  measureInputGrid: {
+    flexDirection: 'row',
+    gap: OBSIDIAN_SPACING.sm,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
 });

@@ -12,6 +12,15 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 // In-memory fallback map for development/offline
 const memoryStore = new Map<string, { value: any; expiresAt: number }>();
 
+function pruneExpiredKeys() {
+  const now = Date.now();
+  for (const [key, item] of memoryStore.entries()) {
+    if (now > item.expiresAt) {
+      memoryStore.delete(key);
+    }
+  }
+}
+
 export const redis = {
   isConfigured: () => !!redisInstance,
   async get<T>(key: string): Promise<T | null> {
@@ -32,6 +41,9 @@ export const redis = {
         return redisInstance.set(key, value, { ex: options.ex });
       }
       return redisInstance.set(key, value);
+    }
+    if (memoryStore.size > 100) {
+      pruneExpiredKeys();
     }
     const ttlMs = (options?.ex ?? 3600) * 1000;
     memoryStore.set(key, { value, expiresAt: Date.now() + ttlMs });

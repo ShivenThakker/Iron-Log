@@ -5,135 +5,236 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  KeyboardAvoidingView,
+  TextInput,
   Platform,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { GradientButton } from '@/components/ui/GradientButton';
-import { Input } from '@/components/ui/Input';
-import { Chip } from '@/components/ui/Chip';
-import { Badge } from '@/components/ui/Badge';
-import { Icon } from '@/components/ui/Icon';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import { Icon, IconName } from '@/components/ui/Icon';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_TYPOGRAPHY,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
-const TOTAL_STEPS = 16;
+const TOTAL_STEPS = 4;
 
-const GOALS = [
-  { id: 'Build Muscle', title: 'Build Muscle', desc: 'Maximize hypertrophy & lean mass', icon: 'Barbell' },
-  { id: 'Lose Fat', title: 'Lose Fat', desc: 'Caloric deficit with high protein retention', icon: 'Flame' },
-  { id: 'Get Stronger', title: 'Get Stronger', desc: 'Focus on compound strength & progressive overload', icon: 'Trophy' },
-  { id: 'Stay Healthy', title: 'Stay Healthy', desc: 'Functional fitness, endurance & longevity', icon: 'Heart' },
-] as const;
+interface GoalOption {
+  id: string;
+  title: string;
+  desc: string;
+  icon: IconName;
+}
 
-const EXPERIENCES = [
-  { id: 'Beginner', title: 'Beginner', desc: '< 6 months of structured lifting' },
-  { id: 'Intermediate', title: 'Intermediate', desc: '6 months – 2 years consistent training' },
-  { id: 'Advanced', title: 'Advanced', desc: '2+ years of progressive overload training' },
-] as const;
+const GOAL_OPTIONS: GoalOption[] = [
+  {
+    id: 'Build Muscle',
+    title: 'Build Muscle',
+    desc: 'Hypertrophy & muscle mass development',
+    icon: 'Barbell',
+  },
+  {
+    id: 'Lose Fat',
+    title: 'Lose Fat',
+    desc: 'Caloric deficit with lean muscle preservation',
+    icon: 'Flame',
+  },
+  {
+    id: 'Get Stronger',
+    title: 'Get Stronger',
+    desc: 'Heavy compound strength & 1RM progression',
+    icon: 'Trophy',
+  },
+  {
+    id: 'Athletic Conditioning',
+    title: 'Athletic Conditioning',
+    desc: 'Work capacity, functional stamina & agility',
+    icon: 'Lightning',
+  },
+];
 
-const DURATIONS = ['30 min', '45 min', '60 min', '75 min', '90 min'];
-const FREQUENCIES = [2, 3, 4, 5, 6];
-const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbells', 'Cables', 'Machines', 'Bodyweight', 'Resistance Bands'];
-const SPLIT_OPTIONS = ['Push / Pull / Legs (PPL)', 'Upper / Lower', 'Full Body', 'Arnold Split', 'Bro Split'];
-const MUSCLE_AREAS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Quadriceps', 'Hamstrings', 'Glutes', 'Core'];
-const COMMON_LIMITATIONS = ['Lower Back', 'Shoulders', 'Knees', 'Wrists', 'None'];
+const EXPERIENCE_LEVELS = [
+  { id: 'Beginner', label: 'Beginner', sub: '< 6 mo' },
+  { id: 'Intermediate', label: 'Intermediate', sub: '1–3 yrs' },
+  { id: 'Advanced', label: 'Advanced', sub: '3+ yrs' },
+];
+
+const SPLIT_OPTIONS = [
+  'Push / Pull / Legs',
+  'Upper / Lower',
+  'Full Body',
+  'Arnold Split',
+];
+
+const EQUIPMENT_OPTIONS = [
+  'Barbell',
+  'Dumbbells',
+  'Cables',
+  'Machines',
+  'Bodyweight',
+  'Resistance Bands',
+];
+
+const MUSCLE_GROUPS = [
+  'Chest',
+  'Back',
+  'Shoulders',
+  'Arms',
+  'Core',
+  'Quads',
+  'Hamstrings',
+  'Glutes',
+];
+
+const JOINT_CAUTIONS = ['None', 'Shoulders', 'Lower Back', 'Knees'];
 
 export default function OnboardingWizard() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Form State
-  const [name, setName] = useState('');
-  const [gender, setGender] = useState('Male');
-  const [age, setAge] = useState('24');
+  // Step 1: Biometrics
+  const [name, setName] = useState('Athlete');
+  const [sex, setSex] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [age, setAge] = useState(24);
+  const [heightCm, setHeightCm] = useState(178);
   const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
-  const [heightVal, setHeightVal] = useState('178');
+  const [weightKg, setWeightKg] = useState(78.0);
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
-  const [currentWeight, setCurrentWeight] = useState('78');
-  const [targetWeight, setTargetWeight] = useState('82');
+
+  // Step 2: Goals & Experience
   const [primaryGoal, setPrimaryGoal] = useState('Build Muscle');
+  const [targetWeightKg, setTargetWeightKg] = useState(75.0);
   const [experience, setExperience] = useState('Intermediate');
-  const [frequency, setFrequency] = useState(4);
-  const [duration, setDuration] = useState('60 min');
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>(['Barbell', 'Dumbbells', 'Cables', 'Machines']);
-  const [splitPref, setSplitPref] = useState('Push / Pull / Legs (PPL)');
-  const [focusAreas, setFocusAreas] = useState<string[]>(['Chest', 'Back', 'Shoulders']);
-  const [selectedLimitation, setSelectedLimitation] = useState('None');
-  const [limitationNotes, setLimitationNotes] = useState('');
-  const [trackNutrition, setTrackNutrition] = useState(true);
-  const [dailyCalorieTarget, setDailyCalorieTarget] = useState('2600');
+
+  // Step 3: Training Setup
+  const [frequency, setFrequency] = useState(5);
+  const [splitPref, setSplitPref] = useState('Push / Pull / Legs');
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([
+    'Barbell',
+    'Dumbbells',
+    'Cables',
+    'Machines',
+    'Bodyweight',
+  ]);
+  const [focusMuscles, setFocusMuscles] = useState<string[]>([
+    'Chest',
+    'Back',
+    'Shoulders',
+    'Arms',
+  ]);
+  const [selectedJointCaution, setSelectedJointCaution] = useState('None');
+
+  // Step 4: Smart Progression
+  const [smartProgression, setSmartProgression] = useState(true);
 
   const toggleEquipment = (item: string) => {
     setSelectedEquipment((prev) =>
       prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
     );
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
   };
 
-  const toggleFocusArea = (area: string) => {
-    setFocusAreas((prev) =>
-      prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
+  const toggleMuscle = (muscle: string) => {
+    setFocusMuscles((prev) =>
+      prev.includes(muscle) ? prev.filter((m) => m !== muscle) : [...prev, muscle]
     );
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
   };
 
-  const handleNext = () => setStep((s) => Math.min(TOTAL_STEPS, s + 1));
-  const handleBack = () => setStep((s) => Math.max(1, s - 1));
+  const handleNext = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (step < TOTAL_STEPS) {
+      setStep((s) => s + 1);
+    } else {
+      handleFinish();
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep((s) => s - 1);
+      if (Platform.OS !== 'web') {
+        Haptics.selectionAsync().catch(() => {});
+      }
+    } else {
+      router.back();
+    }
+  };
 
   const handleFinish = async () => {
     setLoading(true);
     try {
-      const heightInCm = heightUnit === 'cm' ? Number(heightVal) : Math.round(Number(heightVal) * 30.48);
-      const weightInKg = weightUnit === 'kg' ? Number(currentWeight) : Math.round(Number(currentWeight) * 0.453592);
-      const targetWeightInKg = weightUnit === 'kg' ? Number(targetWeight) : Math.round(Number(targetWeight) * 0.453592);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
 
       // 1. Update user profile
-      await api.put('/users/profile', {
-        name: name || undefined,
-        gender,
-        age: Number(age) || 25,
-        height_cm: heightInCm || 178,
-        weight_kg: weightInKg || 78,
-        target_weight_kg: targetWeightInKg || 80,
-        fitness_goal: primaryGoal,
-        experience_level: experience,
-        schedule_days_per_week: frequency,
-        workout_duration_min: parseInt(duration, 10) || 60,
-        training_split_preference: splitPref,
-        focus_areas: focusAreas,
-        injuries_limitations: selectedLimitation !== 'None' ? `${selectedLimitation}: ${limitationNotes}` : undefined,
-        track_nutrition: trackNutrition,
-        daily_calorie_target: trackNutrition ? Number(dailyCalorieTarget) : undefined,
-      }).catch(() => null);
+      await api
+        .put('/users/profile', {
+          name: name.trim() || undefined,
+          gender: sex,
+          age,
+          height_cm: heightCm,
+          weight_kg: weightKg,
+          target_weight_kg: targetWeightKg,
+          fitness_goal: primaryGoal,
+          experience_level: experience,
+          schedule_days_per_week: frequency,
+          session_duration_min: 60,
+          workout_duration_min: 60,
+          training_style: splitPref,
+          training_split_preference: splitPref,
+          focus_areas: focusMuscles,
+          injuries: selectedJointCaution !== 'None' ? selectedJointCaution : undefined,
+          injuries_limitations: selectedJointCaution !== 'None' ? selectedJointCaution : undefined,
+          track_nutrition: true,
+          daily_calorie_target: primaryGoal === 'Lose Fat' ? 2000 : 2600,
+        })
+        .catch(() => null);
 
       // 2. Register equipment profile
       if (selectedEquipment.length > 0) {
-        await api.post('/equipment', {
-          name: 'Primary Gym Setup',
-          equipment_types: selectedEquipment,
-          is_active: true,
-        }).catch(() => null);
+        await api
+          .post('/equipment', {
+            name: 'Primary Gym Setup',
+            equipment_types: selectedEquipment,
+            is_active: true,
+          })
+          .catch(() => null);
       }
 
       // 3. Log initial weight
-      if (weightInKg) {
-        await api.post('/body/weight', {
-          weight_kg: weightInKg,
-          logged_at: new Date().toISOString(),
-        }).catch(() => null);
+      if (weightKg) {
+        await api
+          .post('/body/weight', {
+            weight_kg: weightKg,
+            logged_at: new Date().toISOString(),
+          })
+          .catch(() => null);
       }
 
       // 4. Request initial AI workout plan generation in background
-      api.post('/ai/generate-plan', {
-        fitness_goal: primaryGoal,
-        experience_level: experience,
-        days_per_week: frequency,
-        equipment: selectedEquipment,
-        split_preference: splitPref,
-      }).catch(() => null);
+      api
+        .post('/ai/generate-plan', {
+          fitness_goal: primaryGoal,
+          experience_level: experience,
+          days_per_week: frequency,
+          equipment: selectedEquipment,
+          split_preference: splitPref,
+        })
+        .catch(() => null);
 
       router.replace('/(tabs)');
     } catch {
@@ -143,512 +244,807 @@ export default function OnboardingWizard() {
     }
   };
 
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 1 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>What should we call you?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Your AI coach will tailor guidance and rank milestones directly to you.
-            </Text>
-            <Input
-              label="Your Full Name or Gym Nickname"
-              placeholder="e.g. Alex Hunter"
-              value={name}
-              onChangeText={setName}
-              autoFocus
-            />
-          </View>
-        );
-
-      case 2:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 2 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>What is your biological sex?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Used for precise BMR / TDEE metabolic calculations and strength standards.
-            </Text>
-            <View style={styles.cardsGrid}>
-              {['Male', 'Female', 'Prefer not to say'].map((g) => (
-                <TouchableOpacity
-                  key={g}
-                  style={[styles.choiceCard, gender === g && styles.choiceCardActive]}
-                  onPress={() => setGender(g)}
-                >
-                  <Text variant="h3" style={[styles.choiceTitle, gender === g && styles.choiceTitleActive]}>
-                    {g}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
-      case 3:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 3 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>How old are you?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Recovery windows and periodization adapt based on your age.
-            </Text>
-            <Input
-              label="Age (Years)"
-              placeholder="25"
-              keyboardType="numeric"
-              value={age}
-              onChangeText={setAge}
-            />
-          </View>
-        );
-
-      case 4:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 4 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>What is your height?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Helps us calculate leverage curves and healthy body mass metrics.
-            </Text>
-            <View style={styles.unitToggleRow}>
-              <TouchableOpacity
-                style={[styles.unitBtn, heightUnit === 'cm' && styles.unitBtnActive]}
-                onPress={() => setHeightUnit('cm')}
-              >
-                <Text style={[styles.unitBtnText, heightUnit === 'cm' && styles.unitBtnTextActive]}>cm</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.unitBtn, heightUnit === 'ft' && styles.unitBtnActive]}
-                onPress={() => setHeightUnit('ft')}
-              >
-                <Text style={[styles.unitBtnText, heightUnit === 'ft' && styles.unitBtnTextActive]}>ft</Text>
-              </TouchableOpacity>
-            </View>
-            <Input
-              label={`Height in ${heightUnit.toUpperCase()}`}
-              placeholder={heightUnit === 'cm' ? '178' : '5.10'}
-              keyboardType="numeric"
-              value={heightVal}
-              onChangeText={setHeightVal}
-            />
-          </View>
-        );
-
-      case 5:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 5 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>What is your current weight?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Starting point for your weight trends, 1RM ratios, and progressive overload.
-            </Text>
-            <View style={styles.unitToggleRow}>
-              <TouchableOpacity
-                style={[styles.unitBtn, weightUnit === 'kg' && styles.unitBtnActive]}
-                onPress={() => setWeightUnit('kg')}
-              >
-                <Text style={[styles.unitBtnText, weightUnit === 'kg' && styles.unitBtnTextActive]}>kg</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.unitBtn, weightUnit === 'lbs' && styles.unitBtnActive]}
-                onPress={() => setWeightUnit('lbs')}
-              >
-                <Text style={[styles.unitBtnText, weightUnit === 'lbs' && styles.unitBtnTextActive]}>lbs</Text>
-              </TouchableOpacity>
-            </View>
-            <Input
-              label={`Current Weight (${weightUnit})`}
-              placeholder={weightUnit === 'kg' ? '78' : '172'}
-              keyboardType="numeric"
-              value={currentWeight}
-              onChangeText={setCurrentWeight}
-            />
-          </View>
-        );
-
-      case 6:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 6 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>What is your target weight?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Set a realistic milestone to track on your Body progress dashboard.
-            </Text>
-            <Input
-              label={`Target Weight (${weightUnit})`}
-              placeholder={weightUnit === 'kg' ? '82' : '180'}
-              keyboardType="numeric"
-              value={targetWeight}
-              onChangeText={setTargetWeight}
-            />
-          </View>
-        );
-
-      case 7:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 7 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>What is your primary goal?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Directly influences rep ranges, RPE targets, and weekly volume distribution.
-            </Text>
-            <View style={styles.cardsGrid}>
-              {GOALS.map((g) => (
-                <TouchableOpacity
-                  key={g.id}
-                  style={[styles.goalCard, primaryGoal === g.id && styles.choiceCardActive]}
-                  onPress={() => setPrimaryGoal(g.id)}
-                >
-                  <View style={styles.goalCardHeader}>
-                    <Icon name={g.icon as any} size={24} color={primaryGoal === g.id ? COLORS.dark.accentRed : COLORS.dark.textSecondary} />
-                    <Text variant="h3" style={[styles.choiceTitle, primaryGoal === g.id && styles.choiceTitleActive]}>
-                      {g.title}
-                    </Text>
-                  </View>
-                  <Text variant="caption" style={styles.goalCardDesc}>
-                    {g.desc}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
-      case 8:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 8 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Training Experience</Text>
-            <Text variant="body" style={styles.subheading}>
-              Determines adaptive volume ramping and exercise complexity.
-            </Text>
-            <View style={styles.cardsGrid}>
-              {EXPERIENCES.map((exp) => (
-                <TouchableOpacity
-                  key={exp.id}
-                  style={[styles.goalCard, experience === exp.id && styles.choiceCardActive]}
-                  onPress={() => setExperience(exp.id)}
-                >
-                  <Text variant="h3" style={[styles.choiceTitle, experience === exp.id && styles.choiceTitleActive]}>
-                    {exp.title}
-                  </Text>
-                  <Text variant="caption" style={styles.goalCardDesc}>
-                    {exp.desc}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
-      case 9:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 9 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>How many days per week can you train?</Text>
-            <Text variant="body" style={styles.subheading}>
-              Consistency trumps perfection. Pick a schedule you can maintain week after week.
-            </Text>
-            <View style={styles.freqRow}>
-              {FREQUENCIES.map((f) => (
-                <TouchableOpacity
-                  key={f}
-                  style={[styles.freqCard, frequency === f && styles.freqCardActive]}
-                  onPress={() => setFrequency(f)}
-                >
-                  <Text variant="h1" style={[styles.freqNum, frequency === f && styles.freqNumActive]}>
-                    {f}
-                  </Text>
-                  <Text variant="caption" style={frequency === f ? styles.freqLabelActive : styles.freqLabel}>
-                    days/wk
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
-      case 10:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 10 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Target Workout Duration</Text>
-            <Text variant="body" style={styles.subheading}>
-              We calibrate the total set volume to fit strictly within your available time window.
-            </Text>
-            <View style={styles.cardsGrid}>
-              {DURATIONS.map((dur) => (
-                <TouchableOpacity
-                  key={dur}
-                  style={[styles.choiceCard, duration === dur && styles.choiceCardActive]}
-                  onPress={() => setDuration(dur)}
-                >
-                  <Text variant="h3" style={[styles.choiceTitle, duration === dur && styles.choiceTitleActive]}>
-                    {dur}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
-      case 11:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 11 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Available Equipment</Text>
-            <Text variant="body" style={styles.subheading}>
-              Select everything accessible to you. Multi-select all that apply.
-            </Text>
-            <View style={styles.chipsWrap}>
-              {EQUIPMENT_OPTIONS.map((item) => {
-                const selected = selectedEquipment.includes(item);
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.multiChip, selected && styles.multiChipSelected]}
-                    onPress={() => toggleEquipment(item)}
-                  >
-                    <Icon
-                      name={selected ? 'CheckCircle' : 'Plus'}
-                      size={18}
-                      color={selected ? '#FFFFFF' : COLORS.dark.textSecondary}
-                    />
-                    <Text
-                      variant="bodySmall"
-                      style={[styles.multiChipText, selected && styles.multiChipTextSelected]}
-                    >
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        );
-
-      case 12:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 12 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Preferred Training Split</Text>
-            <Text variant="body" style={styles.subheading}>
-              Choose the program structure you enjoy most.
-            </Text>
-            <View style={styles.cardsGrid}>
-              {SPLIT_OPTIONS.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.choiceCard, splitPref === s && styles.choiceCardActive]}
-                  onPress={() => setSplitPref(s)}
-                >
-                  <Text variant="h3" style={[styles.choiceTitle, splitPref === s && styles.choiceTitleActive]}>
-                    {s}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
-      case 13:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 13 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Focus Muscle Areas</Text>
-            <Text variant="body" style={styles.subheading}>
-              Select groups you want the AI coach to prioritize with extra volume or frequency.
-            </Text>
-            <View style={styles.chipsWrap}>
-              {MUSCLE_AREAS.map((muscle) => {
-                const selected = focusAreas.includes(muscle);
-                return (
-                  <TouchableOpacity
-                    key={muscle}
-                    style={[styles.multiChip, selected && styles.multiChipSelected]}
-                    onPress={() => toggleFocusArea(muscle)}
-                  >
-                    <Text
-                      variant="bodySmall"
-                      style={[styles.multiChipText, selected && styles.multiChipTextSelected]}
-                    >
-                      {muscle}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        );
-
-      case 14:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 14 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Any Injuries or Limitations?</Text>
-            <Text variant="body" style={styles.subheading}>
-              We will avoid aggravating exercises and suggest joint-friendly alternatives.
-            </Text>
-            <View style={styles.chipsWrap}>
-              {COMMON_LIMITATIONS.map((lim) => (
-                <TouchableOpacity
-                  key={lim}
-                  style={[styles.multiChip, selectedLimitation === lim && styles.multiChipSelected]}
-                  onPress={() => setSelectedLimitation(lim)}
-                >
-                  <Text
-                    variant="bodySmall"
-                    style={[styles.multiChipText, selectedLimitation === lim && styles.multiChipTextSelected]}
-                  >
-                    {lim}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {selectedLimitation !== 'None' && (
-              <Input
-                label="Extra details (optional)"
-                placeholder="e.g. slight impingement on overhead movements"
-                value={limitationNotes}
-                onChangeText={setLimitationNotes}
-                style={{ marginTop: SPACING.md }}
-              />
-            )}
-          </View>
-        );
-
-      case 15:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 15 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Nutrition Tracking</Text>
-            <Text variant="body" style={styles.subheading}>
-              Do you want to log daily calories and macros with our USDA food search engine?
-            </Text>
-            <View style={styles.cardsGrid}>
-              <TouchableOpacity
-                style={[styles.choiceCard, trackNutrition && styles.choiceCardActive]}
-                onPress={() => setTrackNutrition(true)}
-              >
-                <Text variant="h3" style={[styles.choiceTitle, trackNutrition && styles.choiceTitleActive]}>
-                  Yes, track my nutrition 🥗
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.choiceCard, !trackNutrition && styles.choiceCardActive]}
-                onPress={() => setTrackNutrition(false)}
-              >
-                <Text variant="h3" style={[styles.choiceTitle, !trackNutrition && styles.choiceTitleActive]}>
-                  No, just focus on workouts 💪
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {trackNutrition && (
-              <Input
-                label="Daily Calorie Goal (kcal)"
-                placeholder="2600"
-                keyboardType="numeric"
-                value={dailyCalorieTarget}
-                onChangeText={setDailyCalorieTarget}
-                style={{ marginTop: SPACING.lg }}
-              />
-            )}
-          </View>
-        );
-
-      case 16:
-        return (
-          <View style={styles.stepBox}>
-            <Text variant="caption" style={styles.kicker}>STEP 16 OF {TOTAL_STEPS}</Text>
-            <Text variant="h1" style={styles.heading}>Profile Complete!</Text>
-            <Text variant="body" style={styles.subheading}>
-              Here is your setup summary. Confirm to generate your personalized AI routine.
-            </Text>
-
-            <GlassCard style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <Text variant="caption" style={styles.summaryLabel}>ATHLETE</Text>
-                <Text variant="body" style={styles.summaryVal}>{name || 'Rookie Lifter'}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text variant="caption" style={styles.summaryLabel}>PRIMARY GOAL</Text>
-                <Text variant="body" style={styles.summaryVal}>{primaryGoal}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text variant="caption" style={styles.summaryLabel}>FREQUENCY & SPLIT</Text>
-                <Text variant="body" style={styles.summaryVal}>{frequency} days/wk • {splitPref}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text variant="caption" style={styles.summaryLabel}>EXPERIENCE</Text>
-                <Text variant="body" style={styles.summaryVal}>{experience}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text variant="caption" style={styles.summaryLabel}>STARTING RANK</Text>
-                <Badge label="ROOKIE (+100 ONBOARDING XP)" variant="gold" />
-              </View>
-            </GlassCard>
-          </View>
-        );
-
-      default:
-        return null;
-    }
-  };
+  const weightDelta = Math.round((targetWeightKg - weightKg) * 10) / 10;
+  const deltaLabel =
+    weightDelta < 0
+      ? `${weightDelta} kg from current`
+      : weightDelta === 0
+      ? 'Maintain baseline'
+      : `+${weightDelta} kg from current`;
 
   return (
-    <ScreenContainer scrollable={false}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.container}
-      >
-        {/* Header Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${(step / TOTAL_STEPS) * 100}%` }]} />
+    <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
+      <View style={styles.container}>
+        {/* Top Header Bar with Progress */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            activeOpacity={0.7}
+            onPress={handleBack}
+          >
+            <Icon name="CaretLeft" size={22} color={OBSIDIAN_COLORS.textWhite} />
+          </TouchableOpacity>
+
+          <View style={styles.progressCenter}>
+            <Text style={styles.stepIndicatorText}>Step {step} of 4</Text>
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${(step / 4) * 100}%` }]} />
+            </View>
           </View>
-          <View style={styles.progressTextRow}>
-            <Text variant="caption" style={styles.stepCountText}>
-              Step {step} of {TOTAL_STEPS}
-            </Text>
-            {step < TOTAL_STEPS && (
-              <TouchableOpacity onPress={handleFinish}>
-                <Text variant="caption" style={styles.skipText}>
-                  Skip Setup →
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+
+          <TouchableOpacity
+            style={styles.skipBtn}
+            activeOpacity={0.7}
+            onPress={() => (step < 4 ? setStep(step + 1) : handleFinish())}
+          >
+            <Text style={styles.skipBtnText}>{step === 4 ? '' : 'Skip'}</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Step Body */}
-        <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent}>
-          {renderStepContent()}
-        </ScrollView>
+        {/* Scrollable Step Body */}
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ================= STEP 1: BASELINE BIOMETRICS ================= */}
+          {step === 1 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.stepTitleBlock}>
+                <Text style={styles.stepTitle}>Tell us about yourself</Text>
+                <Text style={styles.stepSubtitle}>
+                  Baseline biometrics to tailor your training volume and target weights.
+                </Text>
+              </View>
 
-        {/* Bottom Navigation Actions */}
-        <View style={styles.footerRow}>
-          {step > 1 ? (
-            <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-              <Text variant="body" style={styles.backBtnText}>
-                Back
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={{ flex: 1 }} />
+              {/* Name or Gym Nickname */}
+              <View style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>NAME OR GYM NICKNAME</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Enter name..."
+                  placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                />
+              </View>
+
+              {/* Biological Sex */}
+              <View style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>BIOLOGICAL SEX</Text>
+                <View style={styles.sexSelectorRow}>
+                  {(['Male', 'Female', 'Other'] as const).map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.sexOptionBtn,
+                        sex === option && styles.sexOptionBtnActive,
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setSex(option);
+                        if (Platform.OS !== 'web') {
+                          Haptics.selectionAsync().catch(() => {});
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.sexOptionText,
+                          sex === option && { color: OBSIDIAN_COLORS.onPrimary },
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Age & Height Grid */}
+              <View style={styles.grid2Col}>
+                {/* Age Box */}
+                <View style={styles.metricCard}>
+                  <Text style={styles.fieldLabel}>AGE</Text>
+                  <View style={styles.metricValueRow}>
+                    <Text style={styles.metricNumber}>{age}</Text>
+                    <Text style={styles.metricUnit}>yrs</Text>
+                  </View>
+                  <View style={styles.stepperControlRow}>
+                    <TouchableOpacity
+                      style={styles.miniStepperBtn}
+                      activeOpacity={0.7}
+                      onPress={() => setAge((a) => Math.max(14, a - 1))}
+                    >
+                      <Text style={styles.stepperIcon}>−</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.miniStepperBtn}
+                      activeOpacity={0.7}
+                      onPress={() => setAge((a) => Math.min(100, a + 1))}
+                    >
+                      <Text style={styles.stepperIcon}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Height Box */}
+                <View style={styles.metricCard}>
+                  <View style={styles.cardHeaderWithToggle}>
+                    <Text style={styles.fieldLabel}>HEIGHT</Text>
+                    <View style={styles.unitToggleMini}>
+                      <TouchableOpacity
+                        style={[
+                          styles.unitToggleChip,
+                          heightUnit === 'cm' && styles.unitToggleChipActive,
+                        ]}
+                        onPress={() => setHeightUnit('cm')}
+                      >
+                        <Text
+                          style={[
+                            styles.unitToggleChipText,
+                            heightUnit === 'cm' && { color: OBSIDIAN_COLORS.onPrimary },
+                          ]}
+                        >
+                          cm
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.unitToggleChip,
+                          heightUnit === 'ft' && styles.unitToggleChipActive,
+                        ]}
+                        onPress={() => setHeightUnit('ft')}
+                      >
+                        <Text
+                          style={[
+                            styles.unitToggleChipText,
+                            heightUnit === 'ft' && { color: OBSIDIAN_COLORS.onPrimary },
+                          ]}
+                        >
+                          ft
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.metricValueRow}>
+                    <Text style={styles.metricNumber}>
+                      {heightUnit === 'cm' ? heightCm : '5\'10"'}
+                    </Text>
+                    <Text style={styles.metricUnit}>{heightUnit === 'cm' ? 'cm' : ''}</Text>
+                  </View>
+                  <View style={styles.stepperControlRow}>
+                    <TouchableOpacity
+                      style={styles.miniStepperBtn}
+                      activeOpacity={0.7}
+                      onPress={() => setHeightCm((h) => Math.max(120, h - 1))}
+                    >
+                      <Text style={styles.stepperIcon}>−</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.miniStepperBtn}
+                      activeOpacity={0.7}
+                      onPress={() => setHeightCm((h) => Math.min(230, h + 1))}
+                    >
+                      <Text style={styles.stepperIcon}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Current Weight Card */}
+              <View style={styles.weightCard}>
+                <View style={styles.cardHeaderWithToggle}>
+                  <Text style={styles.fieldLabel}>CURRENT WEIGHT</Text>
+                  <View style={styles.unitToggleMini}>
+                    <TouchableOpacity
+                      style={[
+                        styles.unitToggleChip,
+                        weightUnit === 'kg' && styles.unitToggleChipActive,
+                      ]}
+                      onPress={() => setWeightUnit('kg')}
+                    >
+                      <Text
+                        style={[
+                          styles.unitToggleChipText,
+                          weightUnit === 'kg' && { color: OBSIDIAN_COLORS.onPrimary },
+                        ]}
+                      >
+                        kg
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.unitToggleChip,
+                        weightUnit === 'lbs' && styles.unitToggleChipActive,
+                      ]}
+                      onPress={() => setWeightUnit('lbs')}
+                    >
+                      <Text
+                        style={[
+                          styles.unitToggleChipText,
+                          weightUnit === 'lbs' && { color: OBSIDIAN_COLORS.onPrimary },
+                        ]}
+                      >
+                        lbs
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.weightDialRow}>
+                  <TouchableOpacity
+                    style={styles.weightDialBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setWeightKg((w) => Math.max(30, Math.round((w - 0.5) * 10) / 10))}
+                  >
+                    <Text style={styles.weightDialIcon}>−</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.weightNumberRow}>
+                    <Text style={styles.weightBigNumber}>{weightKg.toFixed(1)}</Text>
+                    <Text style={styles.weightUnitText}>{weightUnit}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.weightDialBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setWeightKg((w) => Math.min(200, Math.round((w + 0.5) * 10) / 10))}
+                  >
+                    <Text style={styles.weightDialIcon}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
           )}
 
-          <View style={{ flex: 2 }}>
-            <GradientButton
-              title={step === TOTAL_STEPS ? 'Generate My Plan 🚀' : 'Continue'}
-              loading={loading}
-              onPress={step === TOTAL_STEPS ? handleFinish : handleNext}
-            />
-          </View>
+          {/* ================= STEP 2: GOALS & EXPERIENCE ================= */}
+          {step === 2 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.stepTitleBlock}>
+                <View style={styles.kickerBadge}>
+                  <Text style={styles.kickerBadgeText}>GOALS & EXPERIENCE</Text>
+                </View>
+                <Text style={styles.stepTitle}>What's your goal?</Text>
+                <Text style={styles.stepSubtitle}>
+                  Select your primary fitness objective to calibrate your training and nutrition targets.
+                </Text>
+              </View>
+
+              {/* 01 Primary Goal */}
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.sectionNumLabel}>01 • PRIMARY GOAL</Text>
+                  <Text style={styles.sectionExtraHint}>SINGLE SELECT</Text>
+                </View>
+
+                <View style={{ gap: 8 }}>
+                  {GOAL_OPTIONS.map((g) => {
+                    const isSelected = primaryGoal === g.id;
+                    return (
+                      <TouchableOpacity
+                        key={g.id}
+                        style={[
+                          styles.goalCard,
+                          isSelected && styles.goalCardSelected,
+                        ]}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                          setPrimaryGoal(g.id);
+                          if (Platform.OS !== 'web') {
+                            Haptics.selectionAsync().catch(() => {});
+                          }
+                        }}
+                      >
+                        <View
+                          style={[
+                            styles.goalIconBox,
+                            isSelected && { backgroundColor: OBSIDIAN_COLORS.voltLime },
+                          ]}
+                        >
+                          <Icon
+                            name={g.icon}
+                            size={22}
+                            color={isSelected ? OBSIDIAN_COLORS.onPrimary : OBSIDIAN_COLORS.textMuted}
+                            weight={isSelected ? 'fill' : 'regular'}
+                          />
+                        </View>
+                        <View style={styles.goalInfo}>
+                          <View style={styles.goalTitleRow}>
+                            <Text
+                              style={[
+                                styles.goalTitle,
+                                isSelected && { color: OBSIDIAN_COLORS.textWhite, fontFamily: 'SpaceGrotesk_700Bold' },
+                              ]}
+                            >
+                              {g.title}
+                            </Text>
+                            <View
+                              style={[
+                                styles.radioCircle,
+                                isSelected && styles.radioCircleSelected,
+                              ]}
+                            >
+                              {isSelected && <View style={styles.radioDot} />}
+                            </View>
+                          </View>
+                          <Text style={styles.goalDesc} numberOfLines={1}>
+                            {g.desc}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 02 Target Weight */}
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.sectionNumLabel}>02 • TARGET WEIGHT</Text>
+                  <Text style={styles.sectionExtraHint}>Current: {weightKg.toFixed(1)} kg</Text>
+                </View>
+
+                <View style={styles.targetWeightCard}>
+                  <View style={styles.targetWeightTop}>
+                    <View>
+                      <Text style={styles.fieldLabel}>TARGET BODYWEIGHT</Text>
+                      <View style={styles.targetNumRow}>
+                        <Text style={styles.targetNumText}>{targetWeightKg.toFixed(1)}</Text>
+                        <Text style={styles.targetNumUnit}>kg</Text>
+                      </View>
+                    </View>
+                    <View style={styles.deltaPill}>
+                      <Text style={styles.deltaPillText}>{deltaLabel}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.stepperControlRowFull}>
+                    <TouchableOpacity
+                      style={styles.fullStepperBtn}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        setTargetWeightKg((w) => Math.max(30, Math.round((w - 0.5) * 10) / 10))
+                      }
+                    >
+                      <Text style={styles.fullStepperIcon}>−</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.fullStepperBtn}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        setTargetWeightKg((w) => Math.min(200, Math.round((w + 0.5) * 10) / 10))
+                      }
+                    >
+                      <Text style={styles.fullStepperIcon}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* 03 Experience Level */}
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.sectionNumLabel}>03 • EXPERIENCE LEVEL</Text>
+                  <Text style={styles.sectionExtraHint}>TRAINING AGE</Text>
+                </View>
+
+                <View style={styles.experienceGrid}>
+                  {EXPERIENCE_LEVELS.map((exp) => {
+                    const isSelected = experience === exp.id;
+                    return (
+                      <TouchableOpacity
+                        key={exp.id}
+                        style={[
+                          styles.expBtn,
+                          isSelected && styles.expBtnSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setExperience(exp.id);
+                          if (Platform.OS !== 'web') {
+                            Haptics.selectionAsync().catch(() => {});
+                          }
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.expLabel,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary },
+                          ]}
+                        >
+                          {exp.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.expSub,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary, opacity: 0.85 },
+                          ]}
+                        >
+                          {exp.sub}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ================= STEP 3: TRAINING CONFIGURATION ================= */}
+          {step === 3 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.stepTitleBlock}>
+                <View style={styles.kickerBadge}>
+                  <Text style={styles.kickerBadgeText}>TRAINING CONFIGURATION</Text>
+                </View>
+                <Text style={styles.stepTitle}>Training Setup</Text>
+                <Text style={styles.stepSubtitle}>
+                  Configure your frequency, equipment, and focus areas to shape your routine.
+                </Text>
+              </View>
+
+              {/* Weekly Frequency */}
+              <View style={styles.fieldCard}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.fieldLabel}>WEEKLY FREQUENCY</Text>
+                  <Text style={[styles.fieldLabel, { color: OBSIDIAN_COLORS.voltLime }]}>
+                    {frequency} Days / Week
+                  </Text>
+                </View>
+
+                <View style={styles.freqRow}>
+                  {[2, 3, 4, 5, 6].map((days) => {
+                    const isSelected = frequency === days;
+                    return (
+                      <TouchableOpacity
+                        key={days}
+                        style={[
+                          styles.freqBtn,
+                          isSelected && styles.freqBtnSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setFrequency(days);
+                          if (Platform.OS !== 'web') {
+                            Haptics.selectionAsync().catch(() => {});
+                          }
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.freqNum,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary },
+                          ]}
+                        >
+                          {days}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.freqSub,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary },
+                          ]}
+                        >
+                          Days
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Preferred Split */}
+              <View style={styles.fieldCard}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.fieldLabel}>PREFERRED SPLIT</Text>
+                  <Text style={styles.sectionExtraHint}>RECOMMENDED</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+                  {SPLIT_OPTIONS.map((split) => {
+                    const isSelected = splitPref === split;
+                    return (
+                      <TouchableOpacity
+                        key={split}
+                        style={[
+                          styles.splitPill,
+                          isSelected && styles.splitPillSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setSplitPref(split);
+                          if (Platform.OS !== 'web') {
+                            Haptics.selectionAsync().catch(() => {});
+                          }
+                        }}
+                      >
+                        {isSelected && (
+                          <Icon name="Check" size={14} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />
+                        )}
+                        <Text
+                          style={[
+                            styles.splitPillText,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary, fontFamily: 'SpaceGrotesk_700Bold' },
+                          ]}
+                        >
+                          {split}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Available Equipment */}
+              <View style={styles.fieldCard}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.fieldLabel}>AVAILABLE EQUIPMENT</Text>
+                  <Text style={[styles.fieldLabel, { color: OBSIDIAN_COLORS.voltLime }]}>
+                    {selectedEquipment.length} Selected
+                  </Text>
+                </View>
+                <View style={styles.chipsWrap}>
+                  {EQUIPMENT_OPTIONS.map((eq) => {
+                    const isSelected = selectedEquipment.includes(eq);
+                    return (
+                      <TouchableOpacity
+                        key={eq}
+                        style={[
+                          styles.equipChip,
+                          isSelected && styles.equipChipSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => toggleEquipment(eq)}
+                      >
+                        <Icon
+                          name={isSelected ? 'Check' : 'Plus'}
+                          size={13}
+                          color={isSelected ? OBSIDIAN_COLORS.onPrimary : OBSIDIAN_COLORS.textMuted}
+                          weight="bold"
+                        />
+                        <Text
+                          style={[
+                            styles.equipChipText,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary, fontFamily: 'SpaceGrotesk_700Bold' },
+                          ]}
+                        >
+                          {eq}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Focus Muscle Groups */}
+              <View style={styles.fieldCard}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.fieldLabel}>FOCUS MUSCLE GROUPS</Text>
+                  <Text style={styles.sectionExtraHint}>OPTIONAL</Text>
+                </View>
+                <View style={styles.chipsWrap}>
+                  {MUSCLE_GROUPS.map((m) => {
+                    const isSelected = focusMuscles.includes(m);
+                    return (
+                      <TouchableOpacity
+                        key={m}
+                        style={[
+                          styles.muscleChip,
+                          isSelected && styles.muscleChipSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => toggleMuscle(m)}
+                      >
+                        <Text
+                          style={[
+                            styles.muscleChipText,
+                            isSelected && { color: OBSIDIAN_COLORS.onPrimary, fontFamily: 'SpaceGrotesk_700Bold' },
+                          ]}
+                        >
+                          {m}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Joint Cautions */}
+              <View style={styles.fieldCard}>
+                <View style={styles.sectionHeaderLine}>
+                  <Text style={styles.fieldLabel}>JOINT CAUTIONS</Text>
+                  <Text style={styles.sectionExtraHint}>PROTECTION</Text>
+                </View>
+                <View style={styles.chipsWrap}>
+                  {JOINT_CAUTIONS.map((j) => {
+                    const isSelected = selectedJointCaution === j;
+                    return (
+                      <TouchableOpacity
+                        key={j}
+                        style={[
+                          styles.jointChip,
+                          isSelected && styles.jointChipSelected,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setSelectedJointCaution(j);
+                          if (Platform.OS !== 'web') {
+                            Haptics.selectionAsync().catch(() => {});
+                          }
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.jointChipText,
+                            isSelected && { color: OBSIDIAN_COLORS.voltLime },
+                          ]}
+                        >
+                          {j}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ================= STEP 4: FINAL CONFIRMATION ================= */}
+          {step === 4 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.stepTitleBlock}>
+                <View style={styles.kickerBadge}>
+                  <Text style={styles.kickerBadgeText}>FINAL CONFIRMATION</Text>
+                </View>
+                <Text style={styles.stepTitle}>Profile Ready, Athlete!</Text>
+                <Text style={styles.stepSubtitle}>
+                  Here is your baseline setup summary. Tap below to generate your personalized AI split.
+                </Text>
+              </View>
+
+              {/* Athlete Identity Hero Card */}
+              <View style={styles.athleteHeroCard}>
+                <View style={styles.athleteAvatarCircle}>
+                  <Icon name="Barbell" size={26} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                </View>
+                <View style={styles.athleteHeroInfo}>
+                  <View style={styles.athleteNameRow}>
+                    <Text style={styles.athleteName}>{name || 'Athlete'}</Text>
+                    <View style={styles.athleteTagBadge}>
+                      <Text style={styles.athleteTagText}>ATHLETE</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.athleteBioMeta}>
+                    {age} yrs • {heightCm} cm • {weightKg} kg{' '}
+                    <Text style={{ color: OBSIDIAN_COLORS.voltLime }}>→ {targetWeightKg} kg</Text>
+                  </Text>
+                </View>
+              </View>
+
+              {/* Configuration Bento Stack */}
+              <View style={styles.bentoStack}>
+                <View style={styles.bentoHeaderRow}>
+                  <Text style={styles.bentoHeaderTitle}>CONFIGURATION SUMMARY</Text>
+                  <Text style={styles.bentoHeaderSub}>STEPS 1–3</Text>
+                </View>
+
+                {/* Item 1: Goal */}
+                <View style={styles.bentoItem}>
+                  <View style={styles.bentoItemLeft}>
+                    <View style={styles.bentoIconBox}>
+                      <Icon name="Flame" size={18} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                    </View>
+                    <View>
+                      <Text style={styles.bentoItemTitle}>{primaryGoal}</Text>
+                      <Text style={styles.bentoItemSub}>Goal Strategy</Text>
+                    </View>
+                  </View>
+                  <View style={styles.bentoPillRight}>
+                    <Text style={styles.bentoPillRightText}>{deltaLabel}</Text>
+                  </View>
+                </View>
+
+                {/* Item 2: Schedule */}
+                <View style={styles.bentoItem}>
+                  <View style={styles.bentoItemLeft}>
+                    <View style={styles.bentoIconBox}>
+                      <Icon name="CalendarCheck" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                    </View>
+                    <View>
+                      <Text style={styles.bentoItemTitle}>{frequency} Days / Week</Text>
+                      <Text style={styles.bentoItemSub}>{splitPref}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.bentoPillRight}>
+                    <Text style={styles.bentoPillRightText}>SPLIT</Text>
+                  </View>
+                </View>
+
+                {/* Item 3: Experience */}
+                <View style={styles.bentoItem}>
+                  <View style={styles.bentoItemLeft}>
+                    <View style={styles.bentoIconBox}>
+                      <Icon name="ChartLineUp" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                    </View>
+                    <View>
+                      <Text style={styles.bentoItemTitle}>{experience}</Text>
+                      <Text style={styles.bentoItemSub}>Experience & Workload</Text>
+                    </View>
+                  </View>
+                  <View style={styles.bentoPillRight}>
+                    <Text style={styles.bentoPillRightText}>RPE 8-9</Text>
+                  </View>
+                </View>
+
+                {/* Item 4: Equipment */}
+                <View style={styles.bentoItem}>
+                  <View style={styles.bentoItemLeft}>
+                    <View style={styles.bentoIconBox}>
+                      <Icon name="Barbell" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                    </View>
+                    <View>
+                      <Text style={styles.bentoItemTitle}>Equipment Setup</Text>
+                      <Text style={styles.bentoItemSub}>
+                        {selectedEquipment.slice(0, 3).join(', ')}
+                        {selectedEquipment.length > 3 ? ` +${selectedEquipment.length - 3}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.bentoPillRight}>
+                    <Text style={styles.bentoPillRightText}>{selectedEquipment.length} SELECTED</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Smart Progression Card */}
+              <View style={styles.smartCard}>
+                <View style={styles.smartLeft}>
+                  <View style={styles.smartIconBox}>
+                    <Icon name="Gear" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                  </View>
+                  <View style={styles.smartInfo}>
+                    <Text style={styles.smartTitle}>Smart Progression</Text>
+                    <Text style={styles.smartSub}>
+                      Automatically adjust weights based on logged sets and RPE
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={smartProgression}
+                  onValueChange={setSmartProgression}
+                  trackColor={{ false: '#272A35', true: OBSIDIAN_COLORS.voltLime }}
+                  thumbColor={OBSIDIAN_COLORS.textWhite}
+                />
+              </View>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Bottom Floating CTA Bar */}
+        <View style={styles.footerCTA}>
+          <TouchableOpacity
+            style={styles.continueBtn}
+            activeOpacity={0.88}
+            onPress={handleNext}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={OBSIDIAN_COLORS.onPrimary} />
+            ) : (
+              <>
+                <Text style={styles.continueBtnText}>
+                  {step === 4 ? 'GENERATE MY ATHLETE SPLIT' : 'CONTINUE'}
+                </Text>
+                <Icon
+                  name={step === 4 ? 'Sparkle' : 'CaretRight'}
+                  size={18}
+                  color={OBSIDIAN_COLORS.onPrimary}
+                  weight="bold"
+                />
+              </>
+            )}
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </ScreenContainer>
   );
 }
@@ -656,222 +1052,715 @@ export default function OnboardingWizard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: OBSIDIAN_COLORS.surface,
   },
-  progressContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.xs,
-    paddingBottom: SPACING.md,
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingTop: OBSIDIAN_SPACING.xs,
+    paddingBottom: OBSIDIAN_SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
   },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: RADIUS.full,
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressCenter: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  stepIndicatorText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+  },
+  progressBarTrack: {
+    width: 130,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: COLORS.dark.accentRed,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    borderRadius: 2,
   },
-  progressTextRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
+  skipBtn: {
+    width: 38,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
   },
-  stepCountText: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: '600',
+  skipBtnText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
-  skipText: {
-    color: COLORS.dark.accentGold,
-    fontWeight: '700',
-  },
-  scrollBody: {
+  scrollArea: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.xl,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingTop: OBSIDIAN_SPACING.sm,
+    paddingBottom: 110,
   },
-  stepBox: {
-    marginTop: SPACING.sm,
+  stepContainer: {
+    gap: OBSIDIAN_SPACING.md,
   },
-  kicker: {
-    color: COLORS.dark.accentGold,
-    letterSpacing: 2,
-    marginBottom: SPACING.xs,
+  stepTitleBlock: {
+    gap: 4,
+    marginVertical: 4,
   },
-  heading: {
-    color: COLORS.dark.textPrimary,
-    marginBottom: SPACING.xs,
+  kickerBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
+    marginBottom: 2,
   },
-  subheading: {
-    color: COLORS.dark.textSecondary,
-    marginBottom: SPACING.xl,
-    lineHeight: 22,
+  kickerBadgeText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 9,
   },
-  cardsGrid: {
-    gap: SPACING.md,
+  stepTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineLgMobile,
+    color: OBSIDIAN_COLORS.textWhite,
   },
-  choiceCard: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  choiceCardActive: {
-    borderColor: COLORS.dark.accentRed,
-    backgroundColor: 'rgba(233, 69, 96, 0.12)',
-  },
-  choiceTitle: {
-    color: COLORS.dark.textPrimary,
-  },
-  choiceTitleActive: {
-    color: COLORS.dark.accentRed,
-    fontWeight: 'bold',
-  },
-  goalCard: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  goalCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    marginBottom: SPACING.xs,
-  },
-  goalCardDesc: {
-    color: COLORS.dark.textSecondary,
+  stepSubtitle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
     lineHeight: 18,
   },
-  unitToggleRow: {
+  fieldCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 8,
+  },
+  fieldLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+  },
+  textInput: {
+    height: 48,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    paddingHorizontal: 12,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 15,
+    fontFamily: 'Inter',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  sexSelectorRow: {
     flexDirection: 'row',
-    marginBottom: SPACING.md,
-    backgroundColor: COLORS.dark.bgInput,
-    borderRadius: RADIUS.md,
+    gap: 6,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
     padding: 3,
-    alignSelf: 'flex-start',
+    borderRadius: OBSIDIAN_RADIUS.lg,
   },
-  unitBtn: {
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.sm,
+  sexOptionBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  unitBtnActive: {
-    backgroundColor: COLORS.dark.accentRed,
+  sexOptionBtnActive: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
-  unitBtnText: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: '600',
+  sexOptionText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
-  unitBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+  grid2Col: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    justifyContent: 'space-between',
+  },
+  cardHeaderWithToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  unitToggleMini: {
+    flexDirection: 'row',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    padding: 2,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+  },
+  unitToggleChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+  },
+  unitToggleChipActive: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  unitToggleChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
+  },
+  metricValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginVertical: 6,
+  },
+  metricNumber: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 28,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  metricUnit: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
+  },
+  stepperControlRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  miniStepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperIcon: {
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 20,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    lineHeight: 22,
+  },
+  weightCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 10,
+  },
+  weightDialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  weightDialBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weightDialIcon: {
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 24,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    lineHeight: 28,
+  },
+  weightNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  weightBigNumber: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 36,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  weightUnitText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 14,
+  },
+  sectionBlock: {
+    gap: 8,
+  },
+  sectionHeaderLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  sectionNumLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+    letterSpacing: 1.2,
+  },
+  sectionExtraHint: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
+  },
+  goalCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  goalCardSelected: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderColor: 'rgba(204, 255, 0, 0.4)',
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  goalIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHighest,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  goalTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  goalTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 15,
+  },
+  goalDesc: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: OBSIDIAN_COLORS.textMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioCircleSelected: {
+    borderColor: OBSIDIAN_COLORS.voltLime,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  radioDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: OBSIDIAN_COLORS.onPrimary,
+  },
+  targetWeightCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 12,
+  },
+  targetWeightTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  targetNumRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginTop: 2,
+  },
+  targetNumText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 32,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  targetNumUnit: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 14,
+  },
+  deltaPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: 'rgba(0, 227, 253, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 227, 253, 0.25)',
+  },
+  deltaPillText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.cyanAccent,
+    fontSize: 10,
+  },
+  stepperControlRowFull: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  fullStepperBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullStepperIcon: {
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 22,
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  experienceGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    padding: 3,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+  },
+  expBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    gap: 2,
+  },
+  expBtnSelected: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  expLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  expSub: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
   },
   freqRow: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-    justifyContent: 'space-between',
+    gap: 6,
   },
-  freqCard: {
+  freqBtn: {
     flex: 1,
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
+    height: 52,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    gap: 1,
   },
-  freqCardActive: {
-    borderColor: COLORS.dark.accentRed,
-    backgroundColor: 'rgba(233, 69, 96, 0.12)',
+  freqBtnSelected: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
   freqNum: {
-    color: COLORS.dark.textPrimary,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: OBSIDIAN_COLORS.textWhite,
   },
-  freqNumActive: {
-    color: COLORS.dark.accentRed,
+  freqSub: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 9,
+    color: OBSIDIAN_COLORS.textMuted,
   },
-  freqLabel: {
-    color: COLORS.dark.textSecondary,
-    marginTop: 4,
+  chipsScroll: {
+    gap: 6,
+    paddingVertical: 2,
   },
-  freqLabelActive: {
-    color: COLORS.dark.accentRed,
-    fontWeight: 'bold',
-    marginTop: 4,
+  splitPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    marginRight: 6,
+  },
+  splitPillSelected: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  splitPillText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.sm,
+    gap: 6,
   },
-  multiChip: {
+  equipChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.dark.bgSecondary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+  },
+  equipChipSelected: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  equipChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  muscleChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+  },
+  muscleChipSelected: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  muscleChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  jointChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+  },
+  jointChipSelected: {
+    backgroundColor: 'rgba(204, 255, 0, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(204, 255, 0, 0.3)',
   },
-  multiChipSelected: {
-    backgroundColor: COLORS.dark.accentRed,
-    borderColor: COLORS.dark.accentRed,
+  jointChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
   },
-  multiChipText: {
-    color: COLORS.dark.textSecondary,
+  athleteHeroCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  multiChipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+  athleteAvatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
   },
-  summaryCard: {
-    padding: SPACING.lg,
-    gap: SPACING.md,
+  athleteHeroInfo: {
+    flex: 1,
   },
-  summaryRow: {
+  athleteNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  athleteName: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  athleteTagBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+  },
+  athleteTagText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
+  },
+  athleteBioMeta: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    marginTop: 2,
+    fontSize: 12,
+  },
+  bentoStack: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 8,
+  },
+  bentoHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    paddingBottom: SPACING.xs,
+    marginBottom: 4,
   },
-  summaryLabel: {
-    color: COLORS.dark.textSecondary,
+  bentoHeaderTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
   },
-  summaryVal: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
+  bentoHeaderSub: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
   },
-  footerRow: {
+  bentoItem: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bentoItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: COLORS.dark.bgPrimary,
-  },
-  backBtn: {
+    gap: 10,
     flex: 1,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  backBtnText: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
+  bentoIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bentoItemTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 13,
+  },
+  bentoItemSub: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  bentoPillRight: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+  },
+  bentoPillRightText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 9,
+  },
+  smartCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  smartLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  smartIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smartInfo: {
+    flex: 1,
+  },
+  smartTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 14,
+  },
+  smartSub: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  footerCTA: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingVertical: OBSIDIAN_SPACING.md,
+    backgroundColor: 'rgba(16, 19, 28, 0.95)',
+    borderTopWidth: 1,
+    borderTopColor: OBSIDIAN_COLORS.borderGhost,
+  },
+  continueBtn: {
+    height: 54,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  continueBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: OBSIDIAN_COLORS.onPrimary,
+    letterSpacing: 0.5,
   },
 });

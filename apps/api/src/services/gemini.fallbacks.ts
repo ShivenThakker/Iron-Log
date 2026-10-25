@@ -1,7 +1,7 @@
-export type FallbackKind = 'textFeedback' | 'routineAnalysis' | 'routineAnalysisError' | 'planGeneration';
+export type FallbackKind = 'coachChat' | 'routineAnalysis' | 'routineAnalysisError' | 'planGeneration';
 
 const FALLBACKS: Record<FallbackKind, string> = {
-  textFeedback:
+  coachChat:
     'IronLog AI is in offline demo mode. Set GEMINI_API_KEY and GEMINI_MODEL in your environment to enable real-time coaching responses.',
   routineAnalysis:
     '• Focus on gradual weight increases (2.5kg)\n• Balance push and pull volume across the week\n• Ensure 48 hours recovery before training the same muscle group',

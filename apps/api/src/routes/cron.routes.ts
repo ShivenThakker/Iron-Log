@@ -23,7 +23,37 @@ router.post('/streaks', async (req: Request, res: Response): Promise<void> => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Reset weekly grace periods and weekly XP on Mondays
+    // 1. Expire streaks for users inactive beyond grace period
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    // Inactive >= 2 days with grace already used
+    const expiredGrace = await prisma.streak.updateMany({
+      where: {
+        current_streak: { gt: 0 },
+        grace_used_this_week: true,
+        last_active_date: { lt: twoDaysAgo },
+      },
+      data: { current_streak: 0 },
+    });
+
+    // Inactive >= 3 days regardless of grace
+    const expiredInactive = await prisma.streak.updateMany({
+      where: {
+        current_streak: { gt: 0 },
+        last_active_date: { lt: threeDaysAgo },
+      },
+      data: { current_streak: 0 },
+    });
+
+    if (expiredGrace.count > 0 || expiredInactive.count > 0) {
+      logger.info({ expiredGrace: expiredGrace.count, expiredInactive: expiredInactive.count }, 'Expired inactive streaks');
+    }
+
+    // 2. Reset weekly grace periods and weekly XP on Mondays
     if (today.getDay() === 1) {
       await prisma.streak.updateMany({
         data: { grace_used_this_week: false },
@@ -37,7 +67,11 @@ router.post('/streaks', async (req: Request, res: Response): Promise<void> => {
       logger.info('Reset weekly streak grace periods and XP counters');
     }
 
-    res.json({ success: true, timestamp: new Date() });
+    res.json({
+      success: true,
+      timestamp: new Date(),
+      expiredCount: expiredGrace.count + expiredInactive.count,
+    });
   } catch (err: any) {
     logger.error({ error: err.message }, 'Cron streak execution failed');
     res.status(500).json({ error: err.message });

@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { getAllExercises, getExercise, createCustomExercise, shuffleExercise } from '../controllers/exercise.controller';
+import { getAllExercises, getExercise, createCustomExercise } from '../controllers/exercise.controller';
 import { requireAuth } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { createExerciseSchema } from '../validators/exercise.validator';
 
 const router = Router();
 
@@ -8,8 +10,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/', getAllExercises);
-router.post('/', createCustomExercise);
-router.get('/shuffle', shuffleExercise);
+router.post('/', validate(createExerciseSchema), createCustomExercise);
 router.get('/:id', getExercise);
 
 export default router;

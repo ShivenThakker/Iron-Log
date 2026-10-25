@@ -8,7 +8,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING } from '@/constants/tokens';
+import { COLORS, SPACING, OBSIDIAN_COLORS } from '@/constants/tokens';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
@@ -18,6 +18,7 @@ interface ScreenContainerProps {
   style?: ViewStyle;
   contentContainerStyle?: ViewStyle;
   headerComponent?: React.ReactNode;
+  theme?: 'default' | 'obsidian';
 }
 
 export const ScreenContainer: React.FC<ScreenContainerProps> = ({
@@ -28,8 +29,10 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   style,
   contentContainerStyle,
   headerComponent,
+  theme = 'default',
 }) => {
   const insets = useSafeAreaInsets();
+  const isObsidian = theme === 'obsidian';
 
   const containerPadding: ViewStyle = {
     paddingTop: Math.max(insets.top, 16),
@@ -38,9 +41,12 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     paddingRight: Math.max(insets.right, SPACING.md),
   };
 
+  const bgColor = isObsidian ? OBSIDIAN_COLORS.canvas : COLORS.dark.bgPrimary;
+  const refreshColor = isObsidian ? OBSIDIAN_COLORS.voltLime : COLORS.dark.accentRed;
+
   return (
-    <View style={[styles.container, containerPadding, style]}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.dark.bgPrimary} />
+    <View style={[styles.container, { backgroundColor: bgColor }, containerPadding, style]}>
+      <StatusBar barStyle="light-content" backgroundColor={bgColor} />
       {headerComponent}
       {scrollable ? (
         <ScrollView
@@ -52,8 +58,8 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={COLORS.dark.accentRed}
-                colors={[COLORS.dark.accentRed]}
+                tintColor={refreshColor}
+                colors={[refreshColor]}
               />
             ) : undefined
           }

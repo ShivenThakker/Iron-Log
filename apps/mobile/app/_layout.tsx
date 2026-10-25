@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View, ActivityIndicator } from 'react-native';
@@ -26,6 +27,8 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     JetBrainsMono_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
   });
 
   const { isAuthenticated, isHydrated, init } = useAuthStore();

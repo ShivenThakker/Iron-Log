@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import { COLORS, RADIUS, SPACING, OBSIDIAN_COLORS } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 
 export interface WeightPoint {
@@ -15,6 +15,7 @@ interface WeightChartProps {
   goalWeight?: number;
   width?: number;
   height?: number;
+  theme?: 'default' | 'obsidian';
 }
 
 export const WeightChart: React.FC<WeightChartProps> = ({
@@ -22,7 +23,15 @@ export const WeightChart: React.FC<WeightChartProps> = ({
   goalWeight,
   width = Dimensions.get('window').width - SPACING.lg * 2 - SPACING.md * 2,
   height = 180,
+  theme = 'default',
 }) => {
+  const isObsidian = theme === 'obsidian';
+  const lineColor = isObsidian ? OBSIDIAN_COLORS.voltLime : COLORS.dark.accentRed;
+  const areaColor = isObsidian ? OBSIDIAN_COLORS.voltLime : COLORS.dark.accentRed;
+  const movingAvgColor = isObsidian ? OBSIDIAN_COLORS.cyanAccent : COLORS.dark.accentCyan;
+  const goalColor = isObsidian ? OBSIDIAN_COLORS.cyanAccent : COLORS.dark.accentGold;
+  const textColor = isObsidian ? OBSIDIAN_COLORS.textSlate : COLORS.dark.textSecondary;
+
   if (!data || data.length === 0) {
     return (
       <View style={[styles.emptyContainer, { height }]}>
@@ -83,8 +92,8 @@ export const WeightChart: React.FC<WeightChartProps> = ({
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={COLORS.dark.accentRed} stopOpacity="0.4" />
-            <Stop offset="100%" stopColor={COLORS.dark.accentRed} stopOpacity="0.0" />
+            <Stop offset="0%" stopColor={areaColor} stopOpacity={isObsidian ? "0.28" : "0.4"} />
+            <Stop offset="100%" stopColor={areaColor} stopOpacity="0.0" />
           </LinearGradient>
         </Defs>
 
@@ -99,14 +108,14 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                 y1={y}
                 x2={width - paddingRight}
                 y2={y}
-                stroke="rgba(255, 255, 255, 0.06)"
+                stroke={isObsidian ? OBSIDIAN_COLORS.borderGhost : "rgba(255, 255, 255, 0.06)"}
                 strokeDasharray="4 4"
               />
               <SvgText
                 x={paddingLeft - 8}
                 y={y + 4}
                 fontSize="10"
-                fill={COLORS.dark.textSecondary}
+                fill={textColor}
                 textAnchor="end"
               >
                 {val}
@@ -123,7 +132,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
               y1={goalY}
               x2={width - paddingRight}
               y2={goalY}
-              stroke={COLORS.dark.accentGold}
+              stroke={goalColor}
               strokeWidth="1.5"
               strokeDasharray="6 3"
             />
@@ -131,7 +140,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
               x={width - paddingRight}
               y={goalY - 6}
               fontSize="9"
-              fill={COLORS.dark.accentGold}
+              fill={goalColor}
               textAnchor="end"
               fontWeight="bold"
             >
@@ -148,9 +157,9 @@ export const WeightChart: React.FC<WeightChartProps> = ({
           <Path
             d={movingAvgPathD}
             fill="none"
-            stroke={COLORS.dark.accentCyan}
-            strokeWidth="2"
-            strokeDasharray="5 3"
+            stroke={movingAvgColor}
+            strokeWidth="1.5"
+            strokeDasharray="4 3"
           />
         )}
 
@@ -158,8 +167,8 @@ export const WeightChart: React.FC<WeightChartProps> = ({
         <Path
           d={pathD}
           fill="none"
-          stroke={COLORS.dark.accentRed}
-          strokeWidth="3"
+          stroke={lineColor}
+          strokeWidth="2.5"
           strokeLinecap="round"
         />
 
@@ -169,10 +178,10 @@ export const WeightChart: React.FC<WeightChartProps> = ({
             key={`pt-${i}`}
             cx={getX(i)}
             cy={getY(point.weight)}
-            r="4"
-            fill={COLORS.dark.accentRed}
-            stroke="#FFFFFF"
-            strokeWidth="1.5"
+            r={i === data.length - 1 ? "4.5" : "3"}
+            fill={isObsidian ? OBSIDIAN_COLORS.canvas : lineColor}
+            stroke={lineColor}
+            strokeWidth={i === data.length - 1 ? "2.5" : "1.5"}
           />
         ))}
 
@@ -183,7 +192,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
               x={getX(0)}
               y={height - 6}
               fontSize="10"
-              fill={COLORS.dark.textSecondary}
+              fill={textColor}
               textAnchor="start"
             >
               {data[0].date}
@@ -193,7 +202,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                 x={getX(data.length - 1)}
                 y={height - 6}
                 fontSize="10"
-                fill={COLORS.dark.textSecondary}
+                fill={textColor}
                 textAnchor="end"
               >
                 {data[data.length - 1].date}
@@ -206,19 +215,19 @@ export const WeightChart: React.FC<WeightChartProps> = ({
       {/* Legend below chart */}
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: COLORS.dark.accentRed }]} />
-          <Text variant="caption" style={styles.legendText}>Actual Weight</Text>
+          <View style={[styles.legendDot, { backgroundColor: lineColor }]} />
+          <Text variant="caption" color={textColor} style={styles.legendText}>Actual Weight</Text>
         </View>
         {hasMovingAvg && (
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.dark.accentCyan }]} />
-            <Text variant="caption" style={styles.legendText}>7-Day Moving Avg</Text>
+            <View style={[styles.legendDot, { backgroundColor: movingAvgColor }]} />
+            <Text variant="caption" color={textColor} style={styles.legendText}>7-Day Avg</Text>
           </View>
         )}
         {goalWeight && (
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: COLORS.dark.accentGold }]} />
-            <Text variant="caption" style={styles.legendText}>Goal Weight</Text>
+            <View style={[styles.legendDot, { backgroundColor: goalColor }]} />
+            <Text variant="caption" color={textColor} style={styles.legendText}>Target Goal</Text>
           </View>
         )}
       </View>

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import Svg, { Path, Rect, Circle, G, Text as SvgText } from 'react-native-svg';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import React from 'react';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import Svg, { Image as SvgImage, Path, G } from 'react-native-svg';
+import { OBSIDIAN_COLORS, OBSIDIAN_RADIUS, OBSIDIAN_SPACING } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
+import { BODY_REGIONS } from '@/constants/bodyRegions';
+import { mapHeatmapToRegionIntensities } from '@/constants/muscleMap';
 
 export interface MuscleHeatmapData {
   chest?: number;
@@ -20,145 +22,141 @@ export interface MuscleHeatmapData {
   [key: string]: number | undefined;
 }
 
-interface MuscleHeatmapProps {
-  data: MuscleHeatmapData;
+export interface MuscleHeatmapProps {
+  data?: MuscleHeatmapData | null;
+  theme?: 'default' | 'obsidian';
+  debugAll?: boolean;
 }
 
-function getIntensityColor(intensity: number = 0): string {
-  if (intensity <= 0) return '#222646'; // Inactive slate
-  if (intensity <= 0.35) return '#22C55E'; // Moderate green
-  if (intensity <= 0.7) return '#F59E0B'; // Warming gold
-  return '#E94560'; // Peak red
-}
+/**
+ * Traced anatomical muscle heatmap component with base side-by-side body imagery
+ * and high-contrast Obsidian Volt highlight overlays.
+ */
+export const MuscleHeatmap: React.FC<MuscleHeatmapProps> = ({
+  data,
+  debugAll = false,
+}) => {
+  const { width: screenWidth } = useWindowDimensions();
+  // Card padding + inner margins: container width is roughly screenWidth - 48
+  const containerWidth = Math.min(screenWidth - 48, 420);
+  const containerHeight = containerWidth; // 1:1 aspect ratio matching 1024x1024
 
-export const MuscleHeatmap: React.FC<MuscleHeatmapProps> = ({ data }) => {
-  const [view, setView] = useState<'front' | 'back'>('front');
+  // Map incoming muscle data to region intensities (0..1)
+  const regionIntensities = React.useMemo(() => {
+    if (debugAll) {
+      // Light up all regions in dev debug mode
+      const all: Record<string, number> = {};
+      Object.keys(BODY_REGIONS.regions).forEach((region, i) => {
+        all[region] = i % 2 === 0 ? 1.0 : 0.6;
+      });
+      return all;
+    }
+    if (!data) return {};
+    return mapHeatmapToRegionIntensities(data);
+  }, [data, debugAll]);
 
-  const chestColor = getIntensityColor(data.chest);
-  const backColor = getIntensityColor(data.back);
-  const shouldersColor = getIntensityColor(data.shoulders);
-  const bicepsColor = getIntensityColor(data.biceps);
-  const tricepsColor = getIntensityColor(data.triceps);
-  const coreColor = getIntensityColor(data.core);
-  const quadsColor = getIntensityColor(data.quads);
-  const hamstringsColor = getIntensityColor(data.hamstrings);
-  const glutesColor = getIntensityColor(data.glutes);
-  const calvesColor = getIntensityColor(data.calves);
-  const trapsColor = getIntensityColor(data.traps || data.back ? (data.traps ?? data.back! * 0.8) : 0);
+  // Compute maximum intensity for relative scaling
+  const maxIntensity = React.useMemo(() => {
+    const values = Object.values(regionIntensities);
+    if (values.length === 0) return 1.0;
+    const max = Math.max(...values);
+    return max > 0 ? max : 1.0;
+  }, [regionIntensities]);
 
   return (
     <View style={styles.container}>
-      {/* View Switcher Tabs */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tab, view === 'front' && styles.activeTab]}
-          onPress={() => setView('front')}
+      {/* Side-by-side Anatomical Canvas */}
+      <View style={[styles.canvasContainer, { width: containerWidth, height: containerHeight }]}>
+        <Svg
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${BODY_REGIONS.width} ${BODY_REGIONS.height}`}
         >
-          <Text variant="caption" style={[styles.tabText, view === 'front' && styles.activeTabText]}>
-            FRONT BODY
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, view === 'back' && styles.activeTab]}
-          onPress={() => setView('back')}
-        >
-          <Text variant="caption" style={[styles.tabText, view === 'back' && styles.activeTabText]}>
-            BACK BODY
-          </Text>
-        </TouchableOpacity>
+          {/* Base anatomical body image (front + back side-by-side) */}
+          <SvgImage
+            href={require('@/assets/body/body-base.png')}
+            x="0"
+            y="0"
+            width={BODY_REGIONS.width}
+            height={BODY_REGIONS.height}
+            preserveAspectRatio="xMidYMid meet"
+          />
+
+          {/* Active Muscle Overlay Regions */}
+          {Object.entries(BODY_REGIONS.regions).map(([regionKey, paths]) => {
+            const rawIntensity = regionIntensities[regionKey] || 0;
+            if (rawIntensity <= 0) return null;
+
+            // Intensity relative to user's highest volume muscle
+            const relativeIntensity = rawIntensity / maxIntensity;
+            const isPeak = relativeIntensity >= 0.7;
+
+            // Visual styling:
+            // Peak: ~90% opacity volt lime + glow outline
+            // Moderate: ~50% opacity volt lime / primaryFixedDim
+            const fillColor = isPeak ? OBSIDIAN_COLORS.voltLime : OBSIDIAN_COLORS.primaryFixedDim;
+            const fillOpacity = isPeak ? 0.88 : 0.52;
+            const strokeColor = OBSIDIAN_COLORS.voltLime;
+            const strokeOpacity = isPeak ? 0.85 : 0.35;
+            const glowOpacity = isPeak ? 0.45 : 0;
+
+            return (
+              <G key={regionKey} id={`highlight-${regionKey}`}>
+                {paths.map((p) => (
+                  <React.Fragment key={p.id}>
+                    {/* Outer soft glow stroke for peak volume */}
+                    {isPeak && (
+                      <Path
+                        d={p.d}
+                        fill="none"
+                        stroke={strokeColor}
+                        strokeWidth={6}
+                        strokeOpacity={glowOpacity}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                    )}
+                    {/* Filled active muscle shape */}
+                    <Path
+                      d={p.d}
+                      fill={fillColor}
+                      fillOpacity={fillOpacity}
+                      fillRule="evenodd"
+                      stroke={strokeColor}
+                      strokeWidth={isPeak ? 1.5 : 1}
+                      strokeOpacity={strokeOpacity}
+                      strokeLinejoin="round"
+                    />
+                  </React.Fragment>
+                ))}
+              </G>
+            );
+          })}
+        </Svg>
       </View>
 
-      {/* SVG Muscle Diagram Canvas */}
-      <View style={styles.canvasContainer}>
-        {view === 'front' ? (
-          <Svg width="220" height="280" viewBox="0 0 220 280">
-            {/* Head */}
-            <Circle cx="110" cy="24" r="14" fill="#2D325A" />
-            {/* Neck */}
-            <Rect x="104" y="38" width="12" height="12" rx="3" fill="#2D325A" />
-
-            {/* Shoulders */}
-            <Path d="M72 50 C60 52 52 64 54 78 C60 76 68 70 76 66 Z" fill={shouldersColor} />
-            <Path d="M148 50 C160 52 168 64 166 78 C160 76 152 70 144 66 Z" fill={shouldersColor} />
-
-            {/* Chest */}
-            <Path d="M78 54 Q110 58 110 82 Q90 84 76 76 Z" fill={chestColor} />
-            <Path d="M142 54 Q110 58 110 82 Q130 84 144 76 Z" fill={chestColor} />
-
-            {/* Biceps */}
-            <Rect x="50" y="82" width="14" height="28" rx="6" fill={bicepsColor} />
-            <Rect x="156" y="82" width="14" height="28" rx="6" fill={bicepsColor} />
-
-            {/* Forearms */}
-            <Rect x="46" y="114" width="12" height="32" rx="5" fill="#2D325A" />
-            <Rect x="162" y="114" width="12" height="32" rx="5" fill="#2D325A" />
-
-            {/* Core / Abs */}
-            <Path d="M84 86 H136 V134 Q110 144 84 134 Z" fill={coreColor} />
-
-            {/* Pelvis */}
-            <Path d="M86 138 H134 L124 160 H96 Z" fill="#2D325A" />
-
-            {/* Quads (Upper Legs) */}
-            <Rect x="80" y="164" width="26" height="54" rx="8" fill={quadsColor} />
-            <Rect x="114" y="164" width="26" height="54" rx="8" fill={quadsColor} />
-
-            {/* Knees */}
-            <Circle cx="93" cy="223" r="5" fill="#2D325A" />
-            <Circle cx="127" cy="223" r="5" fill="#2D325A" />
-
-            {/* Calves (Lower Legs) */}
-            <Rect x="82" y="232" width="22" height="42" rx="6" fill={calvesColor} />
-            <Rect x="116" y="232" width="22" height="42" rx="6" fill={calvesColor} />
-          </Svg>
-        ) : (
-          <Svg width="220" height="280" viewBox="0 0 220 280">
-            {/* Head (Back) */}
-            <Circle cx="110" cy="24" r="14" fill="#2D325A" />
-            {/* Traps */}
-            <Path d="M96 38 L110 32 L124 38 L138 52 L82 52 Z" fill={trapsColor} />
-
-            {/* Rear Delts */}
-            <Path d="M72 50 C60 52 52 64 54 78 C60 76 68 70 76 66 Z" fill={shouldersColor} />
-            <Path d="M148 50 C160 52 168 64 166 78 C160 76 152 70 144 66 Z" fill={shouldersColor} />
-
-            {/* Upper Back / Lats */}
-            <Path d="M78 56 Q110 52 142 56 L134 116 Q110 126 86 116 Z" fill={backColor} />
-
-            {/* Triceps */}
-            <Rect x="50" y="82" width="14" height="28" rx="6" fill={tricepsColor} />
-            <Rect x="156" y="82" width="14" height="28" rx="6" fill={tricepsColor} />
-
-            {/* Forearms */}
-            <Rect x="46" y="114" width="12" height="32" rx="5" fill="#2D325A" />
-            <Rect x="162" y="114" width="12" height="32" rx="5" fill="#2D325A" />
-
-            {/* Glutes */}
-            <Path d="M84 128 Q110 134 136 128 L134 160 Q110 166 86 160 Z" fill={glutesColor} />
-
-            {/* Hamstrings */}
-            <Rect x="80" y="164" width="26" height="54" rx="8" fill={hamstringsColor} />
-            <Rect x="114" y="164" width="26" height="54" rx="8" fill={hamstringsColor} />
-
-            {/* Calves (Back) */}
-            <Rect x="82" y="232" width="22" height="42" rx="6" fill={calvesColor} />
-            <Rect x="116" y="232" width="22" height="42" rx="6" fill={calvesColor} />
-          </Svg>
-        )}
-      </View>
-
-      {/* Heatmap Legend */}
+      {/* Heatmap Legend matching Stitch Obsidian Volt design */}
       <View style={styles.legendContainer}>
-        <Text variant="caption" style={styles.legendLabel}>Inactive</Text>
-        <View style={styles.legendGradient}>
-          <View style={[styles.legendStop, { backgroundColor: '#222646' }]} />
-          <View style={[styles.legendStop, { backgroundColor: '#22C55E' }]} />
-          <View style={[styles.legendStop, { backgroundColor: '#F59E0B' }]} />
-          <View style={[styles.legendStop, { backgroundColor: '#E94560' }]} />
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: OBSIDIAN_COLORS.surfaceContainerHighest }]} />
+          <Text variant="labelCaps" style={styles.legendText}>
+            INACTIVE
+          </Text>
         </View>
-        <Text variant="caption" style={[styles.legendLabel, { color: COLORS.dark.accentRed }]}>
-          Peak Volume
-        </Text>
+
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: OBSIDIAN_COLORS.primaryFixedDim }]} />
+          <Text variant="labelCaps" style={styles.legendText}>
+            MODERATE
+          </Text>
+        </View>
+
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendDotPeak]} />
+          <Text variant="labelCaps" style={styles.legendTextPeak}>
+            PEAK VOLUME
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -166,63 +164,55 @@ export const MuscleHeatmap: React.FC<MuscleHeatmapProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.dark.bgInput,
-    borderRadius: RADIUS.full,
-    padding: 3,
-    marginBottom: SPACING.md,
-  },
-  tab: {
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.full,
-  },
-  activeTab: {
-    backgroundColor: COLORS.dark.accentRed,
-  },
-  tabText: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: '600',
-    fontSize: 11,
-  },
-  activeTabText: {
-    color: COLORS.dark.textPrimary,
+    marginVertical: OBSIDIAN_SPACING.sm,
   },
   canvasContainer: {
-    backgroundColor: 'rgba(22, 33, 62, 0.6)',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
-    alignItems: 'center',
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    overflow: 'hidden',
+    backgroundColor: '#0e111a',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
   },
   legendContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: OBSIDIAN_SPACING.md,
+    paddingHorizontal: OBSIDIAN_SPACING.xs,
+  },
+  legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    maxWidth: 240,
-    marginTop: SPACING.md,
+    gap: 6,
   },
-  legendLabel: {
-    color: COLORS.dark.textSecondary,
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendDotPeak: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  legendText: {
+    color: OBSIDIAN_COLORS.onSurfaceVariant,
     fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
-  legendGradient: {
-    flex: 1,
-    height: 6,
-    flexDirection: 'row',
-    marginHorizontal: SPACING.sm,
-    borderRadius: RADIUS.full,
-    overflow: 'hidden',
-  },
-  legendStop: {
-    flex: 1,
-    height: '100%',
+  legendTextPeak: {
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
+
+export default MuscleHeatmap;

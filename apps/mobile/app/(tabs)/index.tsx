@@ -11,17 +11,19 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { GradientButton } from '@/components/ui/GradientButton';
-import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressRing } from '@/components/charts/ProgressRing';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_TYPOGRAPHY,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = SCREEN_WIDTH - SPACING.lg * 2;
+const CARD_WIDTH = SCREEN_WIDTH - OBSIDIAN_SPACING.md * 2;
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -47,16 +49,18 @@ export default function HomeDashboard() {
   const { data: nutritionData, refetch: refetchNutrition } = useQuery({
     queryKey: ['nutritionDashboard'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const d = new Date();
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const res = await api.get(`/nutrition/daily/${today}`).catch(() => null);
       return res?.data ?? null;
     },
   });
 
+  // Realigned query: replace /sessions/history (404) with real GET /sessions endpoint
   const { data: recentSessions, refetch: refetchSessions } = useQuery({
     queryKey: ['recentSessions'],
     queryFn: async () => {
-      const res = await api.get('/sessions/history').catch(() => null);
+      const res = await api.get('/sessions').catch(() => null);
       return Array.isArray(res?.data) ? res.data.slice(0, 3) : [];
     },
   });
@@ -83,7 +87,6 @@ export default function HomeDashboard() {
   const userName = user?.name ? user.name.split(' ')[0] : 'Lifter';
   const rank = gamificationData?.currentRank?.name || 'Rookie';
   const totalXp = gamificationData?.xpRecord?.total_xp || 0;
-  const streak = gamificationData?.currentStreak || 3;
 
   // Nutrition calculations
   const caloriesConsumed = nutritionData?.totals?.calories || 1650;
@@ -106,8 +109,14 @@ export default function HomeDashboard() {
   const exerciseCount = todayExercises.length > 0 ? todayExercises.length : 5;
   const estimatedMin = exerciseCount * 10;
 
+  const todayDateFormatted = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
-    <ScreenContainer scrollable={false}>
+    <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
       <View style={styles.container}>
         <ScrollView
           style={styles.scroll}
@@ -117,27 +126,28 @@ export default function HomeDashboard() {
             <RefreshControl
               refreshing={refetchingProfile}
               onRefresh={onRefresh}
-              tintColor={COLORS.dark.accentRed}
+              tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }
         >
-          {/* Header Row */}
+          {/* Top Greeting & Rank Pill Row */}
           <View style={styles.header}>
-            <View>
-              <Text variant="caption" style={styles.dateLabel}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
-              </Text>
-              <Text variant="h1" style={styles.greeting}>
-                Let's grind, {userName}
-              </Text>
+            <View style={styles.headerLeft}>
+              <Text style={styles.dateLabel}>{todayDateFormatted.toUpperCase()}</Text>
+              <Text style={styles.greeting}>Let's grind, {userName}</Text>
             </View>
 
-            <TouchableOpacity style={styles.profileBadge} onPress={() => router.push('/settings')}>
-              <Badge label={`⚡ ${rank}`} variant="gold" />
+            <TouchableOpacity
+              style={styles.rankPill}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/achievements')}
+            >
+              <Icon name="Lightning" size={14} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+              <Text style={styles.rankPillText}>{rank}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* GymStreak Hero Carousel */}
+          {/* Active Session Carousel */}
           <ScrollView
             horizontal
             pagingEnabled
@@ -150,130 +160,151 @@ export default function HomeDashboard() {
             scrollEventThrottle={16}
             style={styles.carouselContainer}
           >
-            {/* Card 1: Today's Workout */}
-            <GlassCard style={styles.carouselCard}>
+            {/* Card 1: Today's Workout Hero */}
+            <View style={styles.carouselCard}>
+              <View style={styles.glowUnderlay} />
+
               <View style={styles.cardHeaderRow}>
-                <Badge label="TODAY'S WORKOUT" variant="red" />
-                <TouchableOpacity onPress={() => router.push('/program/builder')}>
-                  <Text variant="caption" style={styles.seeAllLink}>
-                    Edit Split →
-                  </Text>
+                <View style={styles.workoutBadge}>
+                  <Text style={styles.workoutBadgeText}>TODAY'S WORKOUT</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editSplitLink}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/program/builder')}
+                >
+                  <Text style={styles.editSplitText}>EDIT SPLIT</Text>
+                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
                 </TouchableOpacity>
               </View>
 
-              <Text variant="h2" style={styles.workoutTitle} numberOfLines={1}>
+              <Text style={styles.workoutTitle} numberOfLines={1}>
                 {todayWorkoutTitle}
               </Text>
 
+              {/* Category Chips & Duration */}
               <View style={styles.pillsRow}>
                 {todayExercises.length > 0 ? (
                   todayExercises.slice(0, 3).map((ex: any, i: number) => (
-                    <Badge key={i} label={ex.exercise?.name || ex.exercise_name || `Ex ${i + 1}`} variant="default" />
+                    <View key={i} style={styles.categoryChip}>
+                      <Text style={styles.categoryChipText}>
+                        {ex.exercise?.name || ex.exercise_name || `Ex ${i + 1}`}
+                      </Text>
+                    </View>
                   ))
                 ) : (
                   <>
-                    <Badge label="Chest" variant="default" />
-                    <Badge label="Triceps" variant="default" />
+                    <View style={styles.categoryChip}>
+                      <Text style={styles.categoryChipText}>Chest</Text>
+                    </View>
+                    <View style={styles.categoryChip}>
+                      <Text style={styles.categoryChipText}>Triceps</Text>
+                    </View>
                   </>
                 )}
-                <Text variant="caption" style={styles.durationText}>
+                <Text style={styles.durationMeta}>
                   {exerciseCount} Exercises • ~{estimatedMin} min
                 </Text>
               </View>
 
-              <View style={styles.cardActionWrapper}>
-                <GradientButton
-                  title="Start Workout"
-                  icon={<Icon name="Play" size={18} color="#FFFFFF" />}
-                  onPress={() => router.push('/workout/active')}
-                />
-              </View>
-            </GlassCard>
+              {/* High-Energy Electric Volt Lime Start Button */}
+              <TouchableOpacity
+                style={styles.startWorkoutBtn}
+                activeOpacity={0.88}
+                onPress={() => router.push('/workout/active')}
+              >
+                <Icon name="Play" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
+                <Text style={styles.startWorkoutText}>Start Workout</Text>
+              </TouchableOpacity>
+            </View>
 
-            {/* Card 2: Daily Nutrition */}
-            <GlassCard style={styles.carouselCard}>
+            {/* Card 2: Daily Nutrition Overview */}
+            <View style={styles.carouselCard}>
               <View style={styles.cardHeaderRow}>
-                <Badge label="DAILY NUTRITION" variant="gold" />
-                <TouchableOpacity onPress={() => router.push('/(tabs)/nutrition')}>
-                  <Text variant="caption" style={styles.seeAllLink}>
-                    Full Log →
-                  </Text>
+                <View style={[styles.workoutBadge, { borderColor: 'rgba(0, 227, 253, 0.3)', backgroundColor: 'rgba(0, 227, 253, 0.1)' }]}>
+                  <Text style={[styles.workoutBadgeText, { color: OBSIDIAN_COLORS.cyanAccent }]}>DAILY NUTRITION</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editSplitLink}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/(tabs)/nutrition')}
+                >
+                  <Text style={[styles.editSplitText, { color: OBSIDIAN_COLORS.cyanAccent }]}>FULL LOG</Text>
+                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.cyanAccent} weight="bold" />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.nutritionRow}>
                 <ProgressRing
-                  size={95}
-                  strokeWidth={9}
+                  size={88}
+                  strokeWidth={8}
                   progress={calRatio}
-                  color={COLORS.dark.accentGold}
+                  color={OBSIDIAN_COLORS.voltLime}
                 >
-                  <Text variant="mono" style={styles.ringValue}>
-                    {caloriesConsumed}
-                  </Text>
-                  <Text variant="caption" style={styles.ringLabel}>
-                    kcal
-                  </Text>
+                  <Text style={styles.ringValue}>{caloriesConsumed}</Text>
+                  <Text style={styles.ringLabel}>kcal</Text>
                 </ProgressRing>
 
                 <View style={styles.macroBarsContainer}>
                   <View style={styles.macroItem}>
                     <View style={styles.macroTextRow}>
-                      <Text variant="caption" style={styles.macroLabel}>Protein</Text>
-                      <Text variant="caption" style={styles.macroValue}>{proteinG}g / 180g</Text>
+                      <Text style={styles.macroLabel}>Protein</Text>
+                      <Text style={styles.macroValue}>{proteinG}g / 180g</Text>
                     </View>
-                    <ProgressBar progress={Math.min(proteinG / 180, 1)} color={COLORS.dark.accentRed} />
+                    <ProgressBar progress={Math.min(proteinG / 180, 1)} color={OBSIDIAN_COLORS.coralAccent} />
                   </View>
 
                   <View style={styles.macroItem}>
                     <View style={styles.macroTextRow}>
-                      <Text variant="caption" style={styles.macroLabel}>Carbs</Text>
-                      <Text variant="caption" style={styles.macroValue}>{carbsG}g / 250g</Text>
+                      <Text style={styles.macroLabel}>Carbs</Text>
+                      <Text style={styles.macroValue}>{carbsG}g / 250g</Text>
                     </View>
-                    <ProgressBar progress={Math.min(carbsG / 250, 1)} color={COLORS.dark.success} />
+                    <ProgressBar progress={Math.min(carbsG / 250, 1)} color={OBSIDIAN_COLORS.cyanAccent} />
                   </View>
 
                   <View style={styles.macroItem}>
                     <View style={styles.macroTextRow}>
-                      <Text variant="caption" style={styles.macroLabel}>Fats</Text>
-                      <Text variant="caption" style={styles.macroValue}>{fatG}g / 70g</Text>
+                      <Text style={styles.macroLabel}>Fats</Text>
+                      <Text style={styles.macroValue}>{fatG}g / 70g</Text>
                     </View>
-                    <ProgressBar progress={Math.min(fatG / 70, 1)} color={COLORS.dark.accentGold} />
+                    <ProgressBar progress={Math.min(fatG / 70, 1)} color={OBSIDIAN_COLORS.voltLime} />
                   </View>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={styles.logMealBtn}
+                style={styles.quickLogBtn}
+                activeOpacity={0.8}
                 onPress={() => router.push('/(tabs)/nutrition')}
               >
-                <Text variant="bodySmall" style={styles.logMealBtnText}>
-                  + Quick Log Meal
-                </Text>
+                <Text style={styles.quickLogBtnText}>+ Quick Log Meal</Text>
               </TouchableOpacity>
-            </GlassCard>
+            </View>
 
-            {/* Card 3: Weekly Progress & Rank */}
-            <GlassCard style={styles.carouselCard}>
+            {/* Card 3: Weekly Grind & Rank */}
+            <View style={styles.carouselCard}>
               <View style={styles.cardHeaderRow}>
-                <Badge label="WEEKLY GRIND" variant="blue" />
-                <Text variant="caption" style={styles.seeAllLink}>
-                  3 of 4 Sessions
-                </Text>
+                <View style={[styles.workoutBadge, { borderColor: 'rgba(204, 255, 0, 0.3)', backgroundColor: 'rgba(204, 255, 0, 0.1)' }]}>
+                  <Text style={styles.workoutBadgeText}>WEEKLY GRIND</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editSplitLink}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/(tabs)/achievements')}
+                >
+                  <Text style={styles.editSplitText}>TROPHIES</Text>
+                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                </TouchableOpacity>
               </View>
 
               <View style={styles.rankProgressRow}>
                 <View style={styles.rankShield}>
-                  <Text style={styles.shieldEmoji}>🛡️</Text>
+                  <Icon name="Trophy" size={24} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
                 </View>
                 <View style={styles.rankDetails}>
-                  <Text variant="h3" style={styles.rankTitle}>
-                    {rank}
-                  </Text>
-                  <Text variant="caption" style={styles.xpText}>
-                    {totalXp} Total XP Earned
-                  </Text>
-                  <ProgressBar progress={0.65} color={COLORS.dark.accentGold} style={{ marginTop: 6 }} />
+                  <Text style={styles.rankTitle}>{rank}</Text>
+                  <Text style={styles.xpText}>{totalXp.toLocaleString()} Total XP Earned</Text>
+                  <ProgressBar progress={0.65} color={OBSIDIAN_COLORS.voltLime} style={{ marginTop: 6 }} />
                 </View>
               </View>
 
@@ -283,19 +314,19 @@ export default function HomeDashboard() {
                   return (
                     <View key={idx} style={styles.dayDotCol}>
                       <View style={[styles.dayDot, completed && styles.dayDotCompleted]}>
-                        {completed && <Icon name="Check" size={12} color="#FFFFFF" />}
+                        {completed && <Icon name="Check" size={12} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />}
                       </View>
-                      <Text variant="caption" style={styles.dayLabel}>
+                      <Text style={[styles.dayLabel, completed && { color: OBSIDIAN_COLORS.voltLime }]}>
                         {day}
                       </Text>
                     </View>
                   );
                 })}
               </View>
-            </GlassCard>
+            </View>
           </ScrollView>
 
-          {/* Carousel Pagination Dots */}
+          {/* Carousel Pagination Indicators (Volt bar + dots) */}
           <View style={styles.dotsRow}>
             {[0, 1, 2].map((idx) => (
               <View
@@ -305,118 +336,121 @@ export default function HomeDashboard() {
             ))}
           </View>
 
-          {/* Quick Shortcuts */}
-          <View style={styles.shortcutsRow}>
+          {/* Quick Action Matrix (Unified Obsidian & Volt 2-Column Grid) */}
+          <View style={styles.quickMatrix}>
             <TouchableOpacity
-              style={styles.shortcutBtn}
+              style={styles.quickActionBtn}
+              activeOpacity={0.8}
               onPress={() => router.push('/program/builder')}
             >
-              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(233, 69, 96, 0.15)' }]}>
-                <Icon name="CalendarCheck" size={20} color={COLORS.dark.accentRed} />
+              <View style={styles.quickIconCircle}>
+                <Icon name="CalendarCheck" size={20} color={OBSIDIAN_COLORS.voltLime} />
               </View>
-              <Text variant="caption" style={styles.shortcutText}>
-                Plan Builder
-              </Text>
+              <Text style={styles.quickActionText}>PLAN{'\n'}BUILDER</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.shortcutBtn}
-              onPress={() => router.push('/workout/active')}
-            >
-              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                <Icon name="Barbell" size={20} color={COLORS.dark.accentGold} />
-              </View>
-              <Text variant="caption" style={styles.shortcutText}>
-                Active Session
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.shortcutBtn}
-              onPress={() => router.push('/ai/chat')}
-            >
-              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(124, 58, 237, 0.15)' }]}>
-                <Icon name="Sparkle" size={20} color={COLORS.dark.aiPurple} />
-              </View>
-              <Text variant="caption" style={styles.shortcutText}>
-                AI Coach
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.shortcutBtn}
+              style={styles.quickActionBtn}
+              activeOpacity={0.8}
               onPress={() => router.push('/(tabs)/body')}
             >
-              <View style={[styles.shortcutIconBg, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
-                <Icon name="Scales" size={20} color={COLORS.dark.success} />
+              <View style={styles.quickIconCircle}>
+                <Icon name="Scales" size={20} color={OBSIDIAN_COLORS.voltLime} />
               </View>
-              <Text variant="caption" style={styles.shortcutText}>
-                Log Weight
-              </Text>
+              <Text style={styles.quickActionText}>LOG{'\n'}WEIGHT</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Recent Workouts Section */}
+          {/* Recent Workouts Activity Hub */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
-              <Text variant="h3" style={styles.sectionTitle}>
-                Recent Workouts
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/insights')}>
-                <Text variant="caption" style={styles.seeAllLink}>
-                  Analytics →
-                </Text>
+              <Text style={styles.sectionTitle}>Recent Workouts</Text>
+              <TouchableOpacity
+                style={styles.analyticsLink}
+                activeOpacity={0.7}
+                onPress={() => router.push('/(tabs)/insights')}
+              >
+                <Text style={styles.analyticsLinkText}>ANALYTICS</Text>
+                <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
               </TouchableOpacity>
             </View>
 
             {recentSessions && recentSessions.length > 0 ? (
-              recentSessions.map((session: any, index: number) => (
-                <GlassCard key={session.id || index} style={styles.historyCard}>
-                  <View style={styles.historyLeft}>
-                    <View style={styles.workoutIconCircle}>
-                      <Icon name="Barbell" size={20} color={COLORS.dark.accentRed} />
+              recentSessions.map((session: any, index: number) => {
+                const volume = session.exerciseSets?.reduce(
+                  (acc: number, s: any) => acc + ((s.weight_kg || 0) * (s.reps || 0)),
+                  0
+                ) || 0;
+                const formattedDate = new Date(session.started_at || Date.now()).toLocaleDateString(
+                  'en-US',
+                  { month: 'short', day: 'numeric' }
+                );
+                const durationMin = session.duration_seconds
+                  ? Math.round(session.duration_seconds / 60)
+                  : 45;
+                const title =
+                  session.notes ||
+                  (session.exerciseSets?.[0]?.exercise?.name
+                    ? `${session.exerciseSets[0].exercise.name} Focus`
+                    : 'Strength Session');
+                const setsCount = session.exerciseSets?.length || 0;
+
+                return (
+                  <TouchableOpacity
+                    key={session.id || index}
+                    style={styles.historyCard}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/workout/summary',
+                        params: { sessionId: session.id },
+                      })
+                    }
+                  >
+                    <View style={styles.historyLeft}>
+                      <View style={styles.workoutIconCircle}>
+                        <Icon name="Barbell" size={20} color={OBSIDIAN_COLORS.voltLime} />
+                      </View>
+                      <View style={styles.historyInfo}>
+                        <Text style={styles.historyName} numberOfLines={1}>
+                          {title}
+                        </Text>
+                        <Text style={styles.historyMeta}>
+                          {formattedDate} • {durationMin} min{setsCount > 0 ? ` • ${setsCount} sets` : ''}
+                        </Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text variant="body" style={styles.historyName}>
-                        {session.name || 'Strength Session'}
+                    <View style={styles.historyRight}>
+                      <Text style={styles.volumeText}>
+                        {volume > 0 ? `${Math.round(volume).toLocaleString()} kg` : 'Bodyweight'}
                       </Text>
-                      <Text variant="caption" style={styles.historyMeta}>
-                        {new Date(session.started_at || Date.now()).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}{' '}
-                        • {session.duration_seconds ? `${Math.round(session.duration_seconds / 60)} min` : '45 min'}
-                      </Text>
+                      <Text style={styles.volumeLabel}>Volume</Text>
                     </View>
-                  </View>
-                  <View style={styles.historyRight}>
-                    <Text variant="mono" style={styles.volumeText}>
-                      {session.total_volume_kg ? `${Math.round(session.total_volume_kg)} kg` : '3,850 kg'}
-                    </Text>
-                    <Text variant="caption" style={styles.historyMeta}>
-                      Volume
-                    </Text>
-                  </View>
-                </GlassCard>
-              ))
+                  </TouchableOpacity>
+                );
+              })
             ) : (
-              <GlassCard style={styles.emptyCard}>
-                <Icon name="Barbell" size={28} color={COLORS.dark.textSecondary} />
-                <Text variant="bodySmall" style={styles.emptyText}>
-                  No recent workouts yet. Tap "Start Workout" above to crush your first session!
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIconCircle}>
+                  <Icon name="Barbell" size={26} color={OBSIDIAN_COLORS.textMuted} />
+                </View>
+                <Text style={styles.emptyText}>
+                  No recent workouts yet. Tap{' '}
+                  <Text style={styles.emptyVoltHighlight}>"Start Workout"</Text>
+                  {' '}above to crush your first session!
                 </Text>
-              </GlassCard>
+              </View>
             )}
           </View>
         </ScrollView>
 
-        {/* Floating AI Coach Chat Bubble */}
+        {/* Floating AI Coach Guidance Bubble */}
         <TouchableOpacity
           style={styles.fabAi}
           activeOpacity={0.85}
           onPress={() => router.push('/ai/chat')}
         >
-          <Icon name="Sparkle" size={24} color="#FFFFFF" />
+          <Icon name="Sparkle" size={24} color={OBSIDIAN_COLORS.voltLime} />
           <View style={styles.fabPing} />
         </TouchableOpacity>
       </View>
@@ -433,162 +467,239 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 90,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingTop: OBSIDIAN_SPACING.sm,
+    paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
+    marginBottom: OBSIDIAN_SPACING.lg,
+  },
+  headerLeft: {
+    flex: 1,
+    gap: 2,
   },
   dateLabel: {
-    color: COLORS.dark.textSecondary,
-    letterSpacing: 1.5,
-    marginBottom: 2,
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
   },
   greeting: {
-    color: COLORS.dark.textPrimary,
+    ...OBSIDIAN_TYPOGRAPHY.headlineLg,
+    color: OBSIDIAN_COLORS.textWhite,
   },
-  profileBadge: {
-    marginTop: 4,
+  rankPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  rankPillText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 11,
   },
   carouselContainer: {
-    marginHorizontal: -SPACING.md,
-    paddingHorizontal: SPACING.md,
+    marginHorizontal: -OBSIDIAN_SPACING.md,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
   },
   carouselCard: {
     width: CARD_WIDTH,
-    marginRight: SPACING.md,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
+    marginRight: OBSIDIAN_SPACING.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    padding: OBSIDIAN_SPACING.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  glowUnderlay: {
+    position: 'absolute',
+    bottom: -30,
+    left: '15%',
+    right: '15%',
+    height: 70,
+    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    borderRadius: 9999,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
-  streakBadge: {
+  workoutBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
+  },
+  workoutBadgeText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
+  },
+  editSplitLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(233, 69, 96, 0.15)',
-    paddingVertical: 3,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.full,
-    gap: 4,
+    gap: 2,
   },
-  fireEmoji: {
-    fontSize: 13,
-  },
-  streakNum: {
-    color: COLORS.dark.accentRed,
-    fontWeight: 'bold',
+  editSplitText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
   workoutTitle: {
-    color: COLORS.dark.textPrimary,
-    marginBottom: SPACING.xs,
+    ...OBSIDIAN_TYPOGRAPHY.headlineMd,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginBottom: OBSIDIAN_SPACING.xs,
   },
   pillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: SPACING.xs,
-    marginBottom: SPACING.lg,
+    gap: 6,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
-  durationText: {
-    color: COLORS.dark.textSecondary,
-    marginLeft: SPACING.xs,
+  categoryChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  cardActionWrapper: {
-    marginTop: SPACING.xs,
+  categoryChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
   },
-  seeAllLink: {
-    color: COLORS.dark.accentGold,
-    fontWeight: '600',
+  durationMeta: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    marginLeft: 4,
+  },
+  startWorkoutBtn: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    height: 52,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  startWorkoutText: {
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    letterSpacing: 0.5,
   },
   nutritionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.lg,
-    marginBottom: SPACING.md,
+    gap: OBSIDIAN_SPACING.lg,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   ringValue: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: OBSIDIAN_COLORS.textWhite,
   },
   ringLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
     fontSize: 10,
-    color: COLORS.dark.textSecondary,
   },
   macroBarsContainer: {
     flex: 1,
-    gap: SPACING.xs,
+    gap: 6,
   },
   macroItem: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   macroTextRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   macroLabel: {
-    color: COLORS.dark.textSecondary,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
     fontSize: 11,
   },
   macroValue: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 11,
   },
-  logMealBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.md,
+  quickLogBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingVertical: 10,
+    borderRadius: OBSIDIAN_RADIUS.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  logMealBtnText: {
-    color: COLORS.dark.accentGold,
-    fontWeight: 'bold',
+  quickLogBtnText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.cyanAccent,
+    fontSize: 12,
   },
   rankProgressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
-    marginBottom: SPACING.lg,
+    gap: OBSIDIAN_SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.lg,
   },
   rankShield: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  shieldEmoji: {
-    fontSize: 26,
   },
   rankDetails: {
     flex: 1,
   },
   rankTitle: {
-    color: COLORS.dark.textPrimary,
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   xpText: {
-    color: COLORS.dark.accentGold,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.voltLime,
     marginTop: 2,
   },
   weekDotsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: SPACING.xs,
+    paddingTop: OBSIDIAN_SPACING.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: OBSIDIAN_COLORS.borderGhost,
   },
   dayDotCol: {
     alignItems: 'center',
@@ -603,17 +714,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayDotCompleted: {
-    backgroundColor: COLORS.dark.accentRed,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
   dayLabel: {
-    color: COLORS.dark.textSecondary,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
     fontSize: 10,
   },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 6,
-    marginVertical: SPACING.md,
+    marginVertical: OBSIDIAN_SPACING.md,
   },
   carouselDot: {
     width: 6,
@@ -622,120 +735,188 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   carouselDotActive: {
-    width: 18,
-    backgroundColor: COLORS.dark.accentRed,
+    width: 20,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
-  shortcutsRow: {
+  quickMatrix: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xl,
+    gap: 12,
+    marginBottom: OBSIDIAN_SPACING.xl,
   },
-  shortcutBtn: {
+  quickActionBtn: {
     flex: 1,
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    gap: SPACING.xs,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  shortcutIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
-  shortcutText: {
-    color: COLORS.dark.textPrimary,
-    fontSize: 11,
-    fontWeight: '600',
+  quickIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 2,
+    borderColor: OBSIDIAN_COLORS.voltLime,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  quickActionText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 10,
+    textAlign: 'center',
+    color: OBSIDIAN_COLORS.textMuted,
+    lineHeight: 14,
   },
   section: {
-    marginBottom: SPACING.xl,
+    marginBottom: OBSIDIAN_SPACING.xl,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.md,
   },
   sectionTitle: {
-    color: COLORS.dark.textPrimary,
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  analyticsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  analyticsLinkText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
   historyCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    padding: OBSIDIAN_SPACING.md,
+    marginBottom: OBSIDIAN_SPACING.sm,
   },
   historyLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: OBSIDIAN_SPACING.md,
+    flex: 1,
+    marginRight: OBSIDIAN_SPACING.sm,
   },
   workoutIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(233, 69, 96, 0.12)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  historyInfo: {
+    flex: 1,
+  },
   historyName: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: 'bold',
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    color: OBSIDIAN_COLORS.textWhite,
   },
   historyMeta: {
-    color: COLORS.dark.textSecondary,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
     marginTop: 2,
   },
   historyRight: {
     alignItems: 'flex-end',
   },
   volumeText: {
-    color: COLORS.dark.accentGold,
-    fontWeight: 'bold',
-    fontSize: 14,
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  volumeLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+    marginTop: 2,
   },
   emptyCard: {
-    padding: SPACING.xl,
+    backgroundColor: 'rgba(24, 27, 37, 0.8)',
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    paddingVertical: 36,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: 12,
+  },
+  emptyIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.surface,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 4,
   },
   emptyText: {
-    color: COLORS.dark.textSecondary,
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    color: OBSIDIAN_COLORS.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  emptyVoltHighlight: {
+    color: OBSIDIAN_COLORS.voltLime,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   fabAi: {
     position: 'absolute',
     bottom: 24,
     right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.dark.aiPurple,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderWidth: 1.5,
+    borderColor: 'rgba(204, 255, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.dark.aiPurple,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
     elevation: 12,
   },
   fabPing: {
     position: 'absolute',
     top: 3,
     right: 3,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.dark.accentGold,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
     borderWidth: 2,
-    borderColor: COLORS.dark.bgPrimary,
+    borderColor: OBSIDIAN_COLORS.surfaceContainerLow,
   },
 });

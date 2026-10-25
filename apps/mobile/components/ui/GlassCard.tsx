@@ -1,12 +1,29 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
-import { RADIUS, SPACING } from '@/constants/tokens';
+import {
+  RADIUS,
+  SPACING,
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_SHADOWS,
+} from '@/constants/tokens';
+
+export type GlassCardVariant =
+  | 'default'
+  | 'elevated'
+  | 'accent'
+  | 'obsidianLevel1'
+  | 'obsidianLevel2'
+  | 'obsidianLevel3'
+  | 'obsidianVolt';
 
 interface GlassCardProps {
   children: React.ReactNode;
   style?: ViewStyle | ViewStyle[];
   onPress?: () => void;
-  variant?: 'default' | 'elevated' | 'accent';
+  variant?: GlassCardVariant;
+  activeOpacity?: number;
 }
 
 export const GlassCard: React.FC<GlassCardProps> = ({
@@ -14,18 +31,23 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   style,
   onPress,
   variant = 'default',
+  activeOpacity = 0.8,
 }) => {
   const cardStyle = [
     styles.card,
     variant === 'elevated' && styles.cardElevated,
     variant === 'accent' && styles.cardAccent,
+    variant === 'obsidianLevel1' && styles.obsidianLevel1,
+    variant === 'obsidianLevel2' && styles.obsidianLevel2,
+    variant === 'obsidianLevel3' && styles.obsidianLevel3,
+    variant === 'obsidianVolt' && styles.obsidianVolt,
     style,
   ];
 
   if (onPress) {
     return (
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={activeOpacity}
         onPress={onPress}
         style={cardStyle}
       >
@@ -58,5 +80,33 @@ const styles = StyleSheet.create({
   cardAccent: {
     backgroundColor: 'rgba(233, 69, 96, 0.08)',
     borderColor: 'rgba(233, 69, 96, 0.3)',
+  },
+  obsidianLevel1: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: OBSIDIAN_SPACING.md,
+    ...OBSIDIAN_SHADOWS.cardLevel1,
+  },
+  obsidianLevel2: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: OBSIDIAN_SPACING.md,
+    ...OBSIDIAN_SHADOWS.cardLevel2,
+  },
+  obsidianLevel3: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: OBSIDIAN_SPACING.md,
+    ...OBSIDIAN_SHADOWS.cardLevel3,
+  },
+  obsidianVolt: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderColor: OBSIDIAN_COLORS.voltBorderActive,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: OBSIDIAN_SPACING.md,
+    ...OBSIDIAN_SHADOWS.voltGlowSmall,
   },
 });

@@ -7,23 +7,25 @@ import {
   StyleSheet,
   Modal,
   Alert,
-  ActivityIndicator,
   Image,
   Switch,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { GradientButton } from '@/components/ui/GradientButton';
-import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  OBSIDIAN_COLORS,
+  OBSIDIAN_RADIUS,
+  OBSIDIAN_SPACING,
+  OBSIDIAN_TYPOGRAPHY,
+} from '@/constants/tokens';
 import { api } from '@/services/api';
 
-type BuilderMode = 'single_day' | 'full_week' | 'ai_import';
+type BuilderMode = 'split' | 'ai_import';
 
 interface ExerciseItem {
   id: string;
@@ -31,111 +33,178 @@ interface ExerciseItem {
   target_sets: number;
   target_reps: string;
   rest_seconds: number;
+  categoryTag?: string;
+  muscleTarget?: string;
 }
 
 interface SplitDay {
+  day_code: string;
   day_name: string;
+  focus_title: string;
   is_rest: boolean;
   exercises: ExerciseItem[];
 }
 
-const DAYS_OF_WEEK = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
+const INITIAL_SPLIT_DAYS: SplitDay[] = [
+  {
+    day_code: 'MON',
+    day_name: 'Monday',
+    focus_title: 'Upper A',
+    is_rest: false,
+    exercises: [
+      {
+        id: 'f-1',
+        name: 'Barbell Bench Press',
+        target_sets: 4,
+        target_reps: '8 - 10',
+        rest_seconds: 120,
+        categoryTag: 'PRIMARY HEAVY',
+        muscleTarget: 'Chest & Triceps',
+      },
+      {
+        id: 'f-2',
+        name: 'Incline Dumbbell Press',
+        target_sets: 3,
+        target_reps: '10 - 12',
+        rest_seconds: 90,
+        categoryTag: 'HYPERTROPHY',
+        muscleTarget: 'Upper Clavicular',
+      },
+      {
+        id: 'f-3',
+        name: 'Overhead Cable Extension',
+        target_sets: 3,
+        target_reps: '12 - 15',
+        rest_seconds: 60,
+        categoryTag: 'ISOLATION',
+        muscleTarget: 'Triceps Long Head',
+      },
+    ],
+  },
+  {
+    day_code: 'TUE',
+    day_name: 'Tuesday',
+    focus_title: 'Lower A',
+    is_rest: false,
+    exercises: [
+      {
+        id: 'f-4',
+        name: 'Barbell Squats',
+        target_sets: 4,
+        target_reps: '8 - 10',
+        rest_seconds: 120,
+        categoryTag: 'PRIMARY HEAVY',
+        muscleTarget: 'Quadriceps & Glutes',
+      },
+      {
+        id: 'f-5',
+        name: 'Romanian Deadlifts',
+        target_sets: 3,
+        target_reps: '10 - 12',
+        rest_seconds: 90,
+        categoryTag: 'HYPERTROPHY',
+        muscleTarget: 'Hamstrings',
+      },
+    ],
+  },
+  {
+    day_code: 'WED',
+    day_name: 'Wednesday',
+    focus_title: 'Rest & Recovery',
+    is_rest: true,
+    exercises: [],
+  },
+  {
+    day_code: 'THU',
+    day_name: 'Thursday',
+    focus_title: 'Upper B',
+    is_rest: false,
+    exercises: [
+      {
+        id: 'f-6',
+        name: 'Overhead Shoulder Press',
+        target_sets: 4,
+        target_reps: '8 - 10',
+        rest_seconds: 120,
+        categoryTag: 'PRIMARY HEAVY',
+        muscleTarget: 'Anterior Deltoids',
+      },
+      {
+        id: 'f-7',
+        name: 'Lat Pulldown',
+        target_sets: 4,
+        target_reps: '10 - 12',
+        rest_seconds: 90,
+        categoryTag: 'HYPERTROPHY',
+        muscleTarget: 'Latissimus Dorsi',
+      },
+    ],
+  },
+  {
+    day_code: 'FRI',
+    day_name: 'Friday',
+    focus_title: 'Lower B',
+    is_rest: false,
+    exercises: [
+      {
+        id: 'f-8',
+        name: 'Leg Press',
+        target_sets: 4,
+        target_reps: '10 - 12',
+        rest_seconds: 90,
+        categoryTag: 'HYPERTROPHY',
+        muscleTarget: 'Quadriceps',
+      },
+      {
+        id: 'f-9',
+        name: 'Calf Raises',
+        target_sets: 4,
+        target_reps: '15 - 20',
+        rest_seconds: 45,
+        categoryTag: 'ISOLATION',
+        muscleTarget: 'Gastrocnemius',
+      },
+    ],
+  },
+  {
+    day_code: 'SAT',
+    day_name: 'Saturday',
+    focus_title: 'Rest & Mobility',
+    is_rest: true,
+    exercises: [],
+  },
+  {
+    day_code: 'SUN',
+    day_name: 'Sunday',
+    focus_title: 'Rest & Recovery',
+    is_rest: true,
+    exercises: [],
+  },
 ];
 
 export default function WorkoutPlanBuilderScreen() {
   const router = useRouter();
-  const [activeMode, setActiveMode] = useState<BuilderMode>('single_day');
+  const [activeMode, setActiveMode] = useState<BuilderMode>('split');
   const [loading, setLoading] = useState(false);
 
-  // Exercise library state
+  // Program details
+  const [programName, setProgramName] = useState('Hypertrophy 4-Day Split');
+  const [splitDays, setSplitDays] = useState<SplitDay[]>(INITIAL_SPLIT_DAYS);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+
+  // Exercise Picker Library
   const [exerciseDb, setExerciseDb] = useState<{ id: string; name: string; primary_muscle: string }[]>([]);
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [targetDayIndexForAdd, setTargetDayIndexForAdd] = useState<number | null>(null);
 
-  // --- MODE 1: Single Day Recurring Plan State ---
-  const currentDayName = DAYS_OF_WEEK[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<string>(currentDayName);
-  const [singleDayFocus, setSingleDayFocus] = useState<string>('Chest & Triceps');
-  const [repeatWeekly, setRepeatWeekly] = useState<boolean>(true);
-  const [singleDayExercises, setSingleDayExercises] = useState<ExerciseItem[]>([
-    { id: '1', name: 'Bench Press', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
-    { id: '2', name: 'Incline Bench Press', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-    { id: '3', name: 'Triceps Pushdown (Straight Bar)', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
-  ]);
-
-  // --- MODE 2: Full Week Split State ---
-  const [fullProgramName, setFullProgramName] = useState('My 4-Day Hypertrophy Split');
-  const [splitDays, setSplitDays] = useState<SplitDay[]>([
-    {
-      day_name: 'Monday - Push (Chest & Shoulders)',
-      is_rest: false,
-      exercises: [
-        { id: 'f-1', name: 'Bench Press', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
-        { id: 'f-2', name: 'Dumbbell Overhead Press', target_sets: 3, target_reps: '10', rest_seconds: 90 },
-        { id: 'f-3', name: 'Incline Dumbbell Press', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-      ],
-    },
-    {
-      day_name: 'Tuesday - Pull (Back & Biceps)',
-      is_rest: false,
-      exercises: [
-        { id: 'f-4', name: 'Lat Pulldown', target_sets: 4, target_reps: '10-12', rest_seconds: 90 },
-        { id: 'f-5', name: 'Seated Row', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-        { id: 'f-6', name: 'Dumbbell Bicep Curl', target_sets: 3, target_reps: '12', rest_seconds: 60 },
-      ],
-    },
-    {
-      day_name: 'Wednesday - Rest & Recovery',
-      is_rest: true,
-      exercises: [],
-    },
-    {
-      day_name: 'Thursday - Legs & Core',
-      is_rest: false,
-      exercises: [
-        { id: 'f-7', name: 'Barbell Squats', target_sets: 4, target_reps: '8-10', rest_seconds: 120 },
-        { id: 'f-8', name: 'Romanian Deadlifts', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-        { id: 'f-9', name: 'Flat Bench Crunches', target_sets: 3, target_reps: '15-20', rest_seconds: 45 },
-      ],
-    },
-    {
-      day_name: 'Friday - Upper Body Pump',
-      is_rest: false,
-      exercises: [
-        { id: 'f-10', name: 'Incline Bench Press', target_sets: 3, target_reps: '10-12', rest_seconds: 90 },
-        { id: 'f-11', name: 'Assisted Chin-ups', target_sets: 3, target_reps: '8-10', rest_seconds: 90 },
-        { id: 'f-12', name: 'Bayesian Curl', target_sets: 3, target_reps: '12-15', rest_seconds: 60 },
-      ],
-    },
-    {
-      day_name: 'Saturday - Rest & Active Mobility',
-      is_rest: true,
-      exercises: [],
-    },
-    {
-      day_name: 'Sunday - Rest & Recovery',
-      is_rest: true,
-      exercises: [],
-    },
-  ]);
-  const [selectedSplitDayIndex, setSelectedSplitDayIndex] = useState(0);
-
-  // --- MODE 3: AI Document / Screenshot Parser State ---
+  // AI Parser State (Gemini 2.5 Flash)
   const [aiInputType, setAiInputType] = useState<'text' | 'image'>('text');
   const [aiRoutineText, setAiRoutineText] = useState('');
   const [aiSelectedImage, setAiSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [aiParsedResult, setAiParsedResult] = useState<any>(null);
   const [aiParsing, setAiParsing] = useState(false);
 
-  // Fetch exercises for picker
+  // Fetch backend exercise library
   useEffect(() => {
     const fetchExercises = async () => {
       try {
@@ -150,7 +219,7 @@ export default function WorkoutPlanBuilderScreen() {
     fetchExercises();
   }, []);
 
-  // Pick Image from Camera Roll
+  // Pick Image for AI parsing
   const handlePickImage = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -167,14 +236,16 @@ export default function WorkoutPlanBuilderScreen() {
 
       if (!res.canceled && res.assets && res.assets.length > 0) {
         setAiSelectedImage(res.assets[0]);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not select image');
     }
   };
 
-  // Run AI Parsing via Gemini 2.5 Flash
+  // Run AI Parsing (F5: maxLength 20,000 preserved)
   const handleRunAiParsing = async () => {
     if (aiInputType === 'text' && !aiRoutineText.trim()) {
       Alert.alert('Text Required', 'Please paste your routine notes or text to parse.');
@@ -187,10 +258,12 @@ export default function WorkoutPlanBuilderScreen() {
 
     setAiParsing(true);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
       const payload: any = {};
       if (aiInputType === 'text') {
-        payload.text = aiRoutineText;
+        payload.text = aiRoutineText.slice(0, 20000); // Strict F5 character safety
       } else {
         payload.imageBase64 = aiSelectedImage?.base64;
         payload.mimeType = aiSelectedImage?.mimeType || 'image/jpeg';
@@ -199,7 +272,9 @@ export default function WorkoutPlanBuilderScreen() {
       const res = await api.post('/ai/parse-plan', payload);
       if (res.data?.program) {
         setAiParsedResult(res.data.program);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
       } else {
         throw new Error('AI could not extract routine');
       }
@@ -210,7 +285,7 @@ export default function WorkoutPlanBuilderScreen() {
     }
   };
 
-  // Apply parsed AI plan to user's active routine
+  // Apply parsed AI plan to active split
   const handleApplyAiPlan = async () => {
     if (!aiParsedResult) return;
     setLoading(true);
@@ -234,7 +309,9 @@ export default function WorkoutPlanBuilderScreen() {
         })),
       });
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
       Alert.alert('Plan Applied!', 'Your AI-parsed workout plan is now active.', [
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)') },
       ]);
@@ -245,44 +322,8 @@ export default function WorkoutPlanBuilderScreen() {
     }
   };
 
-  // Save Single Day Recurring
-  const handleSaveSingleDay = async () => {
-    if (singleDayExercises.length === 0) {
-      Alert.alert('No Exercises', 'Please add at least one exercise for this day.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const dayDisplayName = `${selectedDayOfWeek} - ${singleDayFocus.trim() || 'Custom Routine'}`;
-      await api.post('/programs/day', {
-        day_name: dayDisplayName,
-        repeat_weekly: repeatWeekly,
-        exercises: singleDayExercises.map((ex, idx) => ({
-          exercise_name: ex.name,
-          target_sets: Number(ex.target_sets) || 3,
-          target_reps: String(ex.target_reps || '8-12'),
-          rest_seconds: Number(ex.rest_seconds) || 90,
-          sort_order: idx,
-        })),
-      });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        'Day Plan Saved!',
-        `Your workout for ${selectedDayOfWeek} is saved and set to repeat every week.`,
-        [{ text: 'Awesome', onPress: () => router.replace('/(tabs)') }]
-      );
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.error || err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Save Full Week Split
-  const handleSaveFullSplit = async () => {
+  // Save Split Plan
+  const handleSavePlan = async () => {
     const activeDays = splitDays.filter((d) => !d.is_rest);
     if (activeDays.length === 0) {
       Alert.alert('Empty Split', 'Please configure at least one active workout day in your split.');
@@ -291,13 +332,15 @@ export default function WorkoutPlanBuilderScreen() {
 
     setLoading(true);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
       await api.post('/programs/full', {
-        name: fullProgramName.trim() || 'My Weekly Split',
+        name: programName.trim() || 'My Weekly Split',
         is_active: true,
         schedule_days_per_week: activeDays.length,
         days: splitDays.map((d, dIdx) => ({
-          day_name: d.day_name,
+          day_name: `${d.day_name} - ${d.focus_title}`,
           sort_order: dIdx,
           exercises: d.is_rest
             ? []
@@ -311,8 +354,10 @@ export default function WorkoutPlanBuilderScreen() {
         })),
       });
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Split Activated!', 'Your weekly workout split has been saved and activated.', [
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      Alert.alert('Plan Saved!', 'Your weekly workout split has been saved and activated.', [
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)') },
       ]);
     } catch (err: any) {
@@ -322,990 +367,1248 @@ export default function WorkoutPlanBuilderScreen() {
     }
   };
 
-  // Add exercise to current working list
-  const handleSelectExercise = (name: string) => {
+  const handleSelectExercise = (name: string, primaryMuscle?: string) => {
     const newItem: ExerciseItem = {
       id: String(Date.now()),
       name,
       target_sets: 3,
-      target_reps: '8-12',
+      target_reps: '10 - 12',
       rest_seconds: 90,
+      categoryTag: 'HYPERTROPHY',
+      muscleTarget: primaryMuscle || 'Target Muscle',
     };
 
-    if (activeMode === 'single_day') {
-      setSingleDayExercises((prev) => [...prev, newItem]);
-    } else if (activeMode === 'full_week' && targetDayIndexForAdd !== null) {
-      setSplitDays((prev) => {
-        const copy = [...prev];
-        copy[targetDayIndexForAdd] = {
-          ...copy[targetDayIndexForAdd],
-          exercises: [...copy[targetDayIndexForAdd].exercises, newItem],
-        };
-        return copy;
-      });
-    }
+    setSplitDays((prev) => {
+      const copy = [...prev];
+      copy[selectedDayIndex] = {
+        ...copy[selectedDayIndex],
+        exercises: [...copy[selectedDayIndex].exercises, newItem],
+      };
+      return copy;
+    });
 
     setIsExercisePickerOpen(false);
     setSearchQuery('');
-    Haptics.selectionAsync();
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
   };
+
+  const handleRemoveExercise = (exIdx: number) => {
+    setSplitDays((prev) => {
+      const copy = [...prev];
+      copy[selectedDayIndex] = {
+        ...copy[selectedDayIndex],
+        exercises: copy[selectedDayIndex].exercises.filter((_, i) => i !== exIdx),
+      };
+      return copy;
+    });
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
+  };
+
+  const handleUpdateExerciseParam = (
+    exIdx: number,
+    field: 'target_sets' | 'target_reps' | 'rest_seconds',
+    value: any
+  ) => {
+    setSplitDays((prev) => {
+      const copy = [...prev];
+      const day = { ...copy[selectedDayIndex] };
+      const exList = [...day.exercises];
+      exList[exIdx] = { ...exList[exIdx], [field]: value };
+      day.exercises = exList;
+      copy[selectedDayIndex] = day;
+      return copy;
+    });
+  };
+
+  const currentDay = splitDays[selectedDayIndex];
 
   const filteredExercises = exerciseDb.filter((ex) =>
     ex.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <ScreenContainer scrollable={false}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Icon name="CaretLeft" size={24} color={COLORS.dark.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleWrap}>
-          <Text variant="h2" style={styles.headerTitle}>
-            Workout Plan Builder
-          </Text>
-          <Text variant="caption" style={styles.headerSubtitle}>
-            Custom Routines & Gemini 2.5 Flash Ingestion
-          </Text>
-        </View>
-      </View>
-
-      {/* Mode Switcher Tabs */}
-      <View style={styles.modeTabs}>
-        <TouchableOpacity
-          style={[styles.modeTab, activeMode === 'single_day' && styles.modeTabActive]}
-          onPress={() => {
-            setActiveMode('single_day');
-            Haptics.selectionAsync();
-          }}
-        >
-          <Icon
-            name="Calendar"
-            size={16}
-            color={activeMode === 'single_day' ? COLORS.dark.accentRed : COLORS.dark.textSecondary}
-          />
-          <Text
-            variant="caption"
-            style={[styles.modeTabText, activeMode === 'single_day' && styles.modeTabTextActive]}
-          >
-            Single Day
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.modeTab, activeMode === 'full_week' && styles.modeTabActive]}
-          onPress={() => {
-            setActiveMode('full_week');
-            Haptics.selectionAsync();
-          }}
-        >
-          <Icon
-            name="CalendarCheck"
-            size={16}
-            color={activeMode === 'full_week' ? COLORS.dark.accentRed : COLORS.dark.textSecondary}
-          />
-          <Text
-            variant="caption"
-            style={[styles.modeTabText, activeMode === 'full_week' && styles.modeTabTextActive]}
-          >
-            Full Week Split
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.modeTab, activeMode === 'ai_import' && styles.modeTabActive]}
-          onPress={() => {
-            setActiveMode('ai_import');
-            Haptics.selectionAsync();
-          }}
-        >
-          <Icon
-            name="Sparkle"
-            size={16}
-            color={activeMode === 'ai_import' ? COLORS.dark.aiPurple : COLORS.dark.textSecondary}
-          />
-          <Text
-            variant="caption"
-            style={[
-              styles.modeTabText,
-              activeMode === 'ai_import' && { color: COLORS.dark.aiPurple, fontWeight: '700' },
-            ]}
-          >
-            AI Doc / Photo
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Content Body */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ================= MODE 1: SINGLE DAY RECURRING ================= */}
-        {activeMode === 'single_day' && (
-          <View style={styles.sectionContainer}>
-            <GlassCard style={styles.card}>
-              <Badge label="OPTION 1 • WEEKLY RECURRING DAY" variant="red" />
-              <Text variant="h3" style={styles.cardHeading}>
-                Configure Single Day Plan
-              </Text>
-              <Text variant="caption" style={styles.cardSubtext}>
-                Select the exercises you want to do on a specific day, and it will repeat every week on that day.
-              </Text>
-
-              {/* Day of Week Selector */}
-              <Text variant="bodySmall" style={styles.fieldLabel}>
-                Day of Week
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
-                {DAYS_OF_WEEK.map((day) => {
-                  const isSelected = selectedDayOfWeek === day;
-                  return (
-                    <TouchableOpacity
-                      key={day}
-                      style={[styles.dayChip, isSelected && styles.dayChipActive]}
-                      onPress={() => {
-                        setSelectedDayOfWeek(day);
-                        Haptics.selectionAsync();
-                      }}
-                    >
-                      <Text
-                        variant="caption"
-                        style={[styles.dayChipText, isSelected && styles.dayChipTextActive]}
-                      >
-                        {day.slice(0, 3)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Focus / Name */}
-              <Text variant="bodySmall" style={styles.fieldLabel}>
-                Day Focus / Name
-              </Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Chest & Triceps (Push)"
-                placeholderTextColor={COLORS.dark.textSecondary}
-                value={singleDayFocus}
-                onChangeText={setSingleDayFocus}
-              />
-
-              {/* Repeat Weekly Toggle */}
-              <View style={styles.toggleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodySmall" style={{ color: COLORS.dark.textPrimary, fontWeight: '600' }}>
-                    Repeat Every Week on {selectedDayOfWeek}
-                  </Text>
-                  <Text variant="caption" style={{ color: COLORS.dark.textSecondary }}>
-                    Automatically sets this workout as your routine for every {selectedDayOfWeek}
-                  </Text>
-                </View>
-                <Switch
-                  value={repeatWeekly}
-                  onValueChange={setRepeatWeekly}
-                  trackColor={{ false: '#333', true: COLORS.dark.accentRed }}
-                  thumbColor="#FFF"
-                />
-              </View>
-            </GlassCard>
-
-            {/* Exercise List */}
-            <View style={styles.exerciseSectionHeader}>
-              <Text variant="h3" style={styles.sectionTitle}>
-                Exercises ({singleDayExercises.length})
-              </Text>
-              <TouchableOpacity
-                style={styles.addExerciseBtn}
-                onPress={() => {
-                  setTargetDayIndexForAdd(null);
-                  setIsExercisePickerOpen(true);
-                }}
-              >
-                <Icon name="Plus" size={16} color="#FFF" />
-                <Text variant="caption" style={{ color: '#FFF', fontWeight: '700', marginLeft: 4 }}>
-                  Add Exercise
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {singleDayExercises.map((ex, idx) => (
-              <GlassCard key={ex.id || idx} style={styles.exerciseCard}>
-                <View style={styles.exerciseRow}>
-                  <View style={styles.exerciseIndexBadge}>
-                    <Text variant="caption" style={{ color: COLORS.dark.textSecondary, fontWeight: '700' }}>
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text variant="body" style={styles.exerciseName}>
-                      {ex.name}
-                    </Text>
-                    <View style={styles.paramRow}>
-                      <View style={styles.paramBox}>
-                        <Text variant="caption" style={styles.paramLabel}>
-                          Sets
-                        </Text>
-                        <TextInput
-                          style={styles.paramInput}
-                          keyboardType="numeric"
-                          value={String(ex.target_sets)}
-                          onChangeText={(val) => {
-                            const updated = [...singleDayExercises];
-                            updated[idx].target_sets = Number(val) || 1;
-                            setSingleDayExercises(updated);
-                          }}
-                        />
-                      </View>
-                      <View style={styles.paramBox}>
-                        <Text variant="caption" style={styles.paramLabel}>
-                          Reps
-                        </Text>
-                        <TextInput
-                          style={styles.paramInput}
-                          value={ex.target_reps}
-                          onChangeText={(val) => {
-                            const updated = [...singleDayExercises];
-                            updated[idx].target_reps = val;
-                            setSingleDayExercises(updated);
-                          }}
-                        />
-                      </View>
-                      <View style={styles.paramBox}>
-                        <Text variant="caption" style={styles.paramLabel}>
-                          Rest (s)
-                        </Text>
-                        <TextInput
-                          style={styles.paramInput}
-                          keyboardType="numeric"
-                          value={String(ex.rest_seconds)}
-                          onChangeText={(val) => {
-                            const updated = [...singleDayExercises];
-                            updated[idx].rest_seconds = Number(val) || 60;
-                            setSingleDayExercises(updated);
-                          }}
-                        />
-                      </View>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => {
-                      setSingleDayExercises(singleDayExercises.filter((_, i) => i !== idx));
-                      Haptics.selectionAsync();
-                    }}
-                  >
-                    <Icon name="Trash" size={18} color={COLORS.dark.accentRed} />
-                  </TouchableOpacity>
-                </View>
-              </GlassCard>
-            ))}
-
-            <View style={{ marginTop: SPACING.lg, marginBottom: SPACING.xl * 1.5 }}>
-              <GradientButton
-                title={loading ? 'Saving Day Plan...' : `Save & Repeat on ${selectedDayOfWeek}s`}
-                icon={<Icon name="CheckCircle" size={18} color="#FFF" />}
-                onPress={handleSaveSingleDay}
-                disabled={loading}
-              />
+    <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
+      <View style={styles.container}>
+        {/* Top Header Row */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={styles.backButton}
+              activeOpacity={0.7}
+              onPress={() => router.back()}
+            >
+              <Icon name="CaretLeft" size={20} color={OBSIDIAN_COLORS.textWhite} />
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.headerTitle}>Plan Builder</Text>
+              <Text style={styles.headerSubtitle}>Hypertrophy Split</Text>
             </View>
           </View>
-        )}
 
-        {/* ================= MODE 2: FULL WEEK SPLIT ================= */}
-        {activeMode === 'full_week' && (
-          <View style={styles.sectionContainer}>
-            <GlassCard style={styles.card}>
-              <Badge label="OPTION 2 • COMPLETE WEEK SCHEDULE" variant="gold" />
-              <Text variant="h3" style={styles.cardHeading}>
-                Design Your Weekly Split
-              </Text>
-              <Text variant="caption" style={styles.cardSubtext}>
-                Set up Monday through Sunday all at once with full exercise targets, volume, and rest days.
-              </Text>
-
-              <Text variant="bodySmall" style={styles.fieldLabel}>
-                Program Name
-              </Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. 4-Day Push Pull Legs Upper Split"
-                placeholderTextColor={COLORS.dark.textSecondary}
-                value={fullProgramName}
-                onChangeText={setFullProgramName}
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={[
+                styles.importModeBtn,
+                activeMode === 'ai_import' && styles.importModeBtnActive,
+              ]}
+              activeOpacity={0.8}
+              onPress={() => {
+                setActiveMode(activeMode === 'split' ? 'ai_import' : 'split');
+                if (Platform.OS !== 'web') {
+                  Haptics.selectionAsync().catch(() => {});
+                }
+              }}
+            >
+              <Icon
+                name="Sparkle"
+                size={15}
+                color={activeMode === 'ai_import' ? OBSIDIAN_COLORS.onPrimary : OBSIDIAN_COLORS.voltLime}
               />
-            </GlassCard>
+              <Text
+                style={[
+                  styles.importModeText,
+                  activeMode === 'ai_import' && { color: OBSIDIAN_COLORS.onPrimary },
+                ]}
+              >
+                {activeMode === 'ai_import' ? 'Back to Split' : 'AI Import'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-            {/* Split Day Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
-              {splitDays.map((d, index) => {
-                const isSelected = selectedSplitDayIndex === index;
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.dayChip, isSelected && styles.dayChipActive]}
-                    onPress={() => {
-                      setSelectedSplitDayIndex(index);
-                      Haptics.selectionAsync();
-                    }}
-                  >
-                    <Text
-                      variant="caption"
-                      style={[styles.dayChipText, isSelected && styles.dayChipTextActive]}
-                    >
-                      {DAYS_OF_WEEK[index].slice(0, 3)}
-                    </Text>
-                    {d.is_rest ? (
-                      <Text style={{ fontSize: 10, color: COLORS.dark.textSecondary }}>Rest</Text>
-                    ) : (
-                      <Text style={{ fontSize: 10, color: COLORS.dark.success }}>{d.exercises.length} Ex</Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+        {/* Scrollable Main Area */}
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {activeMode === 'split' ? (
+            <>
+              {/* Current Program Card */}
+              <View style={styles.programCard}>
+                <Text style={styles.programLabel}>CURRENT PROGRAM</Text>
+                <View style={styles.programNameBox}>
+                  <TextInput
+                    style={styles.programInput}
+                    value={programName}
+                    onChangeText={setProgramName}
+                    placeholder="Program Name"
+                    placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                  />
+                  <Icon name="PencilSimple" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                </View>
+              </View>
 
-            {/* Selected Split Day Details */}
-            {(() => {
-              const currentDay = splitDays[selectedSplitDayIndex];
-              return (
-                <GlassCard style={styles.card}>
-                  <View style={styles.cardHeaderRow}>
-                    <Text variant="h3" style={{ color: COLORS.dark.textPrimary, flex: 1 }}>
-                      {DAYS_OF_WEEK[selectedSplitDayIndex]}
-                    </Text>
-                    <View style={styles.restToggle}>
-                      <Text variant="caption" style={{ color: COLORS.dark.textSecondary, marginRight: 8 }}>
-                        Rest Day
-                      </Text>
-                      <Switch
-                        value={currentDay.is_rest}
-                        onValueChange={(val) => {
-                          setSplitDays((prev) => {
-                            const copy = [...prev];
-                            copy[selectedSplitDayIndex] = { ...copy[selectedSplitDayIndex], is_rest: val };
-                            return copy;
-                          });
+              {/* Weekly Schedule Day Strip */}
+              <View style={styles.scheduleSection}>
+                <View style={styles.scheduleHeaderRow}>
+                  <Text style={styles.scheduleLabel}>WEEKLY SCHEDULE</Text>
+                  <Text style={styles.scheduleHint}>Tap day to edit</Text>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.daysScroll}
+                >
+                  {splitDays.map((d, index) => {
+                    const isSelected = selectedDayIndex === index;
+                    return (
+                      <TouchableOpacity
+                        key={d.day_code}
+                        style={[
+                          styles.dayPill,
+                          isSelected && styles.dayPillSelected,
+                          d.is_rest && !isSelected && styles.dayPillRest,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setSelectedDayIndex(index);
+                          if (Platform.OS !== 'web') {
+                            Haptics.selectionAsync().catch(() => {});
+                          }
                         }}
-                        trackColor={{ false: '#333', true: COLORS.dark.accentGold }}
-                        thumbColor="#FFF"
-                      />
+                      >
+                        {isSelected && <View style={styles.dayVoltDot} />}
+                        <Text
+                          style={[
+                            styles.dayCodeText,
+                            isSelected && { color: OBSIDIAN_COLORS.voltLime },
+                          ]}
+                        >
+                          {d.day_code}
+                        </Text>
+                        <Text style={styles.dayFocusText} numberOfLines={1}>
+                          {d.is_rest ? 'Rest' : d.focus_title}
+                        </Text>
+                        <View
+                          style={[
+                            styles.dayExCountBadge,
+                            isSelected && { backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dayExCountText,
+                              isSelected && { color: OBSIDIAN_COLORS.voltLime },
+                            ]}
+                          >
+                            {d.is_rest ? 'Off' : `${d.exercises.length} Ex`}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Selected Day Header Card */}
+              <View style={styles.selectedDayCard}>
+                <View style={styles.selectedDayLeft}>
+                  <View style={styles.selectedDayIndicator} />
+                  <Text style={styles.selectedDayTitle}>{currentDay.day_name}</Text>
+                </View>
+
+                <View style={styles.restToggleContainer}>
+                  <Text style={styles.restToggleLabel}>Rest Day</Text>
+                  <Switch
+                    value={currentDay.is_rest}
+                    onValueChange={(val) => {
+                      setSplitDays((prev) => {
+                        const copy = [...prev];
+                        copy[selectedDayIndex] = { ...copy[selectedDayIndex], is_rest: val };
+                        return copy;
+                      });
+                    }}
+                    trackColor={{ false: '#272A35', true: OBSIDIAN_COLORS.voltLime }}
+                    thumbColor={OBSIDIAN_COLORS.textWhite}
+                  />
+                </View>
+              </View>
+
+              {/* Day Routine Content */}
+              {currentDay.is_rest ? (
+                <View style={styles.restDayCard}>
+                  <Icon name="Moon" size={36} color={OBSIDIAN_COLORS.cyanAccent} />
+                  <Text style={styles.restDayTitle}>Scheduled Rest Day</Text>
+                  <Text style={styles.restDayBody}>
+                    No training prescribed. Focus on hydration, mobility, and muscle recovery.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.exerciseSection}>
+                  <View style={styles.exerciseHeaderRow}>
+                    <View style={styles.exerciseCountGroup}>
+                      <Text style={styles.exerciseListLabel}>EXERCISES</Text>
+                      <View style={styles.exerciseCountChip}>
+                        <Text style={styles.exerciseCountChipText}>
+                          {currentDay.exercises.length}
+                        </Text>
+                      </View>
                     </View>
                   </View>
 
-                  {!currentDay.is_rest && (
-                    <>
-                      <Text variant="bodySmall" style={styles.fieldLabel}>
-                        Workout Day Title / Focus
-                      </Text>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="e.g. Upper Body A"
-                        placeholderTextColor={COLORS.dark.textSecondary}
-                        value={currentDay.day_name}
-                        onChangeText={(val) => {
-                          setSplitDays((prev) => {
-                            const copy = [...prev];
-                            copy[selectedSplitDayIndex] = { ...copy[selectedSplitDayIndex], day_name: val };
-                            return copy;
-                          });
-                        }}
-                      />
+                  {/* Exercise Cards */}
+                  {currentDay.exercises.map((ex, exIdx) => (
+                    <View key={ex.id || exIdx} style={styles.exerciseCard}>
+                      {exIdx === 0 && <View style={styles.exerciseVoltBar} />}
 
-                      <View style={styles.exerciseSectionHeader}>
-                        <Text variant="bodySmall" style={{ color: COLORS.dark.textPrimary, fontWeight: '700' }}>
-                          Exercises ({currentDay.exercises.length})
-                        </Text>
+                      <View style={styles.exerciseTopRow}>
+                        <View style={styles.exerciseInfoRow}>
+                          <View style={styles.exerciseNumBox}>
+                            <Text style={styles.exerciseNumText}>{exIdx + 1}</Text>
+                          </View>
+                          <View style={styles.exerciseTextGroup}>
+                            <Text style={styles.exerciseNameText} numberOfLines={1}>
+                              {ex.name}
+                            </Text>
+                            <View style={styles.exerciseMetaRow}>
+                              <View style={styles.tagChip}>
+                                <Text style={styles.tagChipText}>
+                                  {ex.categoryTag || 'HYPERTROPHY'}
+                                </Text>
+                              </View>
+                              <Text style={styles.muscleTargetText}>
+                                {ex.muscleTarget || 'Primary Muscle'}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
                         <TouchableOpacity
-                          style={styles.addExerciseBtnSmall}
-                          onPress={() => {
-                            setTargetDayIndexForAdd(selectedSplitDayIndex);
-                            setIsExercisePickerOpen(true);
-                          }}
+                          style={styles.deleteExBtn}
+                          activeOpacity={0.7}
+                          onPress={() => handleRemoveExercise(exIdx)}
                         >
-                          <Icon name="Plus" size={14} color="#FFF" />
-                          <Text variant="caption" style={{ color: '#FFF', fontWeight: '700', marginLeft: 4 }}>
-                            Add
-                          </Text>
+                          <Icon name="Trash" size={16} color={OBSIDIAN_COLORS.coralAccent} />
                         </TouchableOpacity>
                       </View>
 
-                      {currentDay.exercises.map((ex, exIdx) => (
-                        <View key={ex.id || exIdx} style={styles.splitExerciseRow}>
-                          <View style={{ flex: 1 }}>
-                            <Text variant="bodySmall" style={{ color: COLORS.dark.textPrimary, fontWeight: '600' }}>
-                              {ex.name}
-                            </Text>
-                            <Text variant="caption" style={{ color: COLORS.dark.textSecondary }}>
-                              {ex.target_sets} sets • {ex.target_reps} reps • {ex.rest_seconds}s rest
+                      {/* 3 Metrics Parameter Grid */}
+                      <View style={styles.metricsGrid}>
+                        <View style={styles.metricBox}>
+                          <Text style={styles.metricLabel}>VOLUME</Text>
+                          <View style={styles.metricInputRow}>
+                            <TextInput
+                              style={styles.metricTextInput}
+                              keyboardType="numeric"
+                              value={String(ex.target_sets)}
+                              onChangeText={(val) =>
+                                handleUpdateExerciseParam(exIdx, 'target_sets', Number(val) || 1)
+                              }
+                            />
+                            <Text style={styles.metricUnit}>Sets</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.metricBox}>
+                          <Text style={styles.metricLabel}>TARGET REPS</Text>
+                          <TextInput
+                            style={styles.metricTextInput}
+                            value={ex.target_reps}
+                            onChangeText={(val) =>
+                              handleUpdateExerciseParam(exIdx, 'target_reps', val)
+                            }
+                          />
+                        </View>
+
+                        <View style={styles.metricBox}>
+                          <Text style={styles.metricLabel}>RECOVERY</Text>
+                          <View style={styles.metricInputRow}>
+                            <TextInput
+                              style={[styles.metricTextInput, { color: OBSIDIAN_COLORS.voltLime }]}
+                              keyboardType="numeric"
+                              value={String(ex.rest_seconds)}
+                              onChangeText={(val) =>
+                                handleUpdateExerciseParam(exIdx, 'rest_seconds', Number(val) || 60)
+                              }
+                            />
+                            <Text style={[styles.metricUnit, { color: OBSIDIAN_COLORS.voltLime }]}>
+                              s
                             </Text>
                           </View>
-                          <TouchableOpacity
-                            onPress={() => {
-                              setSplitDays((prev) => {
-                                const copy = [...prev];
-                                copy[selectedSplitDayIndex] = {
-                                  ...copy[selectedSplitDayIndex],
-                                  exercises: copy[selectedSplitDayIndex].exercises.filter((_, i) => i !== exIdx),
-                                };
-                                return copy;
-                              });
-                            }}
-                          >
-                            <Icon name="Trash" size={16} color={COLORS.dark.accentRed} />
-                          </TouchableOpacity>
                         </View>
-                      ))}
-                    </>
-                  )}
-                </GlassCard>
-              );
-            })()}
-
-            <View style={{ marginTop: SPACING.lg, marginBottom: SPACING.xl * 1.5 }}>
-              <GradientButton
-                title={loading ? 'Saving Weekly Split...' : 'Save & Activate Full Week Split'}
-                icon={<Icon name="CheckCircle" size={18} color="#FFF" />}
-                onPress={handleSaveFullSplit}
-                disabled={loading}
-              />
-            </View>
-          </View>
-        )}
-
-        {/* ================= MODE 3: AI DOC / SCREENSHOT INGESTION ================= */}
-        {activeMode === 'ai_import' && (
-          <View style={styles.sectionContainer}>
-            <GlassCard style={styles.card}>
-              <Badge label="GEMINI 2.5 FLASH • MULTIMODAL INGESTION" variant="gold" />
-              <Text variant="h3" style={styles.cardHeading}>
-                AI Workout Plan Ingestion
-              </Text>
-              <Text variant="caption" style={styles.cardSubtext}>
-                Got a workout routine in a Google Doc, Apple Notes, or a screenshot/photo of a workout sheet? Feed it to IronLog AI and it will automatically generate your structured plan!
-              </Text>
-
-              {/* Input Type Selector */}
-              <View style={styles.aiToggleWrap}>
-                <TouchableOpacity
-                  style={[styles.aiToggleBtn, aiInputType === 'text' && styles.aiToggleBtnActive]}
-                  onPress={() => setAiInputType('text')}
-                >
-                  <Icon name="PencilSimple" size={16} color={aiInputType === 'text' ? '#FFF' : COLORS.dark.textSecondary} />
-                  <Text variant="caption" style={[styles.aiToggleText, aiInputType === 'text' && styles.aiToggleTextActive]}>
-                    Paste Notes / Doc
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.aiToggleBtn, aiInputType === 'image' && styles.aiToggleBtnActive]}
-                  onPress={() => setAiInputType('image')}
-                >
-                  <Icon name="Sparkle" size={16} color={aiInputType === 'image' ? '#FFF' : COLORS.dark.textSecondary} />
-                  <Text variant="caption" style={[styles.aiToggleText, aiInputType === 'image' && styles.aiToggleTextActive]}>
-                    Upload Screenshot
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {aiInputType === 'text' ? (
-                <View style={{ marginTop: SPACING.md }}>
-                  <Text variant="bodySmall" style={styles.fieldLabel}>
-                    Workout Document / Notes Text
-                  </Text>
-                  <TextInput
-                    style={styles.textArea}
-                    multiline
-                    numberOfLines={7}
-                    maxLength={20000}
-                    placeholder={`Paste routine here, e.g.:\nDay 1: Chest & Triceps\n- Flat Bench Press 4x8\n- Incline DB Press 3x10\n- Tricep Pushdown 3x12\n\nDay 2: Back & Biceps\n- Lat Pulldowns 4x10\n- Seated Rows 3x12...`}
-                    placeholderTextColor={COLORS.dark.textSecondary}
-                    value={aiRoutineText}
-                    onChangeText={setAiRoutineText}
-                  />
-                </View>
-              ) : (
-                <View style={{ marginTop: SPACING.md }}>
-                  <Text variant="bodySmall" style={styles.fieldLabel}>
-                    Workout Sheet Screenshot or Photo
-                  </Text>
-                  {aiSelectedImage ? (
-                    <View style={styles.imagePreviewWrap}>
-                      <Image source={{ uri: aiSelectedImage.uri }} style={styles.imagePreview} />
-                      <TouchableOpacity
-                        style={styles.repickBtn}
-                        onPress={handlePickImage}
-                      >
-                        <Icon name="ArrowClockwise" size={16} color="#FFF" />
-                        <Text variant="caption" style={{ color: '#FFF', marginLeft: 6 }}>
-                          Change Photo
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity style={styles.uploadBox} onPress={handlePickImage}>
-                      <Icon name="Sparkle" size={32} color={COLORS.dark.aiPurple} />
-                      <Text variant="body" style={{ color: COLORS.dark.textPrimary, marginTop: 8 }}>
-                        Tap to Select Workout Screenshot
-                      </Text>
-                      <Text variant="caption" style={{ color: COLORS.dark.textSecondary, marginTop: 4 }}>
-                        Supports camera roll photos, spreadsheets, or whiteboard shots
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-
-              <View style={{ marginTop: SPACING.lg }}>
-                <GradientButton
-                  title={aiParsing ? 'Gemini 2.5 Flash is Parsing...' : 'Parse & Extract Plan with AI'}
-                  icon={<Icon name="Sparkle" size={18} color="#FFF" />}
-                  onPress={handleRunAiParsing}
-                  disabled={aiParsing}
-                />
-              </View>
-            </GlassCard>
-
-            {/* AI Extracted Result Preview */}
-            {aiParsedResult && (
-              <GlassCard style={[styles.card, { borderColor: COLORS.dark.aiPurple, borderWidth: 1 }]}>
-                <Badge label="PARSED ROUTINE PREVIEW" variant="gold" />
-                <Text variant="h2" style={{ color: COLORS.dark.textPrimary, marginTop: 8 }}>
-                  {aiParsedResult.program_name}
-                </Text>
-                <Text variant="caption" style={{ color: COLORS.dark.textSecondary, marginTop: 2 }}>
-                  {aiParsedResult.description || 'Custom multi-day routine extracted by Gemini.'}
-                </Text>
-
-                <View style={{ marginTop: SPACING.md }}>
-                  {aiParsedResult.days?.map((day: any, dIdx: number) => (
-                    <View key={dIdx} style={styles.parsedDayCard}>
-                      <Text variant="body" style={{ color: COLORS.dark.accentGold, fontWeight: '700' }}>
-                        {day.day_name}
-                      </Text>
-                      {day.exercises?.map((ex: any, eIdx: number) => (
-                        <View key={eIdx} style={styles.parsedExItem}>
-                          <Text variant="bodySmall" style={{ color: COLORS.dark.textPrimary }}>
-                            • {ex.name}
-                          </Text>
-                          <Text variant="caption" style={{ color: COLORS.dark.textSecondary }}>
-                            {ex.target_sets} sets × {ex.target_reps} reps ({ex.rest_seconds || 90}s rest)
-                          </Text>
-                        </View>
-                      ))}
+                      </View>
                     </View>
                   ))}
+
+                  {/* Add Exercise Dashed Button */}
+                  <TouchableOpacity
+                    style={styles.addExerciseBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setIsExercisePickerOpen(true)}
+                  >
+                    <Icon name="Plus" size={18} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                    <Text style={styles.addExerciseText}>Add Exercise</Text>
+                  </TouchableOpacity>
                 </View>
-
-                <View style={{ marginTop: SPACING.lg }}>
-                  <GradientButton
-                    title={loading ? 'Applying Plan...' : 'Save & Set as My Active Workout'}
-                    icon={<Icon name="CheckCircle" size={18} color="#FFF" />}
-                    onPress={handleApplyAiPlan}
-                    disabled={loading}
-                  />
-                </View>
-              </GlassCard>
-            )}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Exercise Picker Modal */}
-      <Modal visible={isExercisePickerOpen} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text variant="h3" style={{ color: COLORS.dark.textPrimary }}>
-                Select Exercise
-              </Text>
-              <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)}>
-                <Icon name="X" size={24} color={COLORS.dark.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              style={styles.modalSearchInput}
-              placeholder="Search or enter custom exercise..."
-              placeholderTextColor={COLORS.dark.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-
-            {searchQuery.trim().length > 0 &&
-              !filteredExercises.some((e) => e.name.toLowerCase() === searchQuery.trim().toLowerCase()) && (
-                <TouchableOpacity
-                  style={styles.customExercisePrompt}
-                  onPress={() => handleSelectExercise(searchQuery.trim())}
-                >
-                  <Icon name="Plus" size={16} color={COLORS.dark.accentGold} />
-                  <Text variant="bodySmall" style={{ color: COLORS.dark.accentGold, marginLeft: 8 }}>
-                    Create custom: "{searchQuery.trim()}"
-                  </Text>
-                </TouchableOpacity>
               )}
 
-            <ScrollView style={{ maxHeight: 380 }}>
-              {filteredExercises.map((ex) => (
-                <TouchableOpacity
-                  key={ex.id}
-                  style={styles.exercisePickerItem}
-                  onPress={() => handleSelectExercise(ex.name)}
-                >
-                  <View>
-                    <Text variant="body" style={{ color: COLORS.dark.textPrimary }}>
-                      {ex.name}
+              {/* Save Plan CTA */}
+              <TouchableOpacity
+                style={styles.savePlanBtn}
+                activeOpacity={0.88}
+                onPress={handleSavePlan}
+                disabled={loading}
+              >
+                <Icon name="CheckCircle" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />
+                <Text style={styles.savePlanText}>
+                  {loading ? 'Saving Plan...' : 'Save Plan'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* ================= AI IMPORT INGESTION MODE ================= */
+            <View style={styles.aiSection}>
+              <View style={styles.aiCard}>
+                <View style={styles.aiHeaderPill}>
+                  <Icon name="Sparkle" size={14} color={OBSIDIAN_COLORS.voltLime} />
+                  <Text style={styles.aiHeaderPillText}>GEMINI 2.5 FLASH • MULTIMODAL INGESTION</Text>
+                </View>
+
+                <Text style={styles.aiTitle}>AI Workout Plan Ingestion</Text>
+                <Text style={styles.aiSubtitle}>
+                  Got a routine from notes, Google Docs, or a gym whiteboard photo? Paste or snap it,
+                  and IronLog AI will parse it into a structured split.
+                </Text>
+
+                {/* Input Mode Selector */}
+                <View style={styles.aiToggleRow}>
+                  <TouchableOpacity
+                    style={[styles.aiToggleBtn, aiInputType === 'text' && styles.aiToggleBtnActive]}
+                    activeOpacity={0.8}
+                    onPress={() => setAiInputType('text')}
+                  >
+                    <Icon
+                      name="PencilSimple"
+                      size={16}
+                      color={aiInputType === 'text' ? OBSIDIAN_COLORS.onPrimary : OBSIDIAN_COLORS.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.aiToggleBtnText,
+                        aiInputType === 'text' && { color: OBSIDIAN_COLORS.onPrimary },
+                      ]}
+                    >
+                      Paste Notes / Doc
                     </Text>
-                    <Text variant="caption" style={{ color: COLORS.dark.textSecondary }}>
-                      {ex.primary_muscle}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.aiToggleBtn, aiInputType === 'image' && styles.aiToggleBtnActive]}
+                    activeOpacity={0.8}
+                    onPress={() => setAiInputType('image')}
+                  >
+                    <Icon
+                      name="Sparkle"
+                      size={16}
+                      color={aiInputType === 'image' ? OBSIDIAN_COLORS.onPrimary : OBSIDIAN_COLORS.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.aiToggleBtnText,
+                        aiInputType === 'image' && { color: OBSIDIAN_COLORS.onPrimary },
+                      ]}
+                    >
+                      Upload Screenshot
                     </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Text or Image Input (F5: 20000 char maxLength) */}
+                {aiInputType === 'text' ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.fieldLabel}>Routine Notes (Max 20,000 chars)</Text>
+                    <TextInput
+                      style={styles.aiTextArea}
+                      multiline
+                      numberOfLines={8}
+                      maxLength={20000}
+                      placeholder={`Paste routine here, e.g.:\nDay 1: Upper Body\n- Barbell Bench Press 4x8\n- Incline DB Press 3x10\n- Tricep Pushdown 3x12\n\nDay 2: Lower Body\n- Barbell Squats 4x8...`}
+                      placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                      value={aiRoutineText}
+                      onChangeText={setAiRoutineText}
+                    />
                   </View>
-                  <Icon name="CaretRight" size={16} color={COLORS.dark.textSecondary} />
+                ) : (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.fieldLabel}>Workout Sheet Screenshot</Text>
+                    {aiSelectedImage ? (
+                      <View style={styles.imagePreviewWrapper}>
+                        <Image source={{ uri: aiSelectedImage.uri }} style={styles.imagePreview} />
+                        <TouchableOpacity style={styles.repickBtn} onPress={handlePickImage}>
+                          <Icon name="ArrowClockwise" size={14} color={OBSIDIAN_COLORS.textWhite} />
+                          <Text style={styles.repickText}>Change Photo</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={styles.uploadArea} onPress={handlePickImage}>
+                        <Icon name="Sparkle" size={32} color={OBSIDIAN_COLORS.voltLime} />
+                        <Text style={styles.uploadTitle}>Tap to Select Workout Screenshot</Text>
+                        <Text style={styles.uploadSubtitle}>
+                          Supports photos of whiteboards, sheets, or apps
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.parseBtn}
+                  activeOpacity={0.88}
+                  onPress={handleRunAiParsing}
+                  disabled={aiParsing}
+                >
+                  <Icon
+                    name="Sparkle"
+                    size={18}
+                    color={OBSIDIAN_COLORS.onPrimary}
+                    weight="bold"
+                  />
+                  <Text style={styles.parseBtnText}>
+                    {aiParsing ? 'Gemini 2.5 Flash is Parsing...' : 'Parse & Extract Plan with AI'}
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
+
+              {/* AI Parsed Result Preview */}
+              {aiParsedResult && (
+                <View style={styles.parsedResultCard}>
+                  <Text style={styles.parsedBadge}>PARSED ROUTINE PREVIEW</Text>
+                  <Text style={styles.parsedProgramName}>{aiParsedResult.program_name}</Text>
+                  <Text style={styles.parsedProgramDesc}>
+                    {aiParsedResult.description || 'Custom multi-day routine extracted by Gemini.'}
+                  </Text>
+
+                  <View style={{ marginTop: 12, gap: 10 }}>
+                    {aiParsedResult.days?.map((day: any, dIdx: number) => (
+                      <View key={dIdx} style={styles.parsedDayCard}>
+                        <Text style={styles.parsedDayName}>{day.day_name}</Text>
+                        {day.exercises?.map((ex: any, eIdx: number) => (
+                          <View key={eIdx} style={styles.parsedExRow}>
+                            <Text style={styles.parsedExName}>• {ex.name}</Text>
+                            <Text style={styles.parsedExMeta}>
+                              {ex.target_sets} sets × {ex.target_reps} reps ({ex.rest_seconds || 90}s rest)
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.applyAiPlanBtn}
+                    activeOpacity={0.88}
+                    onPress={handleApplyAiPlan}
+                    disabled={loading}
+                  >
+                    <Icon name="CheckCircle" size={18} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />
+                    <Text style={styles.applyAiPlanText}>
+                      {loading ? 'Applying Plan...' : 'Save & Set as My Active Workout'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Exercise Picker Modal */}
+        <Modal visible={isExercisePickerOpen} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Exercise</Text>
+                <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)}>
+                  <Icon name="X" size={22} color={OBSIDIAN_COLORS.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search or enter custom exercise..."
+                placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+
+              {searchQuery.trim().length > 0 &&
+                !filteredExercises.some(
+                  (e) => e.name.toLowerCase() === searchQuery.trim().toLowerCase()
+                ) && (
+                  <TouchableOpacity
+                    style={styles.customExercisePrompt}
+                    onPress={() => handleSelectExercise(searchQuery.trim(), 'Custom')}
+                  >
+                    <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                    <Text style={styles.customExerciseText}>
+                      Create custom: "{searchQuery.trim()}"
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+              <ScrollView style={{ maxHeight: 380 }}>
+                {filteredExercises.map((ex) => (
+                  <TouchableOpacity
+                    key={ex.id}
+                    style={styles.exercisePickerItem}
+                    activeOpacity={0.7}
+                    onPress={() => handleSelectExercise(ex.name, ex.primary_muscle)}
+                  >
+                    <View>
+                      <Text style={styles.pickerExName}>{ex.name}</Text>
+                      <Text style={styles.pickerExMuscle}>{ex.primary_muscle}</Text>
+                    </View>
+                    <Icon name="CaretRight" size={16} color={OBSIDIAN_COLORS.textMuted} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: OBSIDIAN_COLORS.surface,
+  },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingTop: OBSIDIAN_SPACING.xs,
+    paddingBottom: OBSIDIAN_SPACING.sm,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   backButton: {
-    padding: SPACING.xs,
-    marginRight: SPACING.sm,
-  },
-  headerTitleWrap: {
-    flex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    color: COLORS.dark.textPrimary,
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   headerSubtitle: {
-    color: COLORS.dark.textSecondary,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    marginTop: 1,
   },
-  modeTabs: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-    padding: 4,
-    marginTop: SPACING.xs,
-  },
-  modeTab: {
-    flex: 1,
+  headerRight: {},
+  importModeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: RADIUS.sm,
+    gap: 5,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
   },
-  modeTabActive: {
-    backgroundColor: 'rgba(233, 69, 96, 0.2)',
+  importModeBtnActive: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    borderColor: OBSIDIAN_COLORS.voltLime,
   },
-  modeTabText: {
-    color: COLORS.dark.textSecondary,
-    marginLeft: 6,
-    fontWeight: '500',
+  importModeText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
   },
-  modeTabTextActive: {
-    color: COLORS.dark.accentRed,
-    fontWeight: '700',
-  },
-  scroll: {
+  scrollArea: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl * 2,
+    paddingHorizontal: OBSIDIAN_SPACING.md,
+    paddingTop: OBSIDIAN_SPACING.xs,
+    paddingBottom: 60,
+    gap: OBSIDIAN_SPACING.md,
   },
-  sectionContainer: {
-    gap: SPACING.md,
+  programCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 6,
   },
-  card: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
+  programLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
   },
-  cardHeading: {
-    color: COLORS.dark.textPrimary,
-    marginTop: SPACING.xs,
+  programNameBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
   },
-  cardSubtext: {
-    color: COLORS.dark.textSecondary,
-    marginTop: 4,
-    marginBottom: SPACING.sm,
+  programInput: {
+    flex: 1,
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 16,
   },
-  fieldLabel: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
-    marginTop: SPACING.md,
-    marginBottom: 6,
+  scheduleSection: {
+    gap: 6,
+  },
+  scheduleHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  scheduleLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+  },
+  scheduleHint: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
   },
   daysScroll: {
-    marginVertical: SPACING.xs,
+    gap: 8,
+    paddingVertical: 4,
   },
-  dayChip: {
-    paddingHorizontal: 16,
+  dayPill: {
+    width: 72,
     paddingVertical: 10,
-    borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    marginRight: 8,
+    paddingHorizontal: 6,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dayChipActive: {
-    backgroundColor: COLORS.dark.accentRed,
-  },
-  dayChipText: {
-    color: COLORS.dark.textSecondary,
-    fontWeight: '600',
-  },
-  dayChipTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
-  },
-  textInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: RADIUS.md,
-    color: COLORS.dark.textPrimary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 12,
-    fontSize: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    position: 'relative',
+    marginRight: 6,
   },
-  textArea: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: RADIUS.md,
-    color: COLORS.dark.textPrimary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 12,
+  dayPillSelected: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    borderColor: 'rgba(204, 255, 0, 0.35)',
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dayPillRest: {
+    opacity: 0.65,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+  },
+  dayVoltDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  dayCodeText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 14,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  dayFocusText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
+    marginTop: 2,
+  },
+  dayExCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    marginTop: 6,
+  },
+  dayExCountText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  selectedDayCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    textAlignVertical: 'top',
-    minHeight: 120,
-  },
-  toggleRow: {
+    borderColor: OBSIDIAN_COLORS.borderGhost,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: SPACING.md,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
   },
-  exerciseSectionHeader: {
+  selectedDayLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  selectedDayIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  selectedDayTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  restToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  restToggleLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+  },
+  restDayCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 8,
+  },
+  restDayTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  restDayBody: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  exerciseSection: {
+    gap: 10,
+  },
+  exerciseHeaderRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SPACING.sm,
+    alignItems: 'center',
+    paddingHorizontal: 2,
   },
-  sectionTitle: {
-    color: COLORS.dark.textPrimary,
-  },
-  addExerciseBtn: {
+  exerciseCountGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.dark.accentRed,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: RADIUS.md,
+    gap: 8,
   },
-  addExerciseBtnSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(233, 69, 96, 0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+  exerciseListLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+  },
+  exerciseCountChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+  },
+  exerciseCountChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
   },
   exerciseCard: {
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    marginTop: SPACING.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    position: 'relative',
+    overflow: 'hidden',
+    gap: 12,
   },
-  exerciseRow: {
+  exerciseVoltBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3.5,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  exerciseTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingLeft: 2,
   },
-  exerciseIndexBadge: {
+  exerciseInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    flex: 1,
+  },
+  exerciseNumBox: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  exerciseNumText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  exerciseTextGroup: {
+    flex: 1,
+  },
+  exerciseNameText: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    fontSize: 15,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  exerciseMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  tagChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+  },
+  tagChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 9,
+  },
+  muscleTargetText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  deleteExBtn: {
+    padding: 4,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metricBox: {
+    flex: 1,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  exerciseName: {
-    color: COLORS.dark.textPrimary,
-    fontWeight: '600',
-  },
-  paramRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 12,
-  },
-  paramBox: {
-    alignItems: 'center',
-  },
-  paramLabel: {
-    color: COLORS.dark.textSecondary,
-    fontSize: 10,
+  metricLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
     marginBottom: 2,
   },
-  paramInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: RADIUS.sm,
-    color: COLORS.dark.textPrimary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 13,
+  metricInputRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
+  metricTextInput: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 15,
+    color: OBSIDIAN_COLORS.textWhite,
     textAlign: 'center',
-    minWidth: 46,
+    minWidth: 32,
   },
-  deleteBtn: {
-    padding: 8,
-    marginLeft: 6,
+  metricUnit: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
   },
-  cardHeaderRow: {
+  addExerciseBtn: {
+    height: 48,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(204, 255, 0, 0.4)',
+    borderStyle: 'dashed',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 6,
   },
-  restToggle: {
+  addExerciseText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 14,
+  },
+  savePlanBtn: {
+    height: 54,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  splitExerciseRow: {
+  savePlanText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  aiSection: {
+    gap: 12,
+  },
+  aiCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.lg,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 10,
+  },
+  aiHeaderPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 6,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
   },
-  aiToggleWrap: {
+  aiHeaderPillText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 9,
+  },
+  aiTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineMd,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  aiSubtitle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    lineHeight: 18,
+  },
+  aiToggleRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.lg,
     padding: 3,
-    marginTop: SPACING.md,
+    marginTop: 4,
+    gap: 4,
   },
   aiToggleBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: RADIUS.sm,
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: OBSIDIAN_RADIUS.md,
   },
   aiToggleBtnActive: {
-    backgroundColor: COLORS.dark.aiPurple,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
   },
-  aiToggleText: {
-    color: COLORS.dark.textSecondary,
-    marginLeft: 6,
+  aiToggleBtnText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
   },
-  aiToggleTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
+  fieldLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+    marginBottom: 6,
   },
-  uploadBox: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(124, 58, 237, 0.4)',
-    borderStyle: 'dashed',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(124, 58, 237, 0.05)',
+  aiTextArea: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: 12,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontFamily: 'Inter',
+    fontSize: 13,
+    lineHeight: 18,
+    minHeight: 140,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  imagePreviewWrap: {
-    alignItems: 'center',
-    marginVertical: SPACING.sm,
+  imagePreviewWrapper: {
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    position: 'relative',
   },
   imagePreview: {
     width: '100%',
-    height: 220,
-    borderRadius: RADIUS.md,
-    resizeMode: 'contain',
-    backgroundColor: '#000',
+    height: 180,
+    resizeMode: 'cover',
   },
   repickBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    borderRadius: OBSIDIAN_RADIUS.full,
+  },
+  repickText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 10,
+    marginLeft: 4,
+  },
+  uploadArea: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
+    borderStyle: 'dashed',
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  uploadTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  uploadSubtitle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  parseBtn: {
+    height: 52,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  parseBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontSize: 15,
+  },
+  parsedResultCard: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
+    gap: 8,
+  },
+  parsedBadge: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
+  },
+  parsedProgramName: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineMd,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  parsedProgramDesc: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
   },
   parsedDayCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: 10,
+    gap: 4,
+  },
+  parsedDayName: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 13,
+  },
+  parsedExRow: {
+    paddingLeft: 6,
+  },
+  parsedExName: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  parsedExMeta: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+  },
+  applyAiPlanBtn: {
+    height: 50,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginTop: 8,
   },
-  parsedExItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
+  applyAiPlanText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontSize: 15,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(9, 11, 16, 0.88)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.dark.bgSecondary,
-    borderTopLeftRadius: RADIUS.lg,
-    borderTopRightRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    maxHeight: '80%',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderTopLeftRadius: OBSIDIAN_RADIUS.xl,
+    borderTopRightRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.lg,
+    borderTopWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 12,
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    color: OBSIDIAN_COLORS.textWhite,
   },
   modalSearchInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: RADIUS.md,
-    color: COLORS.dark.textPrimary,
-    paddingHorizontal: SPACING.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
-    marginBottom: SPACING.sm,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   customExercisePrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderRadius: RADIUS.sm,
-    marginBottom: 8,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  customExerciseText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   exercisePickerItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    alignItems: 'center',
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  pickerExName: {
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  pickerExMuscle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    marginTop: 1,
   },
 });

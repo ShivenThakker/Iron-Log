@@ -2,6 +2,25 @@ import { prisma } from '../lib/prisma';
 import { gamificationRepository } from './gamification.repository';
 import { NotFoundError } from '../utils/errors';
 
+export function getEffectiveStreak(
+  streak: { current_streak: number; last_active_date: Date | string; grace_used_this_week: boolean } | null | undefined
+): number {
+  if (!streak || streak.current_streak <= 0) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lastActive = new Date(streak.last_active_date);
+  lastActive.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - lastActive.getTime()) / (1000 * 3600 * 24));
+
+  if (diffDays <= 1) {
+    return streak.current_streak;
+  }
+  if (diffDays === 2 && !streak.grace_used_this_week) {
+    return streak.current_streak; // Protected by weekly grace day
+  }
+  return 0; // Streak broken due to inactivity
+}
+
 export class SessionRepository {
   async createSession(userId: string, data: any = {}) {
     return prisma.workoutSession.create({
@@ -128,6 +147,9 @@ export class SessionRepository {
     // Update streak for today
     await this.updateUserStreak(userId);
 
+    // Check and unlock trophies for milestones (streaks, workouts, PRs)
+    const newlyUnlockedTrophies = await gamificationRepository.checkAndUnlockTrophies(userId);
+
     return {
       session,
       summary: {
@@ -136,6 +158,7 @@ export class SessionRepository {
         total_sets: existing.exerciseSets.length,
         pr_count: existing.personalRecords.length,
         xp_earned: 50 + (existing.personalRecords.length * 25),
+        newly_unlocked_trophies: newlyUnlockedTrophies,
       },
     };
   }

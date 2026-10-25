@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import { COLORS, RADIUS, SPACING, OBSIDIAN_COLORS } from '@/constants/tokens';
 import { Text } from './Text';
 
 export type BadgeVariant =
@@ -13,7 +13,10 @@ export type BadgeVariant =
   | 'red'
   | 'blue'
   | 'green'
-  | 'default';
+  | 'default'
+  | 'volt'
+  | 'coral'
+  | 'darkSlate';
 
 interface BadgeProps {
   label: string;
@@ -32,6 +35,12 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
   const getColors = () => {
     switch (variant) {
+      case 'volt':
+        return { bg: OBSIDIAN_COLORS.voltOverlay15, text: OBSIDIAN_COLORS.voltLime, border: 'rgba(204, 255, 0, 0.3)' };
+      case 'coral':
+        return { bg: 'rgba(255, 70, 85, 0.15)', text: OBSIDIAN_COLORS.coralAccent, border: 'rgba(255, 70, 85, 0.3)' };
+      case 'darkSlate':
+        return { bg: OBSIDIAN_COLORS.surfaceContainerHigh, text: OBSIDIAN_COLORS.textMuted, border: OBSIDIAN_COLORS.borderGhost };
       case 'success':
       case 'green':
         return { bg: 'rgba(34, 197, 94, 0.15)', text: COLORS.dark.success, border: 'rgba(34, 197, 94, 0.3)' };

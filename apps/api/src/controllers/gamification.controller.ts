@@ -30,6 +30,11 @@ export const getGamificationProfile = async (req: Request, res: Response) => {
       progressPct,
       xpToNextRank,
       recentTransactions,
+      trophies: trophyCase.trophies.map((t) => ({
+        ...t,
+        unlocked: t.is_unlocked,
+        unlockedAt: t.unlocked_at,
+      })),
       trophySummary: {
         unlocked: trophyCase.unlockedCount,
         total: trophyCase.totalCount,
@@ -40,22 +45,4 @@ export const getGamificationProfile = async (req: Request, res: Response) => {
   }
 };
 
-export const getTrophies = async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const trophyCase = await gamificationRepository.getTrophyCase(userId);
-    res.json(trophyCase);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
-export const checkTrophies = async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const newlyUnlocked = await gamificationRepository.checkAndUnlockTrophies(userId);
-    res.json({ newlyUnlocked });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};

@@ -73,7 +73,14 @@ export class NutritionRepository {
   }
 
   async logFood(userId: string, data: any) {
-    const logDate = data.logged_date ? new Date(data.logged_date) : new Date();
+    let logDate: Date;
+    if (typeof data.logged_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.logged_date)) {
+      logDate = new Date(`${data.logged_date}T12:00:00.000Z`);
+    } else if (data.logged_date) {
+      logDate = new Date(data.logged_date);
+    } else {
+      logDate = new Date();
+    }
 
     const log = await prisma.foodLogEntry.create({
       data: {
