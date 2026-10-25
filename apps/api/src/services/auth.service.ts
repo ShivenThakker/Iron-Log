@@ -53,7 +53,7 @@ export class AuthService {
     }
 
     try {
-      const decoded = jwt.verify(refreshTokenString, env.JWT_REFRESH_SECRET) as { id: string };
+      const decoded = jwt.verify(refreshTokenString, env.JWT_REFRESH_SECRET, { algorithms: ['HS256'] }) as { id: string };
       const user = await authRepository.findUserById(decoded.id);
       if (!user) {
         throw new UnauthorizedError('User not found');
@@ -113,8 +113,8 @@ export class AuthService {
   }
 
   private generateTokens(userId: string) {
-    const accessToken = jwt.sign({ id: userId }, env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ id: userId }, env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
+    const accessToken = jwt.sign({ id: userId }, env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '15m' });
+    const refreshToken = jwt.sign({ id: userId }, env.JWT_REFRESH_SECRET, { algorithm: 'HS256', expiresIn: '30d' });
     return { accessToken, refreshToken, userId };
   }
 }

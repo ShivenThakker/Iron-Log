@@ -11,7 +11,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as any;
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as any;
     req.user = { id: decoded.id };
     next();
   } catch (error) {
