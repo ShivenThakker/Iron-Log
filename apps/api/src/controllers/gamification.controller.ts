@@ -30,6 +30,11 @@ export const getGamificationProfile = async (req: Request, res: Response) => {
       progressPct,
       xpToNextRank,
       recentTransactions,
+      trophies: trophyCase.trophies.map((t) => ({
+        ...t,
+        unlocked: t.is_unlocked,
+        unlockedAt: t.unlocked_at,
+      })),
       trophySummary: {
         unlocked: trophyCase.unlockedCount,
         total: trophyCase.totalCount,

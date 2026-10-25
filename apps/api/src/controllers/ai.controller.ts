@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { geminiService } from '../services/gemini.service';
 import { prisma } from '../lib/prisma';
+import { getEffectiveStreak } from '../repositories/session.repository';
 
 export const chatCompletion = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -27,7 +28,8 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
       ]);
 
       if (user) {
-        userContext = `\n[User Context: Name: ${user.name || 'Athlete'}, Goal: ${user.fitness_goal || 'Build Muscle'}, Experience: ${user.experience_level || 'Intermediate'}, Active Streak: ${streak?.current_streak || 0} days, Recent PRs: ${recentPrs.map((p: any) => `${p.exercise?.name || 'Lift'}: ${p.weight_kg}kg`).join(', ') || 'None yet'}]`;
+        const activeStreak = getEffectiveStreak(streak);
+        userContext = `\n[User Context: Name: ${user.name || 'Athlete'}, Goal: ${user.fitness_goal || 'Build Muscle'}, Experience: ${user.experience_level || 'Intermediate'}, Active Streak: ${activeStreak} days, Recent PRs: ${recentPrs.map((p: any) => `${p.exercise?.name || 'Lift'}: ${p.weight_kg}kg`).join(', ') || 'None yet'}]`;
       }
     }
 

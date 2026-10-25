@@ -46,10 +46,19 @@ export default function BodyTab() {
   const [thighsInput, setThighsInput] = useState('');
 
   // Realigned to real backend endpoint: GET /body/weight
-  const { data: weightData, refetch, isRefetching } = useQuery({
+  const { data: weightData, refetch: refetchWeight, isRefetching } = useQuery({
     queryKey: ['weightHistory'],
     queryFn: async () => {
       const res = await api.get('/body/weight').catch(() => null);
+      return res?.data ?? null;
+    },
+  });
+
+  // Realigned to real backend endpoint: GET /body/measurement
+  const { data: measurementData, refetch: refetchMeasurements } = useQuery({
+    queryKey: ['bodyMeasurements'],
+    queryFn: async () => {
+      const res = await api.get('/body/measurement').catch(() => null);
       return res?.data ?? null;
     },
   });
@@ -79,7 +88,7 @@ export default function BodyTab() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['weightHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['bodyMeasurements'] });
       setShowMeasureModal(false);
       setChestInput('');
       setArmsInput('');
@@ -88,8 +97,10 @@ export default function BodyTab() {
     },
   });
 
-  // Extract logs from backend response: { history: { history: [...], currentWeight, startingWeight, goal }, goal }
-  const rawLogs = weightData?.history?.history ?? weightData?.history;
+  // Extract logs from backend response (flattened or backwards-compatible nested)
+  const rawLogs = Array.isArray(weightData?.history)
+    ? weightData.history
+    : (weightData?.history?.history ?? []);
   const historyList = Array.isArray(rawLogs) ? rawLogs : [];
 
   const filteredLogs = React.useMemo(() => {
@@ -110,20 +121,23 @@ export default function BodyTab() {
       }))
     : DEFAULT_WEIGHT_HISTORY;
 
-  const currentWeight = weightData?.history?.currentWeight ??
+  const currentWeight = weightData?.currentWeight ??
+    weightData?.history?.currentWeight ??
     (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].weight : 78.5);
-  const startWeight = weightData?.history?.startingWeight ??
+  const startWeight = weightData?.startingWeight ??
+    weightData?.history?.startingWeight ??
     (chartPoints.length > 0 ? chartPoints[0].weight : 80.5);
   const deltaWeight = (currentWeight - startWeight).toFixed(1);
   const isLoss = Number(deltaWeight) <= 0;
   const goalWeight = weightData?.goal?.goal_weight_kg ??
     weightData?.history?.goal?.goal_weight_kg ?? 75.0;
 
+  const latestMsmt = measurementData?.latest;
   const measurements = {
-    chest: 104,
-    arms: 39.5,
-    waist: 83,
-    thighs: 60,
+    chest: latestMsmt?.chest_cm ?? 104,
+    arms: latestMsmt?.left_arm_cm ?? latestMsmt?.right_arm_cm ?? 39.5,
+    waist: latestMsmt?.waist_cm ?? 83,
+    thighs: latestMsmt?.left_thigh_cm ?? latestMsmt?.right_thigh_cm ?? 60,
   };
 
   const handleWeightSubmit = () => {
@@ -151,7 +165,10 @@ export default function BodyTab() {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={refetch}
+              onRefresh={() => {
+                refetchWeight();
+                refetchMeasurements();
+              }}
               tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }

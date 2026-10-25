@@ -100,13 +100,15 @@ export default function InsightsTab() {
     return mapped;
   }, [heatmapApiData]);
 
-  // Process Radar Data: API returns [ { axis: 'Chest', value: 85 }, ... ]
+  // Process Radar Data: API returns [ { axis: 'Chest', value: 0.85 }, ... ]
   const radarScores: MuscleBalanceScores = React.useMemo(() => {
     if (!Array.isArray(radarApiData)) return DEFAULT_RADAR_SCORES;
     const scores: MuscleBalanceScores = {};
     for (const item of radarApiData) {
       const key = item.axis.toLowerCase() as keyof MuscleBalanceScores;
-      scores[key] = item.value ?? 0;
+      const raw = item.value ?? 0;
+      // Backend returns normalized 0.0 - 1.0 decimal; MuscleRadar expects 0 - 100 scale
+      scores[key] = raw <= 1.0 && raw > 0 ? Math.round(raw * 100) : Math.round(raw);
     }
     return scores;
   }, [radarApiData]);
@@ -118,9 +120,14 @@ export default function InsightsTab() {
     }
     const colorMap: Record<string, string> = {
       Barbell: OBSIDIAN_COLORS.voltLime,
+      Barbells: OBSIDIAN_COLORS.voltLime,
+      Dumbbell: OBSIDIAN_COLORS.cyanAccent,
       Dumbbells: OBSIDIAN_COLORS.cyanAccent,
+      Cable: OBSIDIAN_COLORS.secondary,
       Cables: OBSIDIAN_COLORS.secondary,
+      Machine: OBSIDIAN_COLORS.primaryFixedDim,
       Machines: OBSIDIAN_COLORS.primaryFixedDim,
+      Bodyweight: OBSIDIAN_COLORS.coralAccent,
     };
     return equipmentApiData.map((item: any) => ({
       name: item.name,

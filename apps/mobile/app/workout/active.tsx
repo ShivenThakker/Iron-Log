@@ -221,29 +221,46 @@ export default function ActiveWorkoutScreen() {
     });
 
     if (willBeCompleted) {
-      // 1. Check for PR celebration simulation/detection
       const weightNum = parseFloat(currentSet.weight) || 0;
-      if (weightNum >= 100) {
-        setPrCelebration({
-          visible: true,
-          exerciseName: currentExercise.name,
-          prType: 'Personal Best 1RM',
-          value: `${weightNum} kg`,
-        });
-      } else {
-        // Trigger rest timer
-        setShowRestTimer(true);
-      }
+      const repsNum = parseInt(currentSet.reps, 10) || 1;
 
-      // 2. Sync to API if session is active
+      // 1. Sync to API if session is active and not already synced
       if (sessionId && !currentSet.synced) {
-        api.post(`/sessions/${sessionId}/sets`, {
-          exercise_id: currentExercise.exerciseId,
-          set_number: currentSet.setNumber,
-          set_type: currentSet.setType,
-          reps: parseInt(currentSet.reps, 10) || 1,
-          weight_kg: weightNum > 0 ? weightNum : undefined,
-        }).catch(() => null);
+        setExercises((prev) => {
+          const copy = [...prev];
+          const ex = { ...copy[currentExerciseIndex] };
+          const sets = [...ex.sets];
+          sets[activeSetIndex] = { ...sets[activeSetIndex], synced: true };
+          ex.sets = sets;
+          copy[currentExerciseIndex] = ex;
+          return copy;
+        });
+
+        api
+          .post(`/sessions/${sessionId}/sets`, {
+            exercise_id: currentExercise.exerciseId,
+            set_number: currentSet.setNumber,
+            set_type: currentSet.setType,
+            reps: repsNum,
+            weight_kg: weightNum > 0 ? weightNum : undefined,
+          })
+          .then((res) => {
+            if (res?.data?.pr?.isNewPR) {
+              setPrCelebration({
+                visible: true,
+                exerciseName: currentExercise.name,
+                prType: 'Personal Record',
+                value: `${weightNum} kg × ${repsNum} reps`,
+              });
+            } else {
+              setShowRestTimer(true);
+            }
+          })
+          .catch(() => {
+            setShowRestTimer(true);
+          });
+      } else {
+        setShowRestTimer(true);
       }
 
       // Auto advance to next set if available

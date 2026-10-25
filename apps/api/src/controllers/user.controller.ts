@@ -8,12 +8,15 @@ const updateProfileSchema = z.object({
   activity_level: z.string().optional(),
   experience_level: z.string().optional(),
   training_style: z.string().optional(),
+  training_split_preference: z.string().optional(),
   schedule_days_per_week: z.number().int().min(1).max(7).optional(),
   session_duration_min: z.number().int().min(15).max(180).optional(),
+  workout_duration_min: z.number().int().min(15).max(180).optional(),
   height_cm: z.number().positive().optional(),
   unit_system: z.enum(['metric', 'imperial']).optional(),
   target_weight_kg: z.number().positive().optional(),
   injuries: z.union([z.string(), z.array(z.string())]).optional(),
+  injuries_limitations: z.union([z.string(), z.array(z.string())]).optional(),
   date_of_birth: z.string().optional(),
   gender: z.string().optional(),
   track_nutrition: z.boolean().optional(),
@@ -40,11 +43,26 @@ export const updateProfile = async (req: Request, res: Response) => {
     const validated = updateProfileSchema.parse(req.body);
     
     let updateData: any = { ...validated };
+    if (validated.training_split_preference && !updateData.training_style) {
+      updateData.training_style = validated.training_split_preference;
+    }
+    delete updateData.training_split_preference;
+
+    if (validated.workout_duration_min && !updateData.session_duration_min) {
+      updateData.session_duration_min = validated.workout_duration_min;
+    }
+    delete updateData.workout_duration_min;
+
+    if (validated.injuries_limitations && !updateData.injuries) {
+      updateData.injuries = validated.injuries_limitations;
+    }
+    delete updateData.injuries_limitations;
+
     if (validated.date_of_birth) {
       updateData.date_of_birth = new Date(validated.date_of_birth);
     }
-    if (Array.isArray(validated.injuries)) {
-      updateData.injuries = JSON.stringify(validated.injuries);
+    if (Array.isArray(updateData.injuries)) {
+      updateData.injuries = JSON.stringify(updateData.injuries);
     }
 
     const updatedUser = await userService.updateProfile(userId, updateData);

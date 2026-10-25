@@ -48,6 +48,35 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function getRefreshedToken(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = useAuthStore.getState().refreshToken;
+      if (!refreshToken) {
+        await useAuthStore.getState().logout();
+        return null;
+      }
+      const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+      const { accessToken, refreshToken: newRefreshToken, userId } = res.data;
+      await useAuthStore.getState().login(accessToken, newRefreshToken, userId);
+      return accessToken as string;
+    } catch {
+      await useAuthStore.getState().logout();
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -59,17 +88,10 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/')
     ) {
       originalRequest._retry = true;
-      try {
-        const refreshToken = useAuthStore.getState().refreshToken;
-        if (refreshToken) {
-          const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-          const { accessToken, refreshToken: newRefreshToken, userId } = res.data;
-          await useAuthStore.getState().login(accessToken, newRefreshToken, userId);
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
-        }
-      } catch {
-        await useAuthStore.getState().logout();
+      const newAccessToken = await getRefreshedToken();
+      if (newAccessToken) {
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
       }
     }
     return Promise.reject(error);

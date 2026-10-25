@@ -42,9 +42,16 @@ const MEAL_SLOTS: { key: MealSlot; label: string; icon: IconName; accentColor: s
   { key: 'snack', label: 'Snacks', icon: 'Cookie', accentColor: OBSIDIAN_COLORS.textMuted },
 ];
 
+function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function NutritionScreen() {
   const queryClient = useQueryClient();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
 
   const [activeSlot, setActiveSlot] = useState<MealSlot>('breakfast');
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -89,6 +96,7 @@ export default function NutritionScreen() {
         carbs_g: food.carbs,
         fat_g: food.fat,
         fats_g: food.fat,
+        logged_date: todayStr,
       });
     },
     onSuccess: () => {
