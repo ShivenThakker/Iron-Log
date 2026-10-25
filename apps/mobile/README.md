@@ -1,50 +1,28 @@
-# Welcome to your Expo app 👋
+# IronLog Mobile Client
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+React Native + Expo mobile application for IronLog, built with Expo Router and the Obsidian Kinetic design system.
 
-## Get started
+## Getting Started
 
-1. Install dependencies
-
+1. Install dependencies from the monorepo root:
    ```bash
    npm install
    ```
 
-2. Start the app
-
+2. Start the Expo development server:
    ```bash
-   npx expo start
+   npm run start --workspace=mobile
    ```
 
-In the output, you'll find options to open the app in a
+3. Open the app:
+   - Press `a` for Android Emulator
+   - Press `i` for iOS Simulator
+   - Scan the QR code with Expo Go on a physical device connected to the same LAN
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Architecture & Styling
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Routing**: Expo Router file-based typed routing (`app/`)
+- **Design System**: Obsidian Kinetic dark theme (`constants/tokens.ts`, `constants/theme.ts`)
+- **State & Caching**: TanStack React Query (`@tanstack/react-query`) + Zustand (`store/useAuthStore.ts`)
+- **API Client**: Axios client (`services/api.ts`) with dynamic LAN host resolution and automatic JWT refresh
+- **Icons**: Phosphor Icons (`components/ui/Icon.tsx`)

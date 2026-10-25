@@ -83,40 +83,44 @@ IronLog is a **free, offline-first mobile fitness app** (iOS + Android) that con
 
 ---
 
+> For deep technical architecture, 44-endpoint API catalog, data models, and security specifications, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
 ## 📂 Project Structure
 
 ```
-ironlog/
+Iron-Log/
 ├── apps/
-│   ├── mobile/                  # React Native + Expo app
-│   │   ├── app/                 # Expo Router screens
-│   │   │   ├── (tabs)/
-│   │   │   │   ├── workout/
-│   │   │   │   ├── nutrition/
-│   │   │   │   ├── achievements/
-│   │   │   │   ├── body/
-│   │   │   │   └── insights/
-│   │   │   ├── onboarding/
-│   │   │   └── _layout.tsx
-│   │   ├── components/          # Shared UI components
-│   │   ├── hooks/               # Custom hooks
-│   │   ├── store/               # Zustand / Context state
-│   │   ├── db/                  # WatermelonDB models + schema
-│   │   ├── services/            # API call wrappers
-│   │   └── constants/           # Colours, spacing, fonts
+│   ├── mobile/                  # React Native + Expo mobile application (Obsidian Kinetic)
+│   │   ├── app/                 # Expo Router typed screens
+│   │   │   ├── (tabs)/          # Workout (index), Nutrition, Achievements, Body, Insights
+│   │   │   ├── onboarding/      # 4-step biometric, goal & AI plan onboarding
+│   │   │   ├── program/         # Workout Plan Builder (Single Day, Full Week, AI Ingestion)
+│   │   │   ├── workout/         # Live runner, rest timers, PR celebration, completion summary
+│   │   │   ├── ai/              # Context-aware AI coach interactive chat
+│   │   │   └── settings/        # Account controls, units, logout
+│   │   ├── assets/              # App icons, splash, body svg regions & base PNG
+│   │   ├── components/          # GlassCard UI kit, rest timers, SVG charts & heatmap
+│   │   ├── constants/           # Obsidian Kinetic design tokens & theme
+│   │   ├── services/            # Axios API client with dynamic LAN host & JWT auto-refresh
+│   │   └── store/               # Zustand auth store backed by expo-secure-store
 │   │
-│   └── api/                     # Express.js backend
+│   └── api/                     # Express.js 5 + TypeScript REST API
+│       ├── prisma/              # Prisma schema, migrations, and ChunkItUp exercise seed data
 │       ├── src/
-│       │   ├── routes/          # One file per domain
-│       │   ├── controllers/     # Route handlers (thin)
-│       │   ├── services/        # Business logic (fat)
-│       │   ├── repositories/    # Prisma queries only
-│       │   ├── middleware/       # auth, rateLimit, validate
-│       │   ├── adapters/        # gemini.ts, usda.ts, supabase.ts
-│       │   └── lib/             # Prisma client, Redis client
-│       ├── prisma/
-│       │   └── schema.prisma
-│       └── index.ts
+│       │   ├── routes/          # 12 domain routers (auth, sessions, programs, ai, etc.)
+│       │   ├── controllers/     # Express route handlers
+│       │   ├── services/        # Business logic (Gemini, USDA, auth, user, PR detection)
+│       │   ├── repositories/    # Prisma data access layer with ownership verification
+│       │   ├── middleware/      # Auth, rate-limiting, error handling, validation
+│       │   ├── validators/      # Zod request validation schemas
+│       │   ├── utils/           # Structured AI JSON parsing, prompt guard, logger
+│       │   └── index.ts         # Server boot, security headers & routing pipeline
+│       └── tests/               # Vitest suite (streak, PR detection, prompt guard, aiJson)
+│
+└── packages/
+    └── shared/                  # Monorepo shared TypeScript types, ranks, and XP rules
 ```
 
 ---

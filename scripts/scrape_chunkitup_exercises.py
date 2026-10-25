@@ -353,14 +353,9 @@ def scrape_all():
     elapsed = time.time() - t0
     print(f"\nScraping complete! {len(exercises)} exercises fetched in {elapsed:.1f}s.")
 
-    # 1. Save rich JSON database
-    json_path = os.path.abspath("data/chunkitup_exercises.json")
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(exercises, f, indent=2, ensure_ascii=False)
-    print(f"Saved rich JSON database to {json_path}")
-
-    # Copy to apps/api/prisma/data/
+    # 1. Save canonical Prisma seed asset
     api_json_path = os.path.abspath("apps/api/prisma/data/exercises_chunkitup.json")
+    os.makedirs(os.path.dirname(api_json_path), exist_ok=True)
     with open(api_json_path, "w", encoding="utf-8") as f:
         json.dump(exercises, f, indent=2, ensure_ascii=False)
     print(f"Saved Prisma seed asset to {api_json_path}")
