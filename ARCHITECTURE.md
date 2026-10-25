@@ -73,7 +73,7 @@ Iron-Log/
 | **Local Dev Database** | SQLite via `better-sqlite3` | `^12.8.0` with `@prisma/adapter-better-sqlite3` | Zero-dependency local prototyping (`dev.db`) |
 | **Production Database** | PostgreSQL (Supabase) | PostgreSQL 16+ | Production database with row security and connection pooling |
 | **Cache & Rate Limiting** | Upstash Redis | `@upstash/redis` `^1.39.0` | USDA food search caching, dynamic IP & auth rate limiting |
-| **AI Engine** | Google Gemini (configured via `GEMINI_MODEL`, active default `gemini-2.5-flash`) | `@google/generative-ai` `^0.24.1` (Note: Google lists as deprecated/maintenance; `@google/genai` planned) | Multimodal workout parsing (doc/screenshot), routine analysis, coaching |
+| **AI Engine** | Google Gemini (configured via `GEMINI_MODEL`, active default `gemini-2.5-flash`) | `@google/genai` `^2.31.0` (Official modern Google GenAI SDK) | Multimodal workout parsing (doc/screenshot), routine analysis, coaching |
 | **Mobile Framework** | Expo / React Native | Expo `~54.0.37`, React Native `0.81.5`, React `19.1.0` | New Architecture enabled (`newArchEnabled: true`) |
 | **Mobile Navigation** | Expo Router | `~6.0.24` | File-based typed routing (`typedRoutes: true`) |
 | **Mobile State** | TanStack React Query + Zustand | React Query `^5.104`, Zustand `^5.0.15` | Server cache with auto-invalidation, persisted auth & refresh token |
@@ -225,11 +225,11 @@ active routine or creates split   program with days & exercises     structured J
 
 | # | Graphify Finding | System Reality & Architectural Resolution | Status |
 |---|---|---|---|
-| **1** | Repository depends on service (`nutrition.repository` → `usda.service`) | The nutrition repository caches USDA searches. Architectural roadmap: extract to a unified `FoodSearchService` that orchestrates both local Prisma and external USDA APIs. | Planned |
+| **1** | Repository depends on service (`nutrition.repository` → `usda.service`) | **Resolved**: Extracted food search orchestration into dedicated `FoodSearchService` (`apps/api/src/services/foodSearch.service.ts`), decoupling database operations from external API caching. | **RESOLVED** |
 | **2** | Controller bypasses data layer (`ai.controller` → `prisma`) | User context enrichment for AI coaching reads directly from Prisma. Moving to a dedicated `AiContextService` in Phase 3. | Planned |
 | **3** | Route accesses DB directly (`cron.routes` → `prisma`) | Background maintenance (streaks, weekly resets) was placed directly in the route. Migrating logic into a `CronService`. | Planned |
 | **4** | Service layer skipped in 9 controllers | Simple CRUD controllers route directly to repositories to avoid redundant boilerplate. Complex domains (`auth`, `ai`, `session/PR`) use full service orchestration. | By Design |
-| **5** | Cross-module repository coupling | PR detection and session finalization trigger XP transactions in `gamification.repository`. Event-driven emitter planned for Phase 3. | Acceptable |
+| **5** | Cross-module repository coupling | **Resolved**: Introduced in-process typed `AppEventBus` (`apps/api/src/services/eventBus.ts`). Side effects (`session.finished`, `set.logged`) are dispatched asynchronously, eliminating tight coupling and reducing set latency. | **RESOLVED** |
 | **6** | Inconsistent validation | Zod validation schemas are enforced on user input routes (`auth`, `program`, `session`, `nutrition`, `body`). Validation being extended to remaining routes. | In Progress |
 | **7** | Inconsistent error model | `utils/errors.ts` defines `AppError` subclasses. Controllers are standardizing on throwing `AppError` for global middleware interception. | In Progress |
 | **8** | Overlapping responsibility (`setWeightGoal`) | Consolidating all weight operations under `body.repository.ts`. | Planned |

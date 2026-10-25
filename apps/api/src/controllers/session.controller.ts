@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { sessionRepository } from '../repositories/session.repository';
 import { checkAndCreatePR } from '../services/prDetection';
 import { NotFoundError } from '../utils/errors';
+import { eventBus } from '../services/eventBus';
 
 export const startSession = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -46,6 +47,15 @@ export const addSet = async (req: Request, res: Response, next: NextFunction) =>
     }
 
     res.status(201).json({ set: sset, pr: prResult });
+
+    eventBus.emit('set.logged', {
+      userId,
+      sessionId: id,
+      exerciseId: req.body.exercise_id,
+      weightKg: req.body.weight_kg,
+      reps: req.body.reps,
+      isNewPR: prResult.isNewPR,
+    });
   } catch (err: any) {
     next(err);
   }
@@ -56,6 +66,14 @@ export const finishSession = async (req: Request, res: Response, next: NextFunct
     const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const result = await sessionRepository.finishSession(sessionId, req.user!.id, req.body);
     res.json(result);
+
+    eventBus.emit('session.finished', {
+      userId: req.user!.id,
+      sessionId,
+      durationSeconds: result.summary.duration_seconds,
+      totalVolumeKg: result.summary.total_volume_kg,
+      totalSets: result.summary.total_sets,
+    });
   } catch (err: any) {
     next(err);
   }

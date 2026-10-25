@@ -22,6 +22,7 @@ import {
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { workoutSync } from '@/services/workoutSync';
 
 type SetType = 'normal' | 'warmup' | 'dropset' | 'failure';
 
@@ -236,16 +237,16 @@ export default function ActiveWorkoutScreen() {
           return copy;
         });
 
-        api
-          .post(`/sessions/${sessionId}/sets`, {
-            exercise_id: currentExercise.exerciseId,
-            set_number: currentSet.setNumber,
-            set_type: currentSet.setType,
+        workoutSync
+          .queueOrSendSet(sessionId, {
+            exerciseId: currentExercise.exerciseId,
+            setNumber: currentSet.setNumber,
+            setType: currentSet.setType,
             reps: repsNum,
-            weight_kg: weightNum > 0 ? weightNum : undefined,
+            weightKg: weightNum,
           })
           .then((res) => {
-            if (res?.data?.pr?.isNewPR) {
+            if (res.isNewPR) {
               setPrCelebration({
                 visible: true,
                 exerciseName: currentExercise.name,
@@ -340,7 +341,7 @@ export default function ActiveWorkoutScreen() {
 
     try {
       if (sessionId) {
-        await api.put(`/sessions/${sessionId}/finish`).catch(() => null);
+        await workoutSync.finishSession(sessionId).catch(() => null);
       }
     } finally {
       router.replace({

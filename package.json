@@ -10,6 +10,7 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev:api": "npm run dev --workspace=api",
+    "seed:exercises": "npm run seed --workspace=api",
     "start:mobile": "npm run start --workspace=mobile"
   },
   "allowScripts": {

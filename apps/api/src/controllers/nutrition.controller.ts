@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { nutritionRepository } from '../repositories/nutrition.repository';
+import { foodSearchService } from '../services/foodSearch.service';
 
 export const searchFood = async (req: Request, res: Response) => {
   try {
-    const q = req.query.q as string || '';
-    const results = await nutritionRepository.searchFood(q);
+    const q = (req.query.q as string) || '';
+    const results = await foodSearchService.search(q);
     res.json(results);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
