@@ -7,7 +7,7 @@ export const getAllExercises = async (req: Request, res: Response, next: NextFun
     const { q } = req.query;
     const exercises = await exerciseRepository.findAll(req.user?.id, q as string);
     res.json(exercises);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -20,7 +20,7 @@ export const getExercise = async (req: Request, res: Response, next: NextFunctio
       throw new NotFoundError('Exercise not found');
     }
     res.json(ex);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -44,7 +44,7 @@ export const createCustomExercise = async (req: Request, res: Response, next: Ne
       createdBy: { connect: { id: userId } },
     });
     res.status(201).json(ex);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };

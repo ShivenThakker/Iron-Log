@@ -1,5 +1,21 @@
 import axios from 'axios';
 import { redis } from '../lib/redis';
+import { logger } from '../utils/logger';
+
+interface UsdaNutrient {
+  nutrientId: number;
+  value?: number;
+}
+
+interface UsdaFood {
+  fdcId: number | string;
+  description: string;
+  foodNutrients?: UsdaNutrient[];
+}
+
+interface UsdaSearchResponse {
+  foods?: UsdaFood[];
+}
 
 export interface FoodItem {
   id: string;
@@ -62,7 +78,7 @@ export class UsdaService {
 
     if (this.apiKey) {
       try {
-        const response = await axios.get(`${this.baseUrl}/foods/search`, {
+        const response = await axios.get<UsdaSearchResponse>(`${this.baseUrl}/foods/search`, {
           params: {
             api_key: this.apiKey,
             query: normalizedQuery,
@@ -72,9 +88,9 @@ export class UsdaService {
           timeout: 4000,
         });
 
-        const usdaFoods: FoodItem[] = (response.data?.foods || []).map((food: any) => {
+        const usdaFoods: FoodItem[] = (response.data?.foods || []).map((food: UsdaFood) => {
           const getNutrient = (id: number) => {
-            const nutrient = food.foodNutrients?.find((n: any) => n.nutrientId === id);
+            const nutrient = food.foodNutrients?.find((n: UsdaNutrient) => n.nutrientId === id);
             return nutrient ? Number(nutrient.value) || 0 : 0;
           };
 
@@ -82,19 +98,19 @@ export class UsdaService {
             id: `usda_${food.fdcId}`,
             name: food.description,
             serving_size: '100g',
-            calories_kcal: getNutrient(1008), // Energy
-            protein_g: getNutrient(1003),     // Protein
-            carbs_g: getNutrient(1005),       // Carbohydrates
-            fat_g: getNutrient(1004),         // Total lipid
-            fiber_g: getNutrient(1079),       // Fiber
+            calories_kcal: getNutrient(1008),
+            protein_g: getNutrient(1003),
+            carbs_g: getNutrient(1005),
+            fat_g: getNutrient(1004),
+            fiber_g: getNutrient(1079),
           };
         });
 
         const combined = [...localMatches, ...usdaFoods].slice(0, 15);
         await redis.set(cacheKey, combined, { ex: 3600 * 24 });
         return combined;
-      } catch (err: any) {
-        console.warn('USDA API error, falling back to local food database:', err?.message || err);
+      } catch (err) {
+        logger.warn({ err }, 'USDA API error, falling back to local food database');
       }
     }
 

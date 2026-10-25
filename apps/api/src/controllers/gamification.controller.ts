@@ -40,8 +40,9 @@ export const getGamificationProfile = async (req: Request, res: Response) => {
         total: trophyCase.totalCount,
       },
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
   }
 };
 

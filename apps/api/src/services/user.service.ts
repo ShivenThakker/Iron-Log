@@ -1,5 +1,12 @@
+import { Prisma } from '@prisma/client';
 import { userRepository } from '../repositories/user.repository';
 import { nutritionRepository } from '../repositories/nutrition.repository';
+
+export interface UpdateProfileInput extends Prisma.UserUpdateInput {
+  target_weight_kg?: number;
+  daily_calorie_target?: number;
+  track_nutrition?: boolean;
+}
 
 export class UserService {
   async getProfile(userId: string) {
@@ -22,7 +29,7 @@ export class UserService {
     };
   }
 
-  async updateProfile(userId: string, profileData: any) {
+  async updateProfile(userId: string, profileData: UpdateProfileInput) {
     const { target_weight_kg, daily_calorie_target, track_nutrition, ...userData } = profileData;
     
     if (target_weight_kg !== undefined) {

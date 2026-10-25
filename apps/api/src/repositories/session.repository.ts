@@ -21,8 +21,32 @@ export function getEffectiveStreak(
   return 0; // Streak broken due to inactivity
 }
 
+export interface CreateSessionInput {
+  started_at?: string | Date;
+  session_date?: string | Date;
+  workout_day_id?: string;
+  notes?: string;
+}
+
+export interface AddSetInput {
+  exercise_id: string;
+  set_number: number;
+  set_type?: string;
+  reps?: number;
+  weight_kg?: number;
+  duration_seconds?: number;
+  rpe?: number;
+}
+
+export interface FinishSessionInput {
+  notes?: string;
+  fatigue_level?: number;
+  duration_sec?: number;
+  total_volume_kg?: number;
+}
+
 export class SessionRepository {
-  async createSession(userId: string, data: any = {}) {
+  async createSession(userId: string, data: CreateSessionInput = {}) {
     return prisma.workoutSession.create({
       data: {
         user: { connect: { id: userId } },
@@ -54,7 +78,7 @@ export class SessionRepository {
     });
   }
 
-  async addSet(sessionId: string, userId: string, data: any) {
+  async addSet(sessionId: string, userId: string, data: AddSetInput) {
     const session = await prisma.workoutSession.findFirst({
       where: { id: sessionId, user_id: userId },
     });
@@ -80,7 +104,7 @@ export class SessionRepository {
     });
   }
 
-  async finishSession(id: string, userId: string, finishData: any = {}) {
+  async finishSession(id: string, userId: string, finishData: FinishSessionInput = {}) {
     const existing = await prisma.workoutSession.findFirst({
       where: { id, user_id: userId },
       include: { exerciseSets: true, personalRecords: true },
@@ -114,7 +138,6 @@ export class SessionRepository {
       ? finishData.duration_sec
       : Math.max(0, Math.round((finishedAt.getTime() - new Date(existing.started_at).getTime()) / 1000));
 
-    // Calculate total volume
     const calculatedVolume = existing.exerciseSets.reduce((sum, s) => {
       if (s.set_type !== 'warmup' && s.weight_kg && s.reps) {
         return sum + s.weight_kg * s.reps;
@@ -141,13 +164,8 @@ export class SessionRepository {
       },
     });
 
-    // Award 50 XP for completing workout
     await gamificationRepository.awardXp(userId, 50, 'Completed Workout Session');
-
-    // Update streak for today
     await this.updateUserStreak(userId);
-
-    // Check and unlock trophies for milestones (streaks, workouts, PRs)
     const newlyUnlockedTrophies = await gamificationRepository.checkAndUnlockTrophies(userId);
 
     return {

@@ -8,7 +8,7 @@ export const startSession = async (req: Request, res: Response, next: NextFuncti
   try {
     const session = await sessionRepository.createSession(req.user!.id, req.body);
     res.status(201).json(session);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -21,7 +21,7 @@ export const getSession = async (req: Request, res: Response, next: NextFunction
       throw new NotFoundError('Workout session not found');
     }
     res.json(s);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -29,7 +29,7 @@ export const getSession = async (req: Request, res: Response, next: NextFunction
 export const getSessions = async (req: Request, res: Response, next: NextFunction) => {
   try {
     res.json(await sessionRepository.getSessions(req.user!.id));
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -56,7 +56,7 @@ export const addSet = async (req: Request, res: Response, next: NextFunction) =>
       reps: req.body.reps,
       isNewPR: prResult.isNewPR,
     });
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -74,7 +74,7 @@ export const finishSession = async (req: Request, res: Response, next: NextFunct
       totalVolumeKg: result.summary.total_volume_kg,
       totalSets: result.summary.total_sets,
     });
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };

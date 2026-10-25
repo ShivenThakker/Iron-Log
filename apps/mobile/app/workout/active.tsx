@@ -135,7 +135,11 @@ export default function ActiveWorkoutScreen() {
           setSessionId(sessionRes.data.id);
         }
         if (Array.isArray(exRes.data) && exRes.data.length > 0) {
-          const dbExercises = exRes.data.map((item: any) => ({ id: item.id, name: item.name }));
+          interface DbExerciseItem {
+            id: string;
+            name: string;
+          }
+          const dbExercises = (exRes.data as DbExerciseItem[]).map((item) => ({ id: item.id, name: item.name }));
 
           // Map default exercises to real database IDs so foreign key inserts succeed (F9)
           setExercises((prev) =>
@@ -166,7 +170,7 @@ export default function ActiveWorkoutScreen() {
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const updateCurrentSet = (field: 'weight' | 'reps' | 'setType', value: any) => {
+  const updateCurrentSet = <K extends 'weight' | 'reps' | 'setType'>(field: K, value: ActiveSet[K]) => {
     setExercises((prev) => {
       const copy = [...prev];
       const ex = { ...copy[currentExerciseIndex] };

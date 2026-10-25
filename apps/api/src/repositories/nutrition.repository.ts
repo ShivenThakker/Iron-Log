@@ -1,6 +1,28 @@
 import { prisma } from '../lib/prisma';
 import { gamificationRepository } from './gamification.repository';
 
+export interface LogFoodInput {
+  food_name: string;
+  meal_slot?: string;
+  calories_kcal?: number;
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fats_g?: number;
+  fat_g?: number;
+  quantity_g?: number;
+  serving_amount?: number;
+  logged_date?: string | Date;
+}
+
+export interface SetNutritionGoalInput {
+  daily_calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fats_g?: number;
+  water_ml?: number;
+}
+
 export class NutritionRepository {
   async getDailyLog(userId: string, dateStr: string) {
     const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
@@ -67,7 +89,7 @@ export class NutritionRepository {
     };
   }
 
-  async logFood(userId: string, data: any) {
+  async logFood(userId: string, data: LogFoodInput) {
     let logDate: Date;
     if (typeof data.logged_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.logged_date)) {
       logDate = new Date(`${data.logged_date}T12:00:00.000Z`);
@@ -92,13 +114,12 @@ export class NutritionRepository {
       },
     });
 
-    // Award 5 XP for logging nutrition via gamification repository
     await gamificationRepository.awardXp(userId, 5, 'Logged Nutrition');
 
     return log;
   }
 
-  async setNutritionGoal(userId: string, goalData: any) {
+  async setNutritionGoal(userId: string, goalData: SetNutritionGoalInput) {
     return prisma.nutritionGoal.upsert({
       where: { user_id: userId },
       update: {

@@ -96,13 +96,13 @@ export class GeminiService {
         },
       });
       return result.text || '';
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.warn({ err: error, model: this.modelName }, 'Gemini coach chat failed');
       throw new AiResponseError();
     }
   }
 
-  async analyzeRoutine(userId: string, currentRoutine: any): Promise<string> {
+  async analyzeRoutine(userId: string, currentRoutine: unknown): Promise<string> {
     const systemPrompt =
       'You are a professional strength and conditioning coach. Analyze the workout routine and provide exactly 3 actionable bullet points on how to improve progressive overload, muscle balance, and recovery.';
     const client = this.getClient();
@@ -121,13 +121,13 @@ export class GeminiService {
         },
       });
       return result.text || '';
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error({ err: error }, 'Routine analysis failed');
       return getFallbackResponse('routineAnalysisError');
     }
   }
 
-  async generatePlan(profile: any, preferences: any): Promise<string> {
+  async generatePlan(profile: Record<string, unknown>, preferences: Record<string, unknown>): Promise<string> {
     const systemPrompt = `You are an elite fitness program designer. Generate a personalized training split in valid JSON format.
 Include:
 - program_name
@@ -195,7 +195,8 @@ If days are not explicitly named, label them Day 1, Day 2, etc.`;
 
     let rawText: string;
     try {
-      const parts: any[] = [];
+      type ContentPart = { text: string } | { inlineData: { data: string; mimeType: string } };
+      const parts: ContentPart[] = [];
       const userPrompt = input.text
         ? `<plan_text>\n${input.text}\n</plan_text>`
         : 'Please parse the workout schedule in the attached image/screenshot into the structured program JSON.';

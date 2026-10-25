@@ -1,24 +1,23 @@
-# IronLog System Architecture & Technical Specification
+# IronLog system architecture and technical specification
 
-> **Status**: Verified & Production-Aligned  
+> **Status**: Verified and production-aligned  
 > **Repository**: [Iron-Log](https://github.com/ShivenThakker/Iron-Log)  
-> **Last Updated**: Current Active Milestone  
 > **Monorepo Structure**: npm workspaces (`apps/mobile`, `apps/api`, `packages/shared`)
 
 ---
 
-## 1. Executive Summary & Product Scope
+## 1. Executive summary and product scope
 
-IronLog is a high-performance, dark-mode fitness tracking ecosystem combining structured strength progression, flexible workout customization, multimodal AI coaching (Google Gemini 2.5 Flash), macro nutrition tracking, and motivating RPG-style gamification.
+IronLog is an offline-first fitness tracking application providing strength progression, workout customization, AI coaching with Google Gemini, macro nutrition tracking, and gamification.
 
-The platform is designed around three pillars:
-1. **Frictionless Logging & Planning**: Athletes can either build custom single-day routines that repeat weekly, plan entire 7-day splits at once, or feed raw workout sheets, Google Docs, Apple Notes, or whiteboard photos/screenshots directly to Gemini 2.5 Flash for automatic parsing.
-2. **Real-Time Guidance & Progressive Overload**: Live rest timers, superset tracking, 1RM estimations via Epley/Brzycki formulas, and automated PR detection with instant visual rewards.
-3. **Intelligent Motivation & Analytics**: Volume heatmaps across muscle groups, radar balance charts, XP-based rank progression (Rookie to Mythic), and conversational AI coaching.
+The platform is designed around three areas:
+1. **Logging and planning**: Athletes can build custom single-day routines that repeat weekly, plan 7-day splits, or parse raw workout notes or whiteboard photos using the Google Gemini API.
+2. **Guidance and progression**: Rest timers, 1RM estimations via Epley and Brzycki formulas, and automated PR detection with instant visual feedback.
+3. **Analytics and gamification**: Volume heatmaps across muscle groups, radar balance charts, XP rank progression (Rookie to Mythic), and conversational AI coaching.
 
 ---
 
-## 2. Monorepo Topology
+## 2. Monorepo topology
 
 ```
 Iron-Log/
@@ -63,7 +62,7 @@ Iron-Log/
 
 ---
 
-## 3. Technology Stack & Runtime Specifications
+## 3. Technology stack and runtime specifications
 
 | Layer | Technology | Version / Configuration | Purpose |
 |---|---|---|---|
@@ -83,50 +82,50 @@ Iron-Log/
 
 ---
 
-## 4. Database Schema & Data Models (Prisma Reference)
+## 4. Database schema and data models
 
 The schema defines **24 core models** covering user profiles, training programs, exercise tracking, nutrition, gamification, and AI interactions:
 
-### 4.1 Identity & User Profiles
+### 4.1 Identity and user profiles
 - **`User`**: Core account entity. Stores authentication credentials (`password_hash`), biometric profile (`height_cm`, `date_of_birth`, `gender`, `unit_system`), and fitness settings (`fitness_goal`, `activity_level`, `experience_level`, `schedule_days_per_week`, `session_duration_min`).
 - **`EquipmentProfile`**: Captures user equipment access (e.g. Full Commercial Gym, Dumbbells Only, Home Barbell).
 
-### 4.2 Body Tracking & Measurements
+### 4.2 Body tracking and measurements
 - **`BodyWeightLog`**: User weight check-ins with timestamps and notes.
 - **`WeightGoal`**: Target weight setpoint.
 - **`BodyMeasurement`**: Circumference measurements (chest, waist, arms, thighs, neck, body fat percentage).
 
-### 4.3 Training Programs & Split Structure
+### 4.3 Training programs and split structure
 - **`WorkoutProgram`**: Top-level routine split (`user_id`, `name`, `difficulty`, `goal`, `schedule_days_per_week`, `is_active`, `is_ai_generated`).
 - **`WorkoutDay`**: Individual training day in a program (e.g. "Monday - Chest & Triceps", `sort_order`).
 - **`WorkoutDayExercise`**: Exercise scheduled in a day with prescriptions: `target_sets`, `target_reps` (e.g. "8-12"), `target_weight_kg`, `rest_seconds`, `superset_group_id`, `sort_order`.
 - **`Exercise`**: Comprehensive exercise library (muscle groups, equipment, instructions, thumbnail URLs) supporting custom user-created exercises (`is_custom`, `created_by_user_id`).
 
-### 4.4 Live Workout Execution & Records
+### 4.4 Workout execution and records
 - **`WorkoutSession`**: Logged workout event (`started_at`, `finished_at`, `duration_seconds`, `calories_burned`, `rating`, `notes`).
 - **`ExerciseSet`**: Individual set performed (`set_number`, `set_type` ['normal', 'warmup', 'dropset', 'failure', 'amrap'], `reps`, `weight_kg`, `rpe`).
 - **`PersonalRecord`**: Milestone PRs per exercise with required `weight_kg` and `reps`, composite unique rule `@@unique([user_id, exercise_id, weight_kg, reps])` to guarantee idempotency and eliminate race-condition duplicates, and computed `estimated_1rm_kg` using Brzycki / Epley formulas.
 
-### 4.5 Nutrition Tracking
+### 4.5 Nutrition tracking
 - **`NutritionGoal`**: Daily targets for calories, protein, carbs, fats, and water intake.
 - **`FoodLogEntry`**: Meal logs tagged by `meal_slot` (breakfast, lunch, dinner, snack) with USDA FDC IDs, macro breakdown, and weight in grams.
 
-### 4.6 Gamification Engine
+### 4.6 Gamification engine
 - **`UserXp`**: Total XP and current level.
 - **`XpTransaction`**: Audit log of XP awards (completed workouts, logging streaks, PR achievements).
 - **`UserTrophy`**: Unlocked achievements.
 - **`Streak`**: Consecutive active workout streak days.
 
-### 4.7 AI Integration Records
+### 4.7 AI integration records
 - **`AiPlanGeneration`**: Raw prompt snapshot and model response history.
 - **`AiPeriodizationSuggestion`**: Weight and rep progression recommendations generated by Gemini.
 - **`ChatbotConversation`**: Multi-turn dialogue history with IronLog AI.
 
 ---
 
-## 5. End-to-End Data Flow & Network Pipeline
+## 5. End-to-end data flow and network pipeline
 
-### 5.1 Backend Pipeline (`apps/api/src/index.ts`)
+### 5.1 Backend pipeline (`apps/api/src/index.ts`)
 
 Every HTTP request traverses an ordered middleware sequence:
 ```
@@ -156,7 +155,7 @@ Request
   └── 8. errorHandler                           (Central AppError translation & 500 safety)
 ```
 
-### 5.2 Dynamic Mobile-to-Backend Resolution (`apps/mobile/services/api.ts`)
+### 5.2 Dynamic mobile-to-backend resolution (`apps/mobile/services/api.ts`)
 
 On physical mobile devices running Expo Go, `localhost` resolves to the phone's loopback interface, causing network timeouts. The API client uses dynamic host resolution:
 ```typescript
@@ -171,7 +170,7 @@ const resolveBaseUrl = () => {
 ```
 The Express server explicitly binds to `0.0.0.0` to accept connections across all LAN interfaces.
 
-### 5.3 Mobile Token Lifecycle & Resilient Session Sync (`apps/mobile/services/api.ts`)
+### 5.3 Mobile token lifecycle and resilient session sync (`apps/mobile/services/api.ts`)
 
 - **15-Minute Access Token Expiration**: To maintain short-lived access credentials without disrupting 45–90 minute workout sessions, Axios attaches an asynchronous response interceptor on HTTP 401 errors.
 - **Automatic Token Refresh**: The client retrieves `refreshToken` from the hydrated Zustand `useAuthStore` (persisted via `expo-secure-store`), calls `POST /auth/refresh`, updates the auth store, and re-executes the original failed request seamlessly.
@@ -180,7 +179,7 @@ The Express server explicitly binds to `0.0.0.0` to accept connections across al
 
 ---
 
-## 6. Workout Program Builder Architecture
+## 6. Workout program builder architecture
 
 The app provides three distinct pathways for workout plan generation and management via `apps/mobile/app/program/builder.tsx`:
 
@@ -201,7 +200,7 @@ Toggle "Repeat Weekly"            Prescribe Volume & Targets       (expo-image-p
          │                                 │                                 │
          ▼                                 ▼                                 ▼
 POST /programs/day                POST /programs/full               POST /ai/parse-plan
-Updates specific day in           Atomically creates complete       Gemini 2.5 Flash extracts
+Updates specific day in           Atomically creates complete       Gemini extracts
 active routine or creates split   program with days & exercises     structured JSON schema
          │                                 │                                 │
          └─────────────────────────────────┼─────────────────────────────────┘
@@ -213,7 +212,7 @@ active routine or creates split   program with days & exercises     structured J
                                 Home Dashboard & Active Workout
 ```
 
-### 6.1 Gemini 2.5 Flash Multimodal Parser
+### 6.1 Gemini multimodal parser
 - **Endpoint**: `POST /ai/parse-plan`
 - **Input**: `{ text?: string, imageBase64?: string, mimeType?: string }`
 - **Model**: `gemini-2.5-flash` with 1M context window and multimodal vision.
@@ -221,7 +220,7 @@ active routine or creates split   program with days & exercises     structured J
 
 ---
 
-## 7. Status of Graphify Architectural Audit & Deviations
+## 7. Status of architectural audit and deviations
 
 | # | Graphify Finding | System Reality & Architectural Resolution | Status |
 |---|---|---|---|
@@ -240,7 +239,7 @@ active routine or creates split   program with days & exercises     structured J
 | **13** | Orphaned template files | Leftover template files cleaned up during Phase 0 scaffolding. | **RESOLVED** |
 | **14** | Fixtures embedded in screens | Fallback mock data in screens serves as graceful degradation when the backend is offline or unseeded. | By Design |
 
-### 7.1 Security & Resilience Audit Resolutions (Oct 2026)
+### 7.1 Security and resilience audit resolutions
 
 | # | Finding & Subsystem | Architectural Fix & Verification | Status |
 |---|---|---|---|
@@ -262,7 +261,7 @@ active routine or creates split   program with days & exercises     structured J
 | **F16** | Concurrency Race in Initial XP Awards (`gamification.repository.ts`) | Replaced check-then-write pattern in `getOrCreateUserXp` and `awardXp` with atomic `prisma.userXp.upsert`, eliminating `P2002` duplicate key errors. | **RESOLVED** (Oct 2026) |
 | **F17** | False Positive Substring Checks on Secret Validation (`env.ts`) | Separated placeholder phrases from exact match keywords in `env.ts` so high-entropy secrets containing English substrings like `secret` are not rejected at startup. | **RESOLVED** (Oct 2026) |
 
-### 7.2 Intentionally Unused (Planned) Endpoints
+### 7.2 Intentionally unused (planned) endpoints
 
 These endpoints are intentionally retained in the codebase for future roadmap milestones. **Future audits must NOT flag them as dead code.** They are preserved with their validators, error handling, and fail-closed checks, but are unwired from the current mobile client:
 
@@ -271,7 +270,7 @@ These endpoints are intentionally retained in the codebase for future roadmap mi
 | `POST /ai/analyze` | Planned for future automated workout routine and periodization analysis in Insights/Coach. | `apps/api/src/routes/ai.routes.ts`<br>`apps/api/src/controllers/ai.controller.ts`<br>`apps/api/src/services/gemini.service.ts` (`analyzeRoutine`)<br>`apps/api/src/services/gemini.fallbacks.ts` (`routineAnalysis`, `routineAnalysisError`) | `AiPeriodizationSuggestion` (unwritten) | Safe demo fallback responses when Gemini is offline or unconfigured. | **KEEP (Planned)** |
 | `POST /auth/google` | Planned for future Google Sign-In on mobile platforms; hardened in fix F10. | `apps/api/src/routes/auth.routes.ts`<br>`apps/api/src/controllers/auth.controller.ts`<br>`apps/api/src/validators/auth.validator.ts` (`googleAuthSchema`)<br>`apps/api/src/services/auth.service.ts` (`googleAuth`)<br>`apps/api/src/lib/env.ts` (`GOOGLE_CLIENT_ID`) | `User` (`email`, `name`, `password_hash: null`) | Verified: throws clean error (`Google sign-in is not configured on this server`) and returns HTTP 401/503 without crashing when `GOOGLE_CLIENT_ID` is unset. | **KEEP (Planned)** |
 
-### 7.3 Features & Endpoints Pruned During UI Redesign (Phase 5)
+### 7.3 Features and endpoints pruned during UI redesign
 
 During the UI redesign to the Obsidian Kinetic design system, 6 candidate items (7 dead Express routes) with 0 callers in the completed mobile application were formally approved and pruned:
 
@@ -284,7 +283,7 @@ During the UI redesign to the Obsidian Kinetic design system, 6 candidate items 
 | **5** | `POST /gamification/check-trophies` | Standalone manual trophy trigger | Removed standalone manual trigger route and handler. The automated trophy unlocking evaluation logic in `gamification.repository.ts` (`checkAndUnlockTrophies`) is strictly preserved and triggered automatically when finalizing sessions via `PUT /sessions/:id/finish`. | `fa4b9cd` |
 | **6** | `GET /prs`<br>`GET /prs/recent` | Standalone personal record read routes | Removed read routes, `pr.controller.ts`, and unmounted `/prs` in `index.ts`. All PR detection algorithms (`prDetection.ts`) and idempotent concurrency handling (`recordPersonalRecordOnce` with SQLite/Postgres `P2002` handling in `pr.repository.ts`, audit fix F4) are strictly preserved and executed when adding sets in `apps/mobile/app/workout/active.tsx`. | `ed37656` |
 
-### 7.4 Post-Redesign API Endpoint Map (44 Endpoints)
+### 7.4 API endpoint map (44 endpoints)
 
 Total Express endpoints: **44** (43 router endpoints + 1 root health endpoint).
 
@@ -304,9 +303,9 @@ Total Express endpoints: **44** (43 router endpoints + 1 root health endpoint).
 
 ---
 
-## 8. Deployment & Environment Strategy
+## 8. Deployment and environment strategy
 
-### 8.1 API Deployment (Render)
+### 8.1 API deployment (Render)
 - Configured in `render.yaml` as web service `ironlog-api`.
 - Build command: `npm install && npm run build --workspace=api`
 - Start command: `npm run start --workspace=api`
@@ -320,6 +319,6 @@ Total Express endpoints: **44** (43 router endpoints + 1 root health endpoint).
   - `PORT`: Server listen port (default 3000).
   - `NODE_ENV`: Runtime mode (`development` or `production`).
 
-### 8.2 Mobile Deployment (Expo EAS)
+### 8.2 Mobile deployment (Expo EAS)
 - Configured via `app.json` for iOS and Android builds.
 - Dynamic environment variable: `EXPO_PUBLIC_API_URL` targeting deployed Render URL in production, or auto-detecting LAN IP in development.

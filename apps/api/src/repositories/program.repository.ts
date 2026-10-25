@@ -364,7 +364,7 @@ export class ProgramRepository {
     });
   }
 
-  async update(id: string, userId: string, data: any) {
+  async update(id: string, userId: string, data: Prisma.WorkoutProgramUpdateInput) {
     const existing = await prisma.workoutProgram.findFirst({
       where: { id, user_id: userId },
     });

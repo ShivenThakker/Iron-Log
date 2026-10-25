@@ -32,8 +32,9 @@ export const getProfile = async (req: Request, res: Response) => {
       return;
     }
     res.status(200).json(profile);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch profile' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch profile';
+    res.status(500).json({ error: message });
   }
 };
 
@@ -42,7 +43,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     const userId = req.user!.id; 
     const validated = updateProfileSchema.parse(req.body);
     
-    let updateData: any = { ...validated };
+    const updateData: Record<string, unknown> = { ...validated };
     if (validated.training_split_preference && !updateData.training_style) {
       updateData.training_style = validated.training_split_preference;
     }
@@ -67,7 +68,8 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     const updatedUser = await userService.updateProfile(userId, updateData);
     res.status(200).json(updatedUser);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message || 'Failed to update profile' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to update profile';
+    res.status(400).json({ error: message });
   }
 };

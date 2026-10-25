@@ -79,12 +79,26 @@ export default function AchievementsTab() {
   const progressRatio = Math.min(xpInRank / span, 1);
   const remainingXp = Math.max(nextRankMinXp - totalXp, 0);
 
-  // Reconcile API trophies with our defined icons
+  interface ApiTrophy {
+    id?: string;
+    name?: string;
+    unlocked?: boolean;
+    unlockedAt?: string | Date;
+  }
+
   const trophies: TrophyItem[] = React.useMemo(() => {
     if (!gamificationData?.trophies?.length) return DEFAULT_TROPHIES;
     return DEFAULT_TROPHIES.map((def) => {
-      const found = gamificationData.trophies.find((t: any) => t.id === def.id || t.name === def.name);
-      return found ? { ...def, unlocked: !!found.unlocked, unlockedAt: found.unlockedAt } : def;
+      const found = (gamificationData.trophies as ApiTrophy[]).find(
+        (t) => t.id === def.id || t.name === def.name
+      );
+      return found
+        ? {
+            ...def,
+            unlocked: !!found.unlocked,
+            unlockedAt: found.unlockedAt ? String(found.unlockedAt) : undefined,
+          }
+        : def;
     });
   }, [gamificationData]);
 

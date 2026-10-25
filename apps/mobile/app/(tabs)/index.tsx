@@ -25,6 +25,31 @@ import { api } from '@/services/api';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = SCREEN_WIDTH - OBSIDIAN_SPACING.md * 2;
 
+interface ProgramExerciseItem {
+  exercise?: { name?: string };
+  exercise_name?: string;
+}
+
+interface WorkoutDayItem {
+  id?: string;
+  day_name?: string;
+  exercises?: ProgramExerciseItem[];
+}
+
+interface SessionExerciseSet {
+  weight_kg?: number;
+  reps?: number;
+  exercise?: { name?: string };
+}
+
+interface WorkoutSessionItem {
+  id?: string;
+  notes?: string;
+  started_at?: string;
+  duration_seconds?: number;
+  exerciseSets?: SessionExerciseSet[];
+}
+
 export default function HomeDashboard() {
   const router = useRouter();
   const [activeCardIndex, setActiveCardIndex] = useState(0);
@@ -99,8 +124,8 @@ export default function HomeDashboard() {
   // Today's dynamic workout computation
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayDayName = daysOfWeek[new Date().getDay()];
-  const activeDays = activeProgramData?.workoutDays || [];
-  const todayWorkoutDay = activeDays.find((d: any) =>
+  const activeDays: WorkoutDayItem[] = activeProgramData?.workoutDays || [];
+  const todayWorkoutDay = activeDays.find((d) =>
     d.day_name?.toLowerCase().includes(todayDayName.toLowerCase())
   ) || activeDays[0];
 
@@ -185,7 +210,7 @@ export default function HomeDashboard() {
               {/* Category Chips & Duration */}
               <View style={styles.pillsRow}>
                 {todayExercises.length > 0 ? (
-                  todayExercises.slice(0, 3).map((ex: any, i: number) => (
+                  todayExercises.slice(0, 3).map((ex: ProgramExerciseItem, i: number) => (
                     <View key={i} style={styles.categoryChip}>
                       <Text style={styles.categoryChipText}>
                         {ex.exercise?.name || ex.exercise_name || `Ex ${i + 1}`}
@@ -376,9 +401,9 @@ export default function HomeDashboard() {
             </View>
 
             {recentSessions && recentSessions.length > 0 ? (
-              recentSessions.map((session: any, index: number) => {
+              (recentSessions as WorkoutSessionItem[]).map((session, index: number) => {
                 const volume = session.exerciseSets?.reduce(
-                  (acc: number, s: any) => acc + ((s.weight_kg || 0) * (s.reps || 0)),
+                  (acc: number, s: SessionExerciseSet) => acc + ((s.weight_kg || 0) * (s.reps || 0)),
                   0
                 ) || 0;
                 const formattedDate = new Date(session.started_at || Date.now()).toLocaleDateString(

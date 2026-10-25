@@ -197,11 +197,31 @@ export default function WorkoutPlanBuilderScreen() {
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+interface ParsedPlanExercise {
+  name: string;
+  target_sets?: number;
+  target_reps?: string;
+  rest_seconds?: number;
+}
+
+interface ParsedPlanDay {
+  day_name: string;
+  exercises: ParsedPlanExercise[];
+}
+
+interface ParsedPlanResult {
+  program_name?: string;
+  difficulty?: string;
+  schedule_days_per_week?: number;
+  description?: string;
+  days: ParsedPlanDay[];
+}
+
   // AI Parser State (Gemini 2.5 Flash)
   const [aiInputType, setAiInputType] = useState<'text' | 'image'>('text');
   const [aiRoutineText, setAiRoutineText] = useState('');
   const [aiSelectedImage, setAiSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [aiParsedResult, setAiParsedResult] = useState<any>(null);
+  const [aiParsedResult, setAiParsedResult] = useState<ParsedPlanResult | null>(null);
   const [aiParsing, setAiParsing] = useState(false);
 
   // Fetch backend exercise library
@@ -240,8 +260,9 @@ export default function WorkoutPlanBuilderScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         }
       }
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not select image');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not select image';
+      Alert.alert('Error', message);
     }
   };
 
@@ -261,11 +282,11 @@ export default function WorkoutPlanBuilderScreen() {
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
-      const payload: any = {};
+      const payload: { text?: string; imageBase64?: string; mimeType?: string } = {};
       if (aiInputType === 'text') {
         payload.text = aiRoutineText.slice(0, 20000); // Strict F5 character safety
       } else {
-        payload.imageBase64 = aiSelectedImage?.base64;
+        payload.imageBase64 = aiSelectedImage?.base64 || undefined;
         payload.mimeType = aiSelectedImage?.mimeType || 'image/jpeg';
       }
 
@@ -278,8 +299,9 @@ export default function WorkoutPlanBuilderScreen() {
       } else {
         throw new Error('AI could not extract routine');
       }
-    } catch (err: any) {
-      Alert.alert('AI Parsing Failed', err?.response?.data?.error || err.message || 'Error parsing workout');
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      Alert.alert('AI Parsing Failed', axiosErr?.response?.data?.error || axiosErr?.message || 'Error parsing workout');
     } finally {
       setAiParsing(false);
     }
@@ -296,10 +318,10 @@ export default function WorkoutPlanBuilderScreen() {
         schedule_days_per_week: aiParsedResult.schedule_days_per_week || aiParsedResult.days?.length || 4,
         is_active: true,
         is_ai_generated: true,
-        days: aiParsedResult.days.map((d: any, idx: number) => ({
+        days: aiParsedResult.days.map((d: ParsedPlanDay, idx: number) => ({
           day_name: d.day_name,
           sort_order: idx,
-          exercises: d.exercises.map((ex: any, eIdx: number) => ({
+          exercises: d.exercises.map((ex: ParsedPlanExercise, eIdx: number) => ({
             exercise_name: ex.name,
             target_sets: ex.target_sets || 3,
             target_reps: String(ex.target_reps || '8-12'),
@@ -315,8 +337,9 @@ export default function WorkoutPlanBuilderScreen() {
       Alert.alert('Plan Applied!', 'Your AI-parsed workout plan is now active.', [
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)') },
       ]);
-    } catch (err: any) {
-      Alert.alert('Save Failed', err?.response?.data?.error || err.message);
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      Alert.alert('Save Failed', axiosErr?.response?.data?.error || axiosErr?.message || 'Failed to save plan');
     } finally {
       setLoading(false);
     }
@@ -360,8 +383,9 @@ export default function WorkoutPlanBuilderScreen() {
       Alert.alert('Plan Saved!', 'Your weekly workout split has been saved and activated.', [
         { text: 'Go to Dashboard', onPress: () => router.replace('/(tabs)') },
       ]);
-    } catch (err: any) {
-      Alert.alert('Save Failed', err?.response?.data?.error || err.message);
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } }; message?: string };
+      Alert.alert('Save Failed', axiosErr?.response?.data?.error || axiosErr?.message || 'Failed to save plan');
     } finally {
       setLoading(false);
     }
@@ -411,7 +435,7 @@ export default function WorkoutPlanBuilderScreen() {
   const handleUpdateExerciseParam = (
     exIdx: number,
     field: 'target_sets' | 'target_reps' | 'rest_seconds',
-    value: any
+    value: number | string
   ) => {
     setSplitDays((prev) => {
       const copy = [...prev];
@@ -845,10 +869,10 @@ export default function WorkoutPlanBuilderScreen() {
                   </Text>
 
                   <View style={{ marginTop: 12, gap: 10 }}>
-                    {aiParsedResult.days?.map((day: any, dIdx: number) => (
+                    {aiParsedResult.days?.map((day: ParsedPlanDay, dIdx: number) => (
                       <View key={dIdx} style={styles.parsedDayCard}>
                         <Text style={styles.parsedDayName}>{day.day_name}</Text>
-                        {day.exercises?.map((ex: any, eIdx: number) => (
+                        {day.exercises?.map((ex: ParsedPlanExercise, eIdx: number) => (
                           <View key={eIdx} style={styles.parsedExRow}>
                             <Text style={styles.parsedExName}>• {ex.name}</Text>
                             <Text style={styles.parsedExMeta}>

@@ -9,8 +9,7 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   });
 }
 
-// In-memory fallback map for development/offline
-const memoryStore = new Map<string, { value: any; expiresAt: number }>();
+const memoryStore = new Map<string, { value: unknown; expiresAt: number }>();
 
 function pruneExpiredKeys() {
   const now = Date.now();
@@ -35,12 +34,14 @@ export const redis = {
     }
     return item.value as T;
   },
-  async set(key: string, value: any, options?: { ex?: number }): Promise<'OK'> {
+  async set(key: string, value: unknown, options?: { ex?: number }): Promise<'OK'> {
     if (redisInstance) {
       if (options?.ex) {
-        return redisInstance.set(key, value, { ex: options.ex });
+        await redisInstance.set(key, value, { ex: options.ex });
+        return 'OK';
       }
-      return redisInstance.set(key, value);
+      await redisInstance.set(key, value);
+      return 'OK';
     }
     if (memoryStore.size > 100) {
       pruneExpiredKeys();

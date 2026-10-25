@@ -56,7 +56,8 @@ export const Icon: React.FC<IconProps> = ({
   color = COLORS.dark.textPrimary,
   weight = 'regular',
 }) => {
-  const IconComponent = (Phosphor as any)[name];
+  const iconMap = Phosphor as unknown as Record<IconName, React.ComponentType<Phosphor.IconProps> | undefined>;
+  const IconComponent = iconMap[name];
 
   if (!IconComponent) {
     return null;

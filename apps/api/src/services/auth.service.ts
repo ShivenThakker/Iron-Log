@@ -107,8 +107,9 @@ export class AuthService {
       }
 
       return this.generateTokens(user.id);
-    } catch (err: any) {
-      throw new UnauthorizedError(`Google authentication failed: ${err.message || 'Invalid token'}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid token';
+      throw new UnauthorizedError(`Google authentication failed: ${message}`);
     }
   }
 

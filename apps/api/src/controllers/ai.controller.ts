@@ -29,13 +29,13 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
 
       if (user) {
         const activeStreak = getEffectiveStreak(streak);
-        userContext = `\n[User Context: Name: ${user.name || 'Athlete'}, Goal: ${user.fitness_goal || 'Build Muscle'}, Experience: ${user.experience_level || 'Intermediate'}, Active Streak: ${activeStreak} days, Recent PRs: ${recentPrs.map((p: any) => `${p.exercise?.name || 'Lift'}: ${p.weight_kg}kg`).join(', ') || 'None yet'}]`;
+        userContext = `\n[User Context: Name: ${user.name || 'Athlete'}, Goal: ${user.fitness_goal || 'Build Muscle'}, Experience: ${user.experience_level || 'Intermediate'}, Active Streak: ${activeStreak} days, Recent PRs: ${recentPrs.map((p) => `${p.exercise?.name || 'Lift'}: ${p.weight_kg}kg`).join(', ') || 'None yet'}]`;
       }
     }
 
     const reply = await geminiService.getCoachResponse(message + userContext, history || []);
     res.json({ reply });
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -46,7 +46,7 @@ export const analyzeWorkout = async (req: Request, res: Response, next: NextFunc
     const mockRoutine = req.body?.routine || { previousSession: 'Leg Day', setsComplete: 14, avgRpe: 8 };
     const analysis = await geminiService.analyzeRoutine(userId, mockRoutine);
     res.json({ analysis });
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -56,7 +56,7 @@ export const generatePlan = async (req: Request, res: Response, next: NextFuncti
     const userId = req.user!.id;
     const plan = await geminiService.generatePlan({ userId, ...req.body }, req.body);
     res.json({ plan });
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -71,7 +71,7 @@ export const parsePlan = async (req: Request, res: Response, next: NextFunction)
 
     const program = await geminiService.parseWorkoutPlanFromInput({ text, imageBase64, mimeType });
     res.json({ program });
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };

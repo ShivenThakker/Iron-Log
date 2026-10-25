@@ -95,7 +95,10 @@ export default function InsightsTab() {
     const mapped: MuscleHeatmapData = {};
     for (const [key, val] of Object.entries(heatmapApiData.muscles)) {
       const lower = key.toLowerCase();
-      mapped[lower] = (val as any)?.intensity ?? 0;
+      const intensity = typeof val === 'object' && val !== null && 'intensity' in val
+        ? Number((val as { intensity: unknown }).intensity) || 0
+        : 0;
+      mapped[lower] = intensity;
     }
     return mapped;
   }, [heatmapApiData]);
@@ -113,6 +116,12 @@ export default function InsightsTab() {
     return scores;
   }, [radarApiData]);
 
+  interface EquipmentApiItem {
+    name: string;
+    count?: number;
+    percentage: number;
+  }
+
   // Process Equipment Data: API returns [ { name, count, percentage }, ... ]
   const equipmentData = React.useMemo(() => {
     if (!Array.isArray(equipmentApiData) || equipmentApiData.length === 0) {
@@ -129,7 +138,7 @@ export default function InsightsTab() {
       Machines: OBSIDIAN_COLORS.primaryFixedDim,
       Bodyweight: OBSIDIAN_COLORS.coralAccent,
     };
-    return equipmentApiData.map((item: any) => ({
+    return (equipmentApiData as EquipmentApiItem[]).map((item) => ({
       name: item.name,
       percentage: Math.round(item.percentage),
       color: colorMap[item.name] || OBSIDIAN_COLORS.voltLime,
@@ -168,16 +177,16 @@ export default function InsightsTab() {
 
           {/* Time Period Filter Pills */}
           <View style={styles.filterBar}>
-            {[
+            {([
               { key: '7', label: '7 DAYS' },
               { key: '30', label: '30 DAYS' },
               { key: '90', label: '90 DAYS' },
               { key: 'all', label: 'ALL TIME' },
-            ].map((f) => (
+            ] as const).map((f) => (
               <TouchableOpacity
                 key={f.key}
                 style={[styles.filterBtn, timeRange === f.key && styles.filterBtnActive]}
-                onPress={() => setTimeRange(f.key as any)}
+                onPress={() => setTimeRange(f.key)}
                 activeOpacity={0.8}
               >
                 <Text

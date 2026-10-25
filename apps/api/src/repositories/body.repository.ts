@@ -1,6 +1,19 @@
 import { prisma } from '../lib/prisma';
 import { gamificationRepository } from './gamification.repository';
 
+export interface BodyMeasurementInput {
+  logged_at?: string | Date;
+  chest_cm?: number;
+  waist_cm?: number;
+  hips_cm?: number;
+  left_arm_cm?: number;
+  right_arm_cm?: number;
+  left_thigh_cm?: number;
+  right_thigh_cm?: number;
+  neck_cm?: number;
+  body_fat_pct?: number;
+}
+
 export class BodyRepository {
   async logWeight(userId: string, weightKg: number) {
     const log = await prisma.bodyWeightLog.create({
@@ -11,7 +24,6 @@ export class BodyRepository {
       },
     });
 
-    // Award 5 XP for consistency
     await gamificationRepository.awardXp(userId, 5, 'Logged Bodyweight');
 
     return log;
@@ -63,32 +75,21 @@ export class BodyRepository {
     });
   }
 
-  async logMeasurement(userId: string, data: any) {
-    const payload: Record<string, number | Date | { connect: { id: string } }> = {
-      user: { connect: { id: userId } },
-      logged_at: data.logged_at ? new Date(data.logged_at) : new Date(),
-    };
-
-    const directFields = [
-      'chest_cm',
-      'waist_cm',
-      'hips_cm',
-      'left_arm_cm',
-      'right_arm_cm',
-      'left_thigh_cm',
-      'right_thigh_cm',
-      'neck_cm',
-      'body_fat_pct',
-    ] as const;
-
-    for (const field of directFields) {
-      if (typeof data[field] === 'number') {
-        payload[field] = data[field];
-      }
-    }
-
+  async logMeasurement(userId: string, data: BodyMeasurementInput) {
     const measurement = await prisma.bodyMeasurement.create({
-      data: payload as any,
+      data: {
+        user: { connect: { id: userId } },
+        logged_at: data.logged_at ? new Date(data.logged_at) : new Date(),
+        chest_cm: data.chest_cm,
+        waist_cm: data.waist_cm,
+        hips_cm: data.hips_cm,
+        left_arm_cm: data.left_arm_cm,
+        right_arm_cm: data.right_arm_cm,
+        left_thigh_cm: data.left_thigh_cm,
+        right_thigh_cm: data.right_thigh_cm,
+        neck_cm: data.neck_cm,
+        body_fat_pct: data.body_fat_pct,
+      },
     });
 
     await gamificationRepository.awardXp(userId, 5, 'Logged Measurements');

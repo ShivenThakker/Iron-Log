@@ -48,8 +48,9 @@ export default function LoginScreen() {
       const res = await api.post('/auth/login', { email: email.trim(), password });
       await loginStore(res.data.accessToken, res.data.refreshToken, res.data.userId);
       router.replace('/(tabs)');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid email or password. Please try again.');
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      setError(axiosErr.response?.data?.error || 'Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }

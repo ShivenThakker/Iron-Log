@@ -6,8 +6,9 @@ export const getWorkoutStats = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const stats = await analyticsRepository.getWorkoutStats(userId);
     res.json(stats);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
   }
 };
 
@@ -17,8 +18,9 @@ export const getHeatmap = async (req: Request, res: Response) => {
     const days = req.query.period === 'week' ? 7 : req.query.period === 'all' ? 365 : 30;
     const heatmap = await analyticsRepository.getMuscleHeatmap(userId, days);
     res.json(heatmap);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
   }
 };
 
@@ -27,8 +29,9 @@ export const getRadar = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const radar = await analyticsRepository.getMuscleRadar(userId);
     res.json(radar);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
   }
 };
 
@@ -37,7 +40,8 @@ export const getEquipment = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const equipment = await analyticsRepository.getEquipmentDistribution(userId);
     res.json(equipment);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
   }
 };

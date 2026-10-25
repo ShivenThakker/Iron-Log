@@ -49,12 +49,14 @@ export default function RegisterScreen() {
       const res = await api.post('/auth/register', { email: email.trim(), password, name: name.trim() });
       await loginStore(res.data.accessToken, res.data.refreshToken, res.data.userId);
       router.replace('/onboarding');
-    } catch (err: any) {
-      if (err?.response?.data?.error) {
-        if (Array.isArray(err.response.data.error)) {
-          setError(err.response.data.error.map((e: any) => e.message).join('\n'));
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: unknown } } };
+      const apiError = axiosErr?.response?.data?.error;
+      if (apiError) {
+        if (Array.isArray(apiError)) {
+          setError(apiError.map((e: { message?: string }) => e.message || String(e)).join('\n'));
         } else {
-          setError(err.response.data.error);
+          setError(String(apiError));
         }
       } else {
         setError('Failed to create account. Please try again.');

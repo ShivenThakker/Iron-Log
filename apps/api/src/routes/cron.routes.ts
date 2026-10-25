@@ -72,9 +72,10 @@ router.post('/streaks', async (req: Request, res: Response): Promise<void> => {
       timestamp: new Date(),
       expiredCount: expiredGrace.count + expiredInactive.count,
     });
-  } catch (err: any) {
-    logger.error({ error: err.message }, 'Cron streak execution failed');
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error({ error: message }, 'Cron streak execution failed');
+    res.status(500).json({ error: message });
   }
 });
 

@@ -6,7 +6,7 @@ export const getEquipmentProfiles = async (req: Request, res: Response, next: Ne
     const userId = req.user!.id;
     const profiles = await equipmentRepository.getProfiles(userId);
     res.json(profiles);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -25,7 +25,7 @@ export const createEquipmentProfile = async (req: Request, res: Response, next: 
       is_active,
     });
     res.status(201).json(profile);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -36,7 +36,7 @@ export const setActiveEquipmentProfile = async (req: Request, res: Response, nex
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const profile = await equipmentRepository.setActiveProfile(id, userId);
     res.json(profile);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };

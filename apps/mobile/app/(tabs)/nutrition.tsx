@@ -35,6 +35,22 @@ interface FoodItem {
   fat: number;
 }
 
+interface MealFoodEntry {
+  id?: string;
+  food_name?: string;
+  name?: string;
+  calories_kcal?: number;
+  calories?: number;
+  protein_g?: number;
+  protein?: number;
+  carbs_g?: number;
+  carbs?: number;
+  fats_g?: number;
+  fat?: number;
+  quantity_g?: number;
+  description?: string;
+}
+
 const MEAL_SLOTS: { key: MealSlot; label: string; icon: IconName; accentColor: string }[] = [
   { key: 'breakfast', label: 'Breakfast', icon: 'Sun', accentColor: OBSIDIAN_COLORS.voltLime },
   { key: 'lunch', label: 'Lunch', icon: 'Clock', accentColor: OBSIDIAN_COLORS.cyanAccent },
@@ -307,7 +323,7 @@ export default function NutritionScreen() {
 
             <View style={styles.slotsList}>
               {MEAL_SLOTS.map((slot) => {
-                const items: any[] = mealSlotsData[slot.key] || [];
+                const items: MealFoodEntry[] = mealSlotsData[slot.key] || [];
                 const slotCals = items.reduce((sum, item) => sum + (item.calories_kcal || 0), 0);
                 const slotProtein = items.reduce((sum, item) => sum + (item.protein_g || 0), 0);
 
@@ -466,13 +482,13 @@ export default function NutritionScreen() {
                   {/* Search Results List */}
                   <ScrollView style={styles.resultsList} showsVerticalScrollIndicator={false}>
                     {searchResults && searchResults.length > 0 ? (
-                      searchResults.map((item: any, idx: number) => (
+                      (searchResults as MealFoodEntry[]).map((item, idx: number) => (
                         <TouchableOpacity
                           key={idx}
                           style={styles.resultItem}
                           onPress={() =>
                             handleQuickAddFood({
-                              name: item.name || item.description,
+                              name: item.name || item.description || 'Food Item',
                               calories: item.calories || item.calories_kcal || 0,
                               protein: item.protein || item.protein_g || 0,
                               carbs: item.carbs || item.carbs_g || 0,

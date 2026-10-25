@@ -5,7 +5,7 @@ export const getPrograms = async (req: Request, res: Response, next: NextFunctio
   try {
     const programs = await programRepository.findAll(req.user!.id);
     res.json(programs);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -18,7 +18,7 @@ export const getActiveProgram = async (req: Request, res: Response, next: NextFu
       return;
     }
     res.json(program);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -32,7 +32,7 @@ export const getProgram = async (req: Request, res: Response, next: NextFunction
       return;
     }
     res.json(program);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -41,7 +41,7 @@ export const createProgram = async (req: Request, res: Response, next: NextFunct
   try {
     const p = await programRepository.create(req.user!.id, req.body);
     res.status(201).json(p);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -50,7 +50,7 @@ export const createFullProgram = async (req: Request, res: Response, next: NextF
   try {
     const program = await programRepository.createFullProgram(req.user!.id, req.body);
     res.status(201).json(program);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -59,7 +59,7 @@ export const saveDayPlan = async (req: Request, res: Response, next: NextFunctio
   try {
     const program = await programRepository.saveDayPlan(req.user!.id, req.body);
     res.json(program);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -69,7 +69,7 @@ export const setActiveProgram = async (req: Request, res: Response, next: NextFu
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const program = await programRepository.setActiveProgram(req.user!.id, id);
     res.json(program);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -79,7 +79,7 @@ export const updateProgram = async (req: Request, res: Response, next: NextFunct
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const p = await programRepository.update(id, req.user!.id, req.body);
     res.json(p);
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };
@@ -89,7 +89,7 @@ export const deleteProgram = async (req: Request, res: Response, next: NextFunct
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await programRepository.delete(id, req.user!.id);
     res.status(204).send();
-  } catch (err: any) {
+  } catch (err) {
     next(err);
   }
 };

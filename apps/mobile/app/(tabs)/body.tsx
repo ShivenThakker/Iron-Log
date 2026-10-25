@@ -97,11 +97,17 @@ export default function BodyTab() {
     },
   });
 
-  // Extract logs from backend response (flattened or backwards-compatible nested)
+  interface BodyWeightRecord {
+    id?: string;
+    weight_kg: number | string;
+    logged_at: string | Date;
+    moving_avg_kg?: number | string;
+  }
+
   const rawLogs = Array.isArray(weightData?.history)
     ? weightData.history
     : (weightData?.history?.history ?? []);
-  const historyList = Array.isArray(rawLogs) ? rawLogs : [];
+  const historyList: BodyWeightRecord[] = Array.isArray(rawLogs) ? rawLogs : [];
 
   const filteredLogs = React.useMemo(() => {
     if (historyList.length === 0) return [];
@@ -109,12 +115,12 @@ export default function BodyTab() {
     const days = timeRange === '30' ? 30 : 90;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    const filtered = historyList.filter((item: any) => new Date(item.logged_at) >= cutoff);
+    const filtered = historyList.filter((item) => new Date(item.logged_at) >= cutoff);
     return filtered.length > 0 ? filtered : historyList.slice(-days);
   }, [historyList, timeRange]);
 
   const chartPoints: WeightPoint[] = filteredLogs.length > 0
-    ? filteredLogs.map((item: any) => ({
+    ? filteredLogs.map((item) => ({
         date: new Date(item.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         weight: Number(item.weight_kg),
         movingAvg: item.moving_avg_kg ? Number(item.moving_avg_kg) : undefined,
