@@ -22,18 +22,7 @@ import {
 } from '@/constants/tokens';
 import { api } from '@/services/api';
 
-const DEFAULT_HEATMAP_DATA: MuscleHeatmapData = {
-  chest: 0.85,
-  back: 0.65,
-  shoulders: 0.5,
-  biceps: 0.7,
-  triceps: 0.9,
-  core: 0.3,
-  quads: 0.45,
-  hamstrings: 0.2,
-  glutes: 0.4,
-  calves: 0.15,
-};
+const DEFAULT_HEATMAP_DATA: MuscleHeatmapData = {};
 
 const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {
   chest: 85,
