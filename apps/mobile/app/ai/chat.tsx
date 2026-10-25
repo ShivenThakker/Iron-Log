@@ -70,8 +70,18 @@ export default function AiChatScreen() {
     setInputText('');
     setLoading(true);
 
+    const history = messages
+      .filter((m) => m.id !== 'welcome-1')
+      .map((m) => ({
+        role: m.sender === 'user' ? ('user' as const) : ('model' as const),
+        parts: m.text,
+      }));
+
     try {
-      const response = await api.post('/ai/chat', { message: text.slice(0, 2000) });
+      const response = await api.post('/ai/chat', {
+        message: text.slice(0, 2000),
+        history,
+      });
       const aiReply =
         response.data?.reply ||
         response.data?.text ||

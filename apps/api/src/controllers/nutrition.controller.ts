@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { nutritionRepository } from '../repositories/nutrition.repository';
-import { foodSearchService } from '../services/foodSearch.service';
+import { usdaService } from '../services/usda.service';
 
 export const searchFood = async (req: Request, res: Response) => {
   try {
     const q = (req.query.q as string) || '';
-    const results = await foodSearchService.search(q);
+    const results = await usdaService.searchFood(q);
     res.json(results);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -16,7 +16,8 @@ export const searchFood = async (req: Request, res: Response) => {
 export const getDailyNutrition = async (req: Request, res: Response) => {
   try {
     const date = (req.params.date as string) || (req.query.date as string) || new Date().toISOString().split('T')[0];
-    const data = await nutritionRepository.getDailyLog(req.user!.id, date);
+    const tzOffset = req.query.tzOffset !== undefined ? Number(req.query.tzOffset) : undefined;
+    const data = await nutritionRepository.getDailyLog(req.user!.id, date, tzOffset);
     res.json(data);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

@@ -53,16 +53,22 @@ export class AnalyticsRepository {
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - days);
 
-    const sets = await prisma.exerciseSet.findMany({
-      where: {
-        session: { user_id: userId, started_at: { gte: sinceDate } },
-      },
-      include: {
-        exercise: true,
-      },
-    });
+    const rows = await prisma.$queryRaw<
+      Array<{ primary_muscle: string; sets_count: bigint | number; total_volume: number | null }>
+    >`
+      SELECT 
+        e.primary_muscle,
+        COUNT(es.id) as sets_count,
+        SUM(COALESCE(es.weight_kg * es.reps, 0)) as total_volume
+      FROM ExerciseSet es
+      JOIN Exercise e ON es.exercise_id = e.id
+      JOIN WorkoutSession ws ON es.session_id = ws.id
+      WHERE ws.user_id = ${userId}
+        AND ws.started_at >= ${sinceDate}
+        AND e.primary_muscle IS NOT NULL
+      GROUP BY e.primary_muscle
+    `;
 
-    // Count volume and set counts per primary muscle group
     const muscleVolume: Record<string, { sets: number; volume_kg: number; intensity: number }> = {
       Chest: { sets: 0, volume_kg: 0, intensity: 0 },
       Back: { sets: 0, volume_kg: 0, intensity: 0 },
@@ -79,34 +85,32 @@ export class AnalyticsRepository {
       Legs: { sets: 0, volume_kg: 0, intensity: 0 },
     };
 
+    let totalWorkingSets = 0;
     let maxSets = 1;
 
-    for (const set of sets) {
-      const primary = set.exercise?.primary_muscle;
-      const weight = set.weight_kg || 0;
-      const reps = set.reps || 0;
-      const volume = weight * reps;
+    for (const row of rows) {
+      const primary = row.primary_muscle;
+      const sets = Number(row.sets_count) || 0;
+      const volume = Math.round(Number(row.total_volume) || 0);
+      totalWorkingSets += sets;
 
-      if (primary) {
-        if (!muscleVolume[primary]) {
-          muscleVolume[primary] = { sets: 0, volume_kg: 0, intensity: 0 };
-        }
-        muscleVolume[primary].sets += 1;
-        muscleVolume[primary].volume_kg += volume;
-        if (muscleVolume[primary].sets > maxSets) {
-          maxSets = muscleVolume[primary].sets;
-        }
+      if (!muscleVolume[primary]) {
+        muscleVolume[primary] = { sets: 0, volume_kg: 0, intensity: 0 };
+      }
+      muscleVolume[primary].sets = sets;
+      muscleVolume[primary].volume_kg = volume;
+      if (sets > maxSets) {
+        maxSets = sets;
       }
     }
 
-    // Normalize intensity between 0 and 1 for heatmap coloring
     for (const muscle of Object.keys(muscleVolume)) {
       muscleVolume[muscle].intensity = Math.round((muscleVolume[muscle].sets / maxSets) * 100) / 100;
     }
 
     return {
       periodDays: days,
-      totalWorkingSets: sets.length,
+      totalWorkingSets,
       muscles: muscleVolume,
     };
   }

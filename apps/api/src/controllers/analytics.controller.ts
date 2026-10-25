@@ -15,7 +15,16 @@ export const getWorkoutStats = async (req: Request, res: Response) => {
 export const getHeatmap = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const days = req.query.period === 'week' ? 7 : req.query.period === 'all' ? 365 : 30;
+    const rawPeriod = req.query.period;
+    const parsedDays = Number(rawPeriod);
+    const days =
+      Number.isFinite(parsedDays) && parsedDays > 0
+        ? parsedDays
+        : rawPeriod === 'week'
+          ? 7
+          : rawPeriod === 'all'
+            ? 365
+            : 30;
     const heatmap = await analyticsRepository.getMuscleHeatmap(userId, days);
     res.json(heatmap);
   } catch (err) {

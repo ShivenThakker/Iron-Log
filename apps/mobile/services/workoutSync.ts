@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { api } from './api';
 
 export interface PendingSetItem {
@@ -11,9 +13,51 @@ export interface PendingSetItem {
   timestamp: number;
 }
 
+const QUEUE_STORAGE_KEY = 'ironlog_pending_workout_sets';
+
+async function readPersistedQueue(): Promise<PendingSetItem[]> {
+  try {
+    const raw =
+      Platform.OS === 'web'
+        ? localStorage.getItem(QUEUE_STORAGE_KEY)
+        : await SecureStore.getItemAsync(QUEUE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writePersistedQueue(queue: PendingSetItem[]): Promise<void> {
+  try {
+    const serialized = JSON.stringify(queue);
+    if (Platform.OS === 'web') {
+      localStorage.setItem(QUEUE_STORAGE_KEY, serialized);
+    } else {
+      await SecureStore.setItemAsync(QUEUE_STORAGE_KEY, serialized);
+    }
+  } catch {
+    // Ignore storage serialization failures
+  }
+}
+
 class WorkoutSyncManager {
   private queue: PendingSetItem[] = [];
   private isSyncing = false;
+  private isHydrated = false;
+
+  private async ensureHydrated(): Promise<void> {
+    if (this.isHydrated) return;
+    const loaded = await readPersistedQueue();
+    const existingIds = new Set(this.queue.map((q) => q.id));
+    for (const item of loaded) {
+      if (!existingIds.has(item.id)) {
+        this.queue.push(item);
+      }
+    }
+    this.isHydrated = true;
+  }
 
   async queueOrSendSet(
     sessionId: string,
@@ -24,7 +68,8 @@ class WorkoutSyncManager {
       reps: number;
       weightKg?: number;
     }
-  ): Promise<{ ok: boolean; isNewPR?: boolean; error?: any }> {
+  ): Promise<{ ok: boolean; isNewPR?: boolean; error?: unknown }> {
+    await this.ensureHydrated();
     const item: PendingSetItem = {
       id: `pending-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       sessionId,
@@ -48,11 +93,13 @@ class WorkoutSyncManager {
     } catch (err) {
       // Offline or network latency: save to retry queue
       this.queue.push(item);
+      await writePersistedQueue(this.queue);
       return { ok: false, error: err };
     }
   }
 
   async flushPendingSets(): Promise<void> {
+    await this.ensureHydrated();
     if (this.isSyncing || this.queue.length === 0) return;
     this.isSyncing = true;
 
@@ -71,10 +118,12 @@ class WorkoutSyncManager {
       }
     }
     this.queue = remaining;
+    await writePersistedQueue(this.queue);
     this.isSyncing = false;
   }
 
   async finishSession(sessionId: string): Promise<boolean> {
+    await this.ensureHydrated();
     await this.flushPendingSets();
     try {
       await api.put(`/sessions/${sessionId}/finish`);

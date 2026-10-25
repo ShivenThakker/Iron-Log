@@ -59,8 +59,7 @@ export class AuthService {
         throw new UnauthorizedError('User not found');
       }
 
-      // Rotate tokens: blacklist old refresh token for remaining duration (e.g. 7 days)
-      await redis.set(`blacklist:${refreshTokenString}`, 'revoked', { ex: 7 * 24 * 3600 });
+      await redis.set(`blacklist:${refreshTokenString}`, 'revoked', { ex: 30 * 24 * 3600 });
 
       return this.generateTokens(user.id);
     } catch {

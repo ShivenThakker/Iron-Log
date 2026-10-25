@@ -343,6 +343,19 @@ export default function ActiveWorkoutScreen() {
       });
     });
 
+    const completedExercises = exercises
+      .map((ex) => {
+        const completedSets = ex.sets.filter((s) => s.completed);
+        if (completedSets.length === 0) return null;
+        const volumeStr = completedSets.map((s) => `${s.weight}kg × ${s.reps}`).join(' • ');
+        return {
+          name: ex.name,
+          sets: `${completedSets.length} SET${completedSets.length > 1 ? 'S' : ''}`,
+          volume: volumeStr,
+        };
+      })
+      .filter((ex): ex is { name: string; sets: string; volume: string } => ex !== null);
+
     try {
       if (sessionId) {
         await workoutSync.finishSession(sessionId).catch(() => null);
@@ -351,12 +364,16 @@ export default function ActiveWorkoutScreen() {
       router.replace({
         pathname: '/workout/summary',
         params: {
-          workoutName: 'Upper Body Hypertrophy',
-          durationSeconds: elapsedSeconds,
-          totalSets: totalSets || 8,
-          totalVolumeKg: totalVolume || 4320,
-          xpEarned: 75,
+          workoutName: exercises[0]?.name ? `${exercises[0].name} Workout` : 'Workout Session',
+          durationSeconds: String(elapsedSeconds),
+          totalSets: String(totalSets),
+          totalVolumeKg: String(totalVolume),
+          xpEarned: String(50 + (prCelebration.visible ? 25 : 0)),
           sessionId: sessionId || '',
+          hasPr: prCelebration.visible ? 'true' : 'false',
+          prExercise: prCelebration.exerciseName,
+          prValue: prCelebration.value,
+          exerciseBreakdown: JSON.stringify(completedExercises),
         },
       });
     }

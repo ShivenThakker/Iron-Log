@@ -117,17 +117,21 @@ export class GamificationRepository {
       }
 
       if (qualified) {
-        await prisma.userTrophy.create({
-          data: {
-            user_id: userId,
-            trophy_id: trophy.id,
-            unlocked_at: new Date(),
-          },
-        });
-        if (trophy.xp_reward && trophy.xp_reward > 0) {
-          await this.awardXp(userId, trophy.xp_reward, `Unlocked Trophy: ${trophy.name}`);
+        try {
+          await prisma.userTrophy.create({
+            data: {
+              user_id: userId,
+              trophy_id: trophy.id,
+              unlocked_at: new Date(),
+            },
+          });
+          if (trophy.xp_reward && trophy.xp_reward > 0) {
+            await this.awardXp(userId, trophy.xp_reward, `Unlocked Trophy: ${trophy.name}`);
+          }
+          newlyUnlocked.push(trophy.name);
+        } catch {
+          // Trophy already unlocked concurrently
         }
-        newlyUnlocked.push(trophy.name);
       }
     }
 

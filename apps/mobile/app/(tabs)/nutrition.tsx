@@ -85,7 +85,8 @@ export default function NutritionScreen() {
   const { data: dailyData, refetch, isRefetching } = useQuery({
     queryKey: ['dailyNutrition', todayStr],
     queryFn: async () => {
-      const res = await api.get(`/nutrition/daily/${todayStr}`).catch(() => null);
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await api.get(`/nutrition/daily/${todayStr}?tzOffset=${tzOffset}`).catch(() => null);
       return res?.data ?? null;
     },
   });

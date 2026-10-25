@@ -23,14 +23,34 @@ export default function PostWorkoutSummary() {
     totalVolumeKg?: string;
     xpEarned?: string;
     sessionId?: string;
+    hasPr?: string;
+    prExercise?: string;
+    prValue?: string;
+    exerciseBreakdown?: string;
   }>();
 
-  const workoutName = params.workoutName || 'Upper Body Hypertrophy';
-  const durationSec = parseInt(params.durationSeconds || '2640', 10);
+  interface BreakdownItem {
+    name: string;
+    sets: string;
+    volume: string;
+  }
+
+  const breakdownList: BreakdownItem[] = React.useMemo(() => {
+    if (!params.exerciseBreakdown) return [];
+    try {
+      const parsed = JSON.parse(params.exerciseBreakdown);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [params.exerciseBreakdown]);
+
+  const workoutName = params.workoutName || 'Workout Session';
+  const durationSec = parseInt(params.durationSeconds || '0', 10);
   const durationMins = Math.max(1, Math.round(durationSec / 60));
-  const totalSets = params.totalSets || '8';
-  const totalVolumeNum = params.totalVolumeKg ? Math.round(parseFloat(params.totalVolumeKg)) : 4320;
-  const xpEarned = params.xpEarned || '75';
+  const totalSets = params.totalSets || '0';
+  const totalVolumeNum = params.totalVolumeKg ? Math.round(parseFloat(params.totalVolumeKg)) : 0;
+  const xpEarned = params.xpEarned || '50';
 
   // Gamification query to show real streak and rank progress
   const { data: gamificationData } = useQuery({
@@ -125,21 +145,25 @@ export default function PostWorkoutSummary() {
           </View>
 
           {/* Personal Record (PR) Card */}
-          <View style={styles.prCard}>
-            <View style={styles.prLeftStripe} />
-            <View style={styles.prContent}>
-              <View style={styles.prIconBox}>
-                <Icon name="Trophy" size={22} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
-              </View>
-              <View style={styles.prInfo}>
-                <Text style={styles.prTitle}>Personal Record Hit!</Text>
-                <Text style={styles.prDetail}>Barbell Bench Press — 100 kg 1RM</Text>
-              </View>
-              <View style={styles.prXpBadge}>
-                <Text style={styles.prXpText}>+25 XP</Text>
+          {params.hasPr === 'true' ? (
+            <View style={styles.prCard}>
+              <View style={styles.prLeftStripe} />
+              <View style={styles.prContent}>
+                <View style={styles.prIconBox}>
+                  <Icon name="Trophy" size={22} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                </View>
+                <View style={styles.prInfo}>
+                  <Text style={styles.prTitle}>Personal Record Hit!</Text>
+                  <Text style={styles.prDetail}>
+                    {params.prExercise || 'Exercise'} — {params.prValue || 'New Record'}
+                  </Text>
+                </View>
+                <View style={styles.prXpBadge}>
+                  <Text style={styles.prXpText}>+25 XP</Text>
+                </View>
               </View>
             </View>
-          </View>
+          ) : null}
 
           {/* Gamification / Streak & XP Card */}
           <View style={styles.gamificationCard}>
@@ -178,38 +202,33 @@ export default function PostWorkoutSummary() {
             <View style={styles.breakdownHeaderRow}>
               <Text style={styles.breakdownTitle}>Exercise Breakdown</Text>
               <View style={styles.breakdownCountBadge}>
-                <Text style={styles.breakdownCountText}>3 EXERCISES</Text>
+                <Text style={styles.breakdownCountText}>
+                  {breakdownList.length} {breakdownList.length === 1 ? 'EXERCISE' : 'EXERCISES'}
+                </Text>
               </View>
             </View>
 
-            {[
-              {
-                name: 'Barbell Bench Press',
-                sets: '3 SETS',
-                volume: '80kg × 8 • 80kg × 8 • 85kg × 6',
-              },
-              {
-                name: 'Incline Dumbbell Press',
-                sets: '2 SETS',
-                volume: '30kg × 10 • 30kg × 10',
-              },
-              {
-                name: 'Tricep Cable Pushdown',
-                sets: '2 SETS',
-                volume: '27.5kg × 12 • 27.5kg × 12',
-              },
-            ].map((item, idx) => (
-              <View key={idx} style={styles.breakdownCard}>
-                <View style={styles.breakdownInfo}>
-                  <Text style={styles.exName}>{item.name}</Text>
-                  <Text style={styles.exVolume}>{item.volume}</Text>
+            {breakdownList.length > 0 ? (
+              breakdownList.map((item, idx) => (
+                <View key={idx} style={styles.breakdownCard}>
+                  <View style={styles.breakdownInfo}>
+                    <Text style={styles.exName}>{item.name}</Text>
+                    <Text style={styles.exVolume}>{item.volume}</Text>
+                  </View>
+                  <View style={styles.setsPill}>
+                    <Icon name="CheckCircle" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                    <Text style={styles.setsPillText}>{item.sets}</Text>
+                  </View>
                 </View>
-                <View style={styles.setsPill}>
-                  <Icon name="CheckCircle" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
-                  <Text style={styles.setsPillText}>{item.sets}</Text>
+              ))
+            ) : (
+              <View style={styles.breakdownCard}>
+                <View style={styles.breakdownInfo}>
+                  <Text style={styles.exName}>Workout Completed</Text>
+                  <Text style={styles.exVolume}>{totalSets} working sets completed</Text>
                 </View>
               </View>
-            ))}
+            )}
           </View>
 
           {/* Bottom Action Matrix */}
@@ -228,7 +247,7 @@ export default function PostWorkoutSummary() {
               activeOpacity={0.88}
               onPress={() => router.replace('/(tabs)')}
             >
-              <Text style={styles.doneText}>Done Lifting 🏁</Text>
+              <Text style={styles.doneText}>Done Lifting</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

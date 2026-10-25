@@ -76,7 +76,8 @@ export default function HomeDashboard() {
     queryFn: async () => {
       const d = new Date();
       const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const res = await api.get(`/nutrition/daily/${today}`).catch(() => null);
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await api.get(`/nutrition/daily/${today}?tzOffset=${tzOffset}`).catch(() => null);
       return res?.data ?? null;
     },
   });

@@ -312,6 +312,8 @@ model UserTrophy {
 
   user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   trophy Trophy @relation(fields: [trophy_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, trophy_id])
 }
 
 model Streak {

@@ -24,9 +24,18 @@ export interface SetNutritionGoalInput {
 }
 
 export class NutritionRepository {
-  async getDailyLog(userId: string, dateStr: string) {
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+  async getDailyLog(userId: string, dateStr: string, timezoneOffsetMinutes?: number) {
+    let startOfDay: Date;
+    let endOfDay: Date;
+
+    if (typeof timezoneOffsetMinutes === 'number' && Number.isFinite(timezoneOffsetMinutes)) {
+      const utcMs = Date.parse(`${dateStr}T00:00:00.000Z`);
+      startOfDay = new Date(utcMs + timezoneOffsetMinutes * 60 * 1000);
+      endOfDay = new Date(utcMs + (timezoneOffsetMinutes + 24 * 60) * 60 * 1000 - 1);
+    } else {
+      startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+      endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+    }
 
     const [logs, goal] = await Promise.all([
       prisma.foodLogEntry.findMany({
@@ -96,7 +105,8 @@ export class NutritionRepository {
     } else if (data.logged_date) {
       logDate = new Date(data.logged_date);
     } else {
-      logDate = new Date();
+      const todayStr = new Date().toISOString().split('T')[0];
+      logDate = new Date(`${todayStr}T12:00:00.000Z`);
     }
 
     const log = await prisma.foodLogEntry.create({
