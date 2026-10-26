@@ -15,6 +15,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Icon } from '@/components/ui/Icon';
 import { MuscleHeatmap, MuscleHeatmapData } from '@/components/charts/MuscleHeatmap';
 import { MuscleRadar, MuscleBalanceScores } from '@/components/charts/MuscleRadar';
+import { WorkoutActivityGrid } from '@/components/charts/WorkoutActivityGrid';
 import {
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
@@ -28,7 +29,9 @@ const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {
   chest: 85,
   back: 65,
   shoulders: 50,
-  arms: 80,
+  biceps: 75,
+  triceps: 80,
+  forearms: 45,
   legs: 45,
   core: 30,
 };
@@ -80,12 +83,22 @@ export default function InsightsTab() {
     },
   });
 
+  // Realigned endpoint 5: GET /analytics/activity
+  const { data: activityApiData, refetch: refetchActivity } = useQuery({
+    queryKey: ['workoutActivityYear'],
+    queryFn: async () => {
+      const res = await api.get('/analytics/activity').catch(() => null);
+      return res?.data ?? null;
+    },
+  });
+
   const onRefresh = async () => {
     await Promise.all([
       refetchStats(),
       refetchHeatmap(),
       refetchRadar(),
       refetchEquipment(),
+      refetchActivity(),
     ]);
   };
 
@@ -123,8 +136,8 @@ export default function InsightsTab() {
     if (nonZero.length < 3) {
       return { label: 'BUILDING DATA', color: OBSIDIAN_COLORS.textMuted };
     }
-    const avg = rawScores.reduce((sum, v) => sum + v, 0) / 6;
-    const score = Math.max(10, Math.min(99, Math.round(avg * 0.85 + (nonZero.length / 6) * 30)));
+    const avg = rawScores.reduce((sum, v) => sum + v, 0) / 8;
+    const score = Math.max(10, Math.min(99, Math.round(avg * 0.85 + (nonZero.length / 8) * 30)));
     if (score >= 80) return { label: `${score}% OPTIMAL`, color: OBSIDIAN_COLORS.voltLime };
     if (score >= 60) return { label: `${score}% BALANCED`, color: OBSIDIAN_COLORS.cyanAccent };
     return { label: `${score}% DEVELOPING`, color: OBSIDIAN_COLORS.coralAccent };
@@ -306,6 +319,23 @@ export default function InsightsTab() {
             </GlassCard>
           </View>
 
+          {/* GitHub-style Year Workout Activity Grid */}
+          <GlassCard variant="obsidianLevel1" style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
+              <View>
+                <Text variant="headlineSm" style={styles.sectionCardTitle}>
+                  Year-at-a-Glance Consistency
+                </Text>
+                <Text variant="labelCaps" style={styles.sectionCardSub}>
+                  Annual 52-Week Workout Activity Matrix
+                </Text>
+              </View>
+              <Badge label="52 WEEKS" variant="volt" size="sm" />
+            </View>
+
+            <WorkoutActivityGrid data={activityApiData} />
+          </GlassCard>
+
           {/* Muscle Volume Heatmap Card */}
           <GlassCard variant="obsidianLevel1" style={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
@@ -331,10 +361,10 @@ export default function InsightsTab() {
                   Muscle Balance Radar
                 </Text>
                 <Text variant="labelCaps" style={styles.sectionCardSub}>
-                  6-Axis Muscular Equilibrium
+                  8-Axis Muscular Equilibrium
                 </Text>
               </View>
-              <Badge label="6-AXIS" variant="cyan" size="sm" />
+              <Badge label="8-AXIS" variant="cyan" size="sm" />
             </View>
 
             <View style={{ alignItems: 'center', marginVertical: OBSIDIAN_SPACING.sm }}>

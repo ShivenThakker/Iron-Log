@@ -7,6 +7,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -540,7 +541,7 @@ export default function ActiveWorkoutScreen() {
                 <Text style={styles.effortTitle}>TARGET EFFORT STYLE</Text>
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => setShowEffortGuide(!showEffortGuide)}
+                  onPress={() => setShowEffortGuide(true)}
                   style={styles.effortInfoBtn}
                 >
                   <Text style={styles.effortInfoQuestion}>?</Text>
@@ -549,27 +550,58 @@ export default function ActiveWorkoutScreen() {
               <Text style={styles.rpeDisplay}>{rpeByStyle[currentSet?.setType || 'normal']}</Text>
             </View>
 
-            {/* Effort Explanation Card (Toggled) */}
-            {showEffortGuide && (
-              <View style={styles.effortGuideCard}>
-                <View style={styles.effortGuideItem}>
-                  <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.voltLime }]}>REGULAR</Text>
-                  <Text style={styles.effortGuideDesc}>RPE 7.5-8.5 • 1-2 reps in reserve for optimal hypertrophy</Text>
-                </View>
-                <View style={styles.effortGuideItem}>
-                  <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.textWhite }]}>WARMUP</Text>
-                  <Text style={styles.effortGuideDesc}>RPE 4-6 • Preps joints and motor patterns</Text>
-                </View>
-                <View style={styles.effortGuideItem}>
-                  <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.cyanAccent }]}>DROPSET</Text>
-                  <Text style={styles.effortGuideDesc}>RPE 9-9.5 • Stripped weight immediately after failure</Text>
-                </View>
-                <View style={styles.effortGuideItem}>
-                  <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.coralAccent }]}>FAILURE</Text>
-                  <Text style={styles.effortGuideDesc}>RPE 10.0 • Absolute maximum effort to 0 reps in reserve</Text>
-                </View>
-              </View>
-            )}
+            {/* Effort Explanation Modal with outside-click dismiss */}
+            <Modal
+              visible={showEffortGuide}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowEffortGuide(false)}
+            >
+              <Pressable
+                style={styles.modalBackdropDismiss}
+                onPress={() => setShowEffortGuide(false)}
+              >
+                <Pressable
+                  style={styles.effortGuideDialog}
+                  onPress={(e) => e.stopPropagation()}
+                >
+                  <View style={styles.effortGuideHeader}>
+                    <View style={styles.effortGuideHeaderTitle}>
+                      <Icon name="Lightning" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                      <Text style={styles.effortGuideTitleText}>TARGET EFFORT & RPE GUIDE</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setShowEffortGuide(false)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.effortGuideCloseBtn}
+                    >
+                      <Icon name="X" size={16} color={OBSIDIAN_COLORS.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.effortGuideItems}>
+                    <View style={styles.effortGuideItem}>
+                      <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.voltLime }]}>REGULAR</Text>
+                      <Text style={styles.effortGuideDesc}>RPE 7.5-8.5 • 1-2 reps in reserve for optimal hypertrophy</Text>
+                    </View>
+                    <View style={styles.effortGuideItem}>
+                      <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.textWhite }]}>WARMUP</Text>
+                      <Text style={styles.effortGuideDesc}>RPE 4-6 • Preps joints and motor patterns</Text>
+                    </View>
+                    <View style={styles.effortGuideItem}>
+                      <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.cyanAccent }]}>DROPSET</Text>
+                      <Text style={styles.effortGuideDesc}>RPE 9-9.5 • Stripped weight immediately after failure</Text>
+                    </View>
+                    <View style={styles.effortGuideItem}>
+                      <Text style={[styles.effortGuideTag, { color: OBSIDIAN_COLORS.coralAccent }]}>FAILURE</Text>
+                      <Text style={styles.effortGuideDesc}>RPE 10.0 • Absolute maximum effort to 0 reps in reserve</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.effortGuideDismissHint}>Tap anywhere outside to close</Text>
+                </Pressable>
+              </Pressable>
+            </Modal>
 
             {/* 4-Chip Segmented Selector */}
             <View style={styles.effortChipsGrid}>
@@ -1188,6 +1220,59 @@ const styles = StyleSheet.create({
     ...OBSIDIAN_TYPOGRAPHY.labelCaps,
     color: OBSIDIAN_COLORS.cyanAccent,
     fontSize: 11,
+  },
+  modalBackdropDismiss: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: OBSIDIAN_SPACING.lg,
+  },
+  effortGuideDialog: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  effortGuideHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingBottom: 8,
+  },
+  effortGuideHeaderTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  effortGuideTitleText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 11,
+  },
+  effortGuideCloseBtn: {
+    padding: 4,
+  },
+  effortGuideItems: {
+    gap: 8,
+  },
+  effortGuideDismissHint: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textSlate,
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 4,
   },
   effortGuideCard: {
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,

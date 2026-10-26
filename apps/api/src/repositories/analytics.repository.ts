@@ -135,29 +135,90 @@ export class AnalyticsRepository {
   }
 
   async getMuscleRadar(userId: string, days = 30) {
-    // 6 radar axes: Shoulders, Chest, Arms, Legs, Core, Back
+    // 8 radar axes: Shoulders, Chest, Biceps, Triceps, Forearms, Legs, Core, Back
     const heatmap = await this.getMuscleHeatmap(userId, days);
     const m = heatmap.muscles;
 
     const chestSets = m.Chest?.sets || 0;
     const backSets = (m.Back?.sets || 0) + (m.Traps?.sets || 0);
     const shouldersSets = m.Shoulders?.sets || 0;
-    const armsSets = (m.Biceps?.sets || 0) + (m.Triceps?.sets || 0) + (m.Forearms?.sets || 0);
+    const bicepsSets = m.Biceps?.sets || 0;
+    const tricepsSets = m.Triceps?.sets || 0;
+    const forearmsSets = m.Forearms?.sets || 0;
     const legsSets = (m.Quads?.sets || 0) + (m.Hamstrings?.sets || 0) + (m.Calves?.sets || 0) + (m.Glutes?.sets || 0) + (m.Legs?.sets || 0);
     const coreSets = m.Core?.sets || 0;
 
-    const maxAxisSets = Math.max(chestSets, backSets, shouldersSets, armsSets, legsSets, coreSets, 1);
+    const maxAxisSets = Math.max(chestSets, backSets, shouldersSets, bicepsSets, tricepsSets, forearmsSets, legsSets, coreSets, 1);
 
     const values = [
       { axis: 'Shoulders', value: Math.round((shouldersSets / maxAxisSets) * 100) / 100, sets: shouldersSets },
       { axis: 'Chest', value: Math.round((chestSets / maxAxisSets) * 100) / 100, sets: chestSets },
-      { axis: 'Arms', value: Math.round((armsSets / maxAxisSets) * 100) / 100, sets: armsSets },
+      { axis: 'Biceps', value: Math.round((bicepsSets / maxAxisSets) * 100) / 100, sets: bicepsSets },
+      { axis: 'Triceps', value: Math.round((tricepsSets / maxAxisSets) * 100) / 100, sets: tricepsSets },
+      { axis: 'Forearms', value: Math.round((forearmsSets / maxAxisSets) * 100) / 100, sets: forearmsSets },
       { axis: 'Legs', value: Math.round((legsSets / maxAxisSets) * 100) / 100, sets: legsSets },
       { axis: 'Core', value: Math.round((coreSets / maxAxisSets) * 100) / 100, sets: coreSets },
       { axis: 'Back', value: Math.round((backSets / maxAxisSets) * 100) / 100, sets: backSets },
     ];
 
     return values;
+  }
+
+  async getWorkoutActivity(userId: string, year?: number) {
+    const targetYear = year || new Date().getFullYear();
+    const startOfYear = new Date(targetYear, 0, 1, 0, 0, 0);
+    const endOfYear = new Date(targetYear, 11, 31, 23, 59, 59);
+
+    const sessions = await prisma.workoutSession.findMany({
+      where: {
+        user_id: userId,
+        started_at: {
+          gte: startOfYear,
+          lte: endOfYear,
+        },
+      },
+      select: {
+        id: true,
+        started_at: true,
+        duration_seconds: true,
+        exerciseSets: {
+          select: {
+            weight_kg: true,
+            reps: true,
+          },
+        },
+      },
+      orderBy: { started_at: 'asc' },
+    });
+
+    const days: Record<string, { count: number; volume_kg: number; duration_min: number }> = {};
+
+    for (const s of sessions) {
+      const dateStr = s.started_at.toISOString().split('T')[0];
+      if (!days[dateStr]) {
+        days[dateStr] = { count: 0, volume_kg: 0, duration_min: 0 };
+      }
+      days[dateStr].count += 1;
+      days[dateStr].duration_min += Math.round((s.duration_seconds || 0) / 60);
+
+      const sessionVolume = s.exerciseSets.reduce((sum, set) => {
+        return sum + (set.weight_kg || 0) * (set.reps || 0);
+      }, 0);
+      days[dateStr].volume_kg += Math.round(sessionVolume);
+    }
+
+    const streak = await prisma.streak.findUnique({
+      where: { user_id: userId },
+    });
+
+    return {
+      year: targetYear,
+      totalWorkouts: sessions.length,
+      activeDays: Object.keys(days).length,
+      currentStreak: getEffectiveStreak(streak),
+      longestStreak: streak?.longest_streak ?? 0,
+      days,
+    };
   }
 
   async getEquipmentDistribution(userId: string) {

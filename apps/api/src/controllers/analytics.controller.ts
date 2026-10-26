@@ -64,3 +64,16 @@ export const getEquipment = async (req: Request, res: Response) => {
     res.status(500).json({ error: message });
   }
 };
+
+export const getActivity = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const rawYear = req.query.year;
+    const year = rawYear ? parseInt(rawYear as string, 10) : undefined;
+    const activity = await analyticsRepository.getWorkoutActivity(userId, year);
+    res.json(activity);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+};

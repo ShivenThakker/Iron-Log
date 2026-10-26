@@ -8,10 +8,13 @@ import { Icon } from '@/components/ui/Icon';
 export interface MuscleBalanceScores {
   shoulders?: number;
   chest?: number;
-  back?: number;
-  core?: number;
-  arms?: number;
+  biceps?: number;
+  triceps?: number;
+  forearms?: number;
   legs?: number;
+  core?: number;
+  back?: number;
+  arms?: number;
 }
 
 interface MuscleRadarProps {
@@ -22,11 +25,13 @@ interface MuscleRadarProps {
 
 const AXES = [
   { key: 'shoulders', label: 'Shoulders', angle: -90 },
-  { key: 'chest', label: 'Chest', angle: -30 },
-  { key: 'arms', label: 'Arms', angle: 30 },
-  { key: 'legs', label: 'Legs', angle: 90 },
-  { key: 'core', label: 'Core', angle: 150 },
-  { key: 'back', label: 'Back', angle: 210 },
+  { key: 'chest', label: 'Chest', angle: -45 },
+  { key: 'biceps', label: 'Biceps', angle: 0 },
+  { key: 'triceps', label: 'Triceps', angle: 45 },
+  { key: 'forearms', label: 'Forearms', angle: 90 },
+  { key: 'legs', label: 'Legs', angle: 135 },
+  { key: 'core', label: 'Core', angle: 180 },
+  { key: 'back', label: 'Back', angle: 225 },
 ] as const;
 
 export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280, theme = 'default' }) => {
@@ -42,7 +47,7 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280, th
       <View style={[styles.emptyCard, isObsidian && styles.emptyCardObsidian, { width: size, height: size * 0.85 }]}>
         <Icon name="Barbell" size={32} color={isObsidian ? OBSIDIAN_COLORS.textSlate : COLORS.dark.textSecondary} />
         <Text variant="bodySmall" color={isObsidian ? OBSIDIAN_COLORS.textMuted : COLORS.dark.textSecondary} style={styles.emptyText}>
-          Train at least 3 muscle groups to unlock your 6-axis Muscle Balance radar.
+          Train at least 3 muscle groups to unlock your 8-axis Muscle Balance radar.
         </Text>
       </View>
     );

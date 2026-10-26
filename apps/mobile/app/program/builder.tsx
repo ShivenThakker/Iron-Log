@@ -12,6 +12,7 @@ import {
   Platform,
   PanResponder,
   Animated,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,15 +30,60 @@ import { api } from '@/services/api';
 
 type BuilderMode = 'split' | 'ai_import';
 
+interface ScrapedStep {
+  step: number;
+  name?: string;
+  text: string;
+}
+
+interface EnrichedExercise {
+  id: string;
+  name: string;
+  primary_muscle: string;
+  secondary_muscles?: string | string[];
+  equipment?: string;
+  difficulty?: string;
+  category?: string;
+  mechanics?: string;
+  force?: string;
+  movement_pattern?: string;
+  steps?: ScrapedStep[];
+  instructions?: string;
+  coaching_cues?: string[];
+  common_mistakes?: string[];
+  full_description?: string;
+  thumbnail_url?: string;
+  source_url?: string;
+  primary_muscles_detailed?: string[];
+  secondary_muscles_detailed?: string[];
+}
+
 interface ExerciseItem {
   id: string;
+  exercise_id?: string;
   name: string;
   target_sets: number;
   target_reps: string;
   rest_seconds: number;
   categoryTag?: string;
   muscleTarget?: string;
+  equipment?: string;
 }
+
+const MUSCLE_CATEGORIES = [
+  { id: 'chest', name: 'Chest', focus: 'Pectorals, Presses, Flyes', icon: 'Flame' as const, color: OBSIDIAN_COLORS.voltLime },
+  { id: 'back', name: 'Back', focus: 'Lats, Rhomboids, Traps, Rows', icon: 'Lightning' as const, color: OBSIDIAN_COLORS.cyanAccent },
+  { id: 'shoulders', name: 'Shoulders', focus: 'Deltoids, Overhead, Raises', icon: 'ArrowFatUp' as const, color: OBSIDIAN_COLORS.secondary },
+  { id: 'biceps', name: 'Biceps', focus: 'Curls, Brachialis, Long Head', icon: 'Barbell' as const, color: OBSIDIAN_COLORS.voltLime },
+  { id: 'triceps', name: 'Triceps', focus: 'Pushdowns, Extensions, Dips', icon: 'Lightning' as const, color: OBSIDIAN_COLORS.cyanAccent },
+  { id: 'forearms', name: 'Forearms', focus: 'Wrist Curls, Grippers, Holds', icon: 'CheckCircle' as const, color: OBSIDIAN_COLORS.secondary },
+  { id: 'quads', name: 'Quads & Legs', focus: 'Squats, Leg Press, Extensions', icon: 'Barbell' as const, color: OBSIDIAN_COLORS.voltLime },
+  { id: 'hamstrings', name: 'Hamstrings', focus: 'Deadlifts, Curls, RDLs', icon: 'Barbell' as const, color: OBSIDIAN_COLORS.cyanAccent },
+  { id: 'glutes', name: 'Glutes', focus: 'Hip Thrusts, Bridges, Kickbacks', icon: 'Flame' as const, color: OBSIDIAN_COLORS.secondary },
+  { id: 'calves', name: 'Calves', focus: 'Standing & Seated Calf Raises', icon: 'ArrowFatUp' as const, color: OBSIDIAN_COLORS.textMuted },
+  { id: 'core', name: 'Core & Abs', focus: 'Crunches, Leg Raises, Planks', icon: 'Sparkle' as const, color: OBSIDIAN_COLORS.voltLime },
+  { id: 'all', name: 'All Exercises', focus: 'Browse full database', icon: 'MagnifyingGlass' as const, color: OBSIDIAN_COLORS.textWhite },
+];
 
 interface SplitDay {
   day_code: string;
@@ -194,9 +240,12 @@ export default function WorkoutPlanBuilderScreen() {
   const [splitDays, setSplitDays] = useState<SplitDay[]>(INITIAL_SPLIT_DAYS);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
-  // Exercise Picker Library
-  const [exerciseDb, setExerciseDb] = useState<{ id: string; name: string; primary_muscle: string }[]>([]);
+  // Exercise Picker & Details State
+  const [exerciseDb, setExerciseDb] = useState<EnrichedExercise[]>([]);
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
+  const [pickerStep, setPickerStep] = useState<'categories' | 'exercises'>('categories');
+  const [selectedMuscleCategory, setSelectedMuscleCategory] = useState<string | null>(null);
+  const [selectedInfoExercise, setSelectedInfoExercise] = useState<EnrichedExercise | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Exercise Reorder State & Gesture Handling
@@ -405,15 +454,53 @@ interface ParsedPlanResult {
     }
   };
 
-  const handleSelectExercise = (name: string, primaryMuscle?: string) => {
+  const handleOpenExerciseInfo = (ex: ExerciseItem | EnrichedExercise) => {
+    const matched =
+      'steps' in ex || 'coaching_cues' in ex
+        ? (ex as EnrichedExercise)
+        : exerciseDb.find(
+            (e) =>
+              e.name.toLowerCase().trim() === ex.name.toLowerCase().trim() ||
+              ('exercise_id' in ex && ex.exercise_id && e.id === ex.exercise_id)
+          );
+    if (matched) {
+      setSelectedInfoExercise(matched);
+    } else {
+      setSelectedInfoExercise({
+        id: ex.id || 'custom',
+        name: ex.name,
+        primary_muscle: ('muscleTarget' in ex ? ex.muscleTarget : (ex as EnrichedExercise).primary_muscle) || 'Custom Muscle',
+        equipment: ex.equipment || 'Gym',
+        category: ('categoryTag' in ex ? ex.categoryTag : (ex as EnrichedExercise).category) || 'Hypertrophy',
+      });
+    }
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
+  };
+
+  const openExercisePicker = () => {
+    setPickerStep('categories');
+    setSelectedMuscleCategory(null);
+    setSearchQuery('');
+    setIsExercisePickerOpen(true);
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
+  };
+
+  const handleSelectExercise = (name: string, primaryMuscle?: string, exerciseId?: string) => {
+    const matched = exerciseDb.find((e) => e.name.toLowerCase().trim() === name.toLowerCase().trim());
     const newItem: ExerciseItem = {
       id: String(Date.now()),
+      exercise_id: exerciseId || matched?.id,
       name,
       target_sets: 3,
       target_reps: '10 - 12',
       rest_seconds: 90,
-      categoryTag: 'HYPERTROPHY',
-      muscleTarget: primaryMuscle || 'Target Muscle',
+      categoryTag: matched?.category || 'HYPERTROPHY',
+      muscleTarget: primaryMuscle || matched?.primary_muscle || 'Target Muscle',
+      equipment: matched?.equipment || 'Gym',
     };
 
     setSplitDays((prev) => {
@@ -427,6 +514,8 @@ interface ParsedPlanResult {
 
     setIsExercisePickerOpen(false);
     setSearchQuery('');
+    setPickerStep('categories');
+    setSelectedMuscleCategory(null);
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync().catch(() => {});
     }
@@ -641,9 +730,61 @@ interface ParsedPlanResult {
 
   const currentDay = splitDays[selectedDayIndex];
 
-  const filteredExercises = exerciseDb.filter((ex) =>
-    ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Helper to count exercises in each muscle category
+  const getMuscleExerciseCount = (catId: string, catName: string) => {
+    if (catId === 'all') return exerciseDb.length;
+    const target = catName.toLowerCase();
+    return exerciseDb.filter((e) => {
+      const pm = (e.primary_muscle || '').toLowerCase();
+      if (target.includes('quad') || target.includes('leg')) return pm.includes('quad') || pm.includes('leg');
+      if (target.includes('core') || target.includes('ab')) return pm.includes('core') || pm.includes('ab');
+      if (target.includes('back')) return pm.includes('back') || pm.includes('trap');
+      if (target.includes('shoulder')) return pm.includes('shoulder') || pm.includes('deltoid');
+      if (target.includes('bicep')) return pm.includes('bicep');
+      if (target.includes('tricep')) return pm.includes('tricep');
+      if (target.includes('forearm')) return pm.includes('forearm');
+      if (target.includes('chest')) return pm.includes('chest');
+      if (target.includes('hamstring')) return pm.includes('hamstring');
+      if (target.includes('glute')) return pm.includes('glute');
+      if (target.includes('calf') || target.includes('calve')) return pm.includes('calv') || pm.includes('calf');
+      return pm.includes(target);
+    }).length;
+  };
+
+  // Filtered exercises according to selected muscle category and search text
+  const displayedExercises = React.useMemo(() => {
+    let list = exerciseDb;
+    if (selectedMuscleCategory && selectedMuscleCategory !== 'All Exercises') {
+      const target = selectedMuscleCategory.toLowerCase();
+      list = exerciseDb.filter((e) => {
+        const pm = (e.primary_muscle || '').toLowerCase();
+        if (target.includes('quad') || target.includes('leg')) return pm.includes('quad') || pm.includes('leg');
+        if (target.includes('core') || target.includes('ab')) return pm.includes('core') || pm.includes('ab');
+        if (target.includes('back')) return pm.includes('back') || pm.includes('trap');
+        if (target.includes('shoulder')) return pm.includes('shoulder') || pm.includes('deltoid');
+        if (target.includes('bicep')) return pm.includes('bicep');
+        if (target.includes('tricep')) return pm.includes('tricep');
+        if (target.includes('forearm')) return pm.includes('forearm');
+        if (target.includes('chest')) return pm.includes('chest');
+        if (target.includes('hamstring')) return pm.includes('hamstring');
+        if (target.includes('glute')) return pm.includes('glute');
+        if (target.includes('calf') || target.includes('calve')) return pm.includes('calv') || pm.includes('calf');
+        return pm.includes(target);
+      });
+    }
+
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase().trim();
+      return list.filter(
+        (e) =>
+          e.name.toLowerCase().includes(q) ||
+          (e.equipment && e.equipment.toLowerCase().includes(q)) ||
+          (e.primary_muscle && e.primary_muscle.toLowerCase().includes(q))
+      );
+    }
+
+    return list;
+  }, [exerciseDb, selectedMuscleCategory, searchQuery]);
 
   return (
     <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
@@ -883,9 +1024,20 @@ interface ParsedPlanResult {
                               <Text style={styles.exerciseNumText}>{exIdx + 1}</Text>
                             </View>
                             <View style={styles.exerciseTextGroup}>
-                              <Text style={styles.exerciseNameText} numberOfLines={1}>
-                                {ex.name}
-                              </Text>
+                              <View style={styles.exerciseNameRow}>
+                                <Text style={styles.exerciseNameText} numberOfLines={1}>
+                                  {ex.name}
+                                </Text>
+                                <TouchableOpacity
+                                  style={styles.exerciseInfoBtn}
+                                  activeOpacity={0.7}
+                                  onPress={() => handleOpenExerciseInfo(ex)}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  accessibilityLabel={`View details for ${ex.name}`}
+                                >
+                                  <Icon name="Info" size={15} color={OBSIDIAN_COLORS.cyanAccent} />
+                                </TouchableOpacity>
+                              </View>
                               <View style={styles.exerciseMetaRow}>
                                 <View style={styles.tagChip}>
                                   <Text style={styles.tagChipText}>
@@ -1039,7 +1191,7 @@ interface ParsedPlanResult {
                   <TouchableOpacity
                     style={styles.addExerciseBtn}
                     activeOpacity={0.8}
-                    onPress={() => setIsExercisePickerOpen(true)}
+                    onPress={openExercisePicker}
                   >
                     <Icon name="Plus" size={18} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
                     <Text style={styles.addExerciseText}>Add Exercise</Text>
@@ -1216,58 +1368,360 @@ interface ParsedPlanResult {
           )}
         </ScrollView>
 
-        {/* Exercise Picker Modal */}
+        {/* ================= 2-STEP EXERCISE PICKER MODAL ================= */}
         <Modal visible={isExercisePickerOpen} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Exercise</Text>
-                <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)}>
-                  <Icon name="X" size={22} color={OBSIDIAN_COLORS.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <TextInput
-                style={styles.modalSearchInput}
-                placeholder="Search or enter custom exercise..."
-                placeholderTextColor={OBSIDIAN_COLORS.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-
-              {searchQuery.trim().length > 0 &&
-                !filteredExercises.some(
-                  (e) => e.name.toLowerCase() === searchQuery.trim().toLowerCase()
-                ) && (
-                  <TouchableOpacity
-                    style={styles.customExercisePrompt}
-                    onPress={() => handleSelectExercise(searchQuery.trim(), 'Custom')}
-                  >
-                    <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.voltLime} />
-                    <Text style={styles.customExerciseText}>
-                      Create custom: "{searchQuery.trim()}"
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-              <ScrollView style={{ maxHeight: 380 }}>
-                {filteredExercises.map((ex) => (
-                  <TouchableOpacity
-                    key={ex.id}
-                    style={styles.exercisePickerItem}
-                    activeOpacity={0.7}
-                    onPress={() => handleSelectExercise(ex.name, ex.primary_muscle)}
-                  >
+              {pickerStep === 'categories' ? (
+                <>
+                  {/* Step 1: Select Muscle Group */}
+                  <View style={styles.modalHeader}>
                     <View>
-                      <Text style={styles.pickerExName}>{ex.name}</Text>
-                      <Text style={styles.pickerExMuscle}>{ex.primary_muscle}</Text>
+                      <Text style={styles.modalTitle}>Select Muscle Group</Text>
+                      <Text style={styles.modalSubtitle}>
+                        Choose a muscle group to view matching exercises
+                      </Text>
                     </View>
-                    <Icon name="CaretRight" size={16} color={OBSIDIAN_COLORS.textMuted} />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                    <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)}>
+                      <Icon name="X" size={22} color={OBSIDIAN_COLORS.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TextInput
+                    style={styles.modalSearchInput}
+                    placeholder="Search across all exercises..."
+                    placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                    value={searchQuery}
+                    onChangeText={(val) => {
+                      setSearchQuery(val);
+                      if (val.trim().length > 0) {
+                        setSelectedMuscleCategory('All Exercises');
+                        setPickerStep('exercises');
+                      }
+                    }}
+                  />
+
+                  <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+                    <View style={styles.muscleCategoriesGrid}>
+                      {MUSCLE_CATEGORIES.map((cat) => {
+                        const count = getMuscleExerciseCount(cat.id, cat.name);
+                        return (
+                          <TouchableOpacity
+                            key={cat.id}
+                            style={styles.muscleCategoryCard}
+                            activeOpacity={0.75}
+                            onPress={() => {
+                              setSelectedMuscleCategory(cat.name);
+                              setPickerStep('exercises');
+                              setSearchQuery('');
+                              if (Platform.OS !== 'web') {
+                                Haptics.selectionAsync().catch(() => {});
+                              }
+                            }}
+                          >
+                            <View style={[styles.muscleCategoryIconBox, { borderColor: cat.color }]}>
+                              <Icon name={cat.icon} size={18} color={cat.color} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.muscleCategoryName}>{cat.name}</Text>
+                              <Text style={styles.muscleCategoryFocus} numberOfLines={1}>
+                                {cat.focus}
+                              </Text>
+                            </View>
+                            <View style={styles.muscleCategoryCountBadge}>
+                              <Text style={styles.muscleCategoryCountText}>{count}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </>
+              ) : (
+                <>
+                  {/* Step 2: Select Exercise from Chosen Muscle Group */}
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity
+                      style={styles.pickerBackBtn}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setPickerStep('categories');
+                        setSelectedMuscleCategory(null);
+                        setSearchQuery('');
+                        if (Platform.OS !== 'web') {
+                          Haptics.selectionAsync().catch(() => {});
+                        }
+                      }}
+                    >
+                      <Icon name="CaretLeft" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                      <Text style={styles.pickerBackText}>Muscles</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.modalTitle} numberOfLines={1}>
+                      {selectedMuscleCategory}
+                    </Text>
+
+                    <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)}>
+                      <Icon name="X" size={22} color={OBSIDIAN_COLORS.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TextInput
+                    style={styles.modalSearchInput}
+                    placeholder={`Search in ${selectedMuscleCategory}...`}
+                    placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+
+                  {searchQuery.trim().length > 0 &&
+                    !displayedExercises.some(
+                      (e) => e.name.toLowerCase() === searchQuery.trim().toLowerCase()
+                    ) && (
+                      <TouchableOpacity
+                        style={styles.customExercisePrompt}
+                        onPress={() =>
+                          handleSelectExercise(
+                            searchQuery.trim(),
+                            selectedMuscleCategory || 'Custom'
+                          )
+                        }
+                      >
+                        <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                        <Text style={styles.customExerciseText}>
+                          Create custom: "{searchQuery.trim()}"
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                  <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                    {displayedExercises.length === 0 ? (
+                      <View style={styles.pickerEmptyState}>
+                        <Icon name="MagnifyingGlass" size={28} color={OBSIDIAN_COLORS.textSlate} />
+                        <Text style={styles.pickerEmptyTitle}>No matching exercises found</Text>
+                        <Text style={styles.pickerEmptySub}>
+                          Type a custom exercise name above to add it
+                        </Text>
+                      </View>
+                    ) : (
+                      displayedExercises.map((ex) => (
+                        <View key={ex.id} style={styles.exercisePickerItem}>
+                          <TouchableOpacity
+                            style={styles.pickerItemMain}
+                            activeOpacity={0.7}
+                            onPress={() => handleSelectExercise(ex.name, ex.primary_muscle, ex.id)}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.pickerExName}>{ex.name}</Text>
+                              <View style={styles.pickerExMetaRow}>
+                                <View style={styles.pickerMuscleChip}>
+                                  <Text style={styles.pickerMuscleChipText}>
+                                    {ex.primary_muscle}
+                                  </Text>
+                                </View>
+                                {ex.equipment && (
+                                  <Text style={styles.pickerEquipmentText}>
+                                    • {ex.equipment}
+                                  </Text>
+                                )}
+                                {ex.difficulty && (
+                                  <Text style={styles.pickerDifficultyText}>
+                                    • {ex.difficulty}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+
+                          {/* Info Button in Picker Item */}
+                          <TouchableOpacity
+                            style={styles.pickerInfoBtn}
+                            activeOpacity={0.7}
+                            onPress={() => handleOpenExerciseInfo(ex)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Icon name="Info" size={16} color={OBSIDIAN_COLORS.cyanAccent} />
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    )}
+                  </ScrollView>
+                </>
+              )}
             </View>
           </View>
+        </Modal>
+
+        {/* ================= EXERCISE INFO HOVERING DIALOG ================= */}
+        <Modal
+          visible={selectedInfoExercise !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedInfoExercise(null)}
+        >
+          <Pressable
+            style={styles.infoModalBackdrop}
+            onPress={() => setSelectedInfoExercise(null)}
+          >
+            <Pressable
+              style={styles.infoModalCard}
+              onPress={(e) => e.stopPropagation()}
+            >
+              {selectedInfoExercise && (
+                <>
+                  {/* Header */}
+                  <View style={styles.infoModalHeader}>
+                    <View style={styles.infoModalHeaderLeft}>
+                      <Text style={styles.infoModalTitle} numberOfLines={2}>
+                        {selectedInfoExercise.name}
+                      </Text>
+                      <View style={styles.infoModalPillsRow}>
+                        {selectedInfoExercise.difficulty && (
+                          <View style={styles.infoDifficultyChip}>
+                            <Text style={styles.infoDifficultyText}>
+                              {selectedInfoExercise.difficulty.toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        {selectedInfoExercise.equipment && (
+                          <View style={styles.infoMetaChip}>
+                            <Text style={styles.infoMetaText}>
+                              {selectedInfoExercise.equipment}
+                            </Text>
+                          </View>
+                        )}
+                        {selectedInfoExercise.mechanics && (
+                          <View style={styles.infoMetaChip}>
+                            <Text style={styles.infoMetaText}>
+                              {selectedInfoExercise.mechanics}
+                            </Text>
+                          </View>
+                        )}
+                        {selectedInfoExercise.force && (
+                          <View style={styles.infoMetaChip}>
+                            <Text style={styles.infoMetaText}>
+                              {selectedInfoExercise.force}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => setSelectedInfoExercise(null)}
+                      style={styles.infoModalCloseBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Icon name="X" size={18} color={OBSIDIAN_COLORS.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Body Scroll */}
+                  <ScrollView
+                    style={styles.infoModalScroll}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 14, paddingBottom: 8 }}
+                  >
+                    {/* Target Muscles */}
+                    <View style={styles.infoSection}>
+                      <Text style={styles.infoSectionLabel}>TARGET MUSCLES</Text>
+                      <View style={styles.muscleChipsWrap}>
+                        <View style={styles.primaryMuscleChip}>
+                          <Text style={styles.primaryMuscleChipText}>
+                            ★ {selectedInfoExercise.primary_muscle}
+                          </Text>
+                        </View>
+                        {Array.isArray(selectedInfoExercise.primary_muscles_detailed) &&
+                          selectedInfoExercise.primary_muscles_detailed
+                            .filter((m) => m !== selectedInfoExercise.primary_muscle)
+                            .map((m, idx) => (
+                              <View key={`pm-${idx}`} style={styles.muscleDetailChip}>
+                                <Text style={styles.muscleDetailChipText}>{m}</Text>
+                              </View>
+                            ))}
+                        {Array.isArray(selectedInfoExercise.secondary_muscles_detailed) &&
+                          selectedInfoExercise.secondary_muscles_detailed.map((m, idx) => (
+                            <View key={`sm-${idx}`} style={styles.secondaryMuscleChip}>
+                              <Text style={styles.secondaryMuscleChipText}>{m}</Text>
+                            </View>
+                          ))}
+                      </View>
+                    </View>
+
+                    {/* Step-by-Step Instructions */}
+                    <View style={styles.infoSection}>
+                      <Text style={styles.infoSectionLabel}>STEP-BY-STEP INSTRUCTIONS</Text>
+                      {Array.isArray(selectedInfoExercise.steps) &&
+                      selectedInfoExercise.steps.length > 0 ? (
+                        <View style={{ gap: 8 }}>
+                          {selectedInfoExercise.steps.map((step) => (
+                            <View key={step.step} style={styles.stepItemBox}>
+                              <View style={styles.stepNumberBadge}>
+                                <Text style={styles.stepNumberText}>{step.step}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                {step.name ? (
+                                  <Text style={styles.stepNameTitle}>{step.name}</Text>
+                                ) : null}
+                                <Text style={styles.stepBodyText}>{step.text}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      ) : selectedInfoExercise.instructions ? (
+                        <Text style={styles.instructionsRawText}>
+                          {selectedInfoExercise.instructions}
+                        </Text>
+                      ) : (
+                        <Text style={styles.instructionsRawText}>
+                          Standard execution: maintain core stability, full range of motion, and controlled eccentric tempo.
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Coaching Cues */}
+                    {Array.isArray(selectedInfoExercise.coaching_cues) &&
+                      selectedInfoExercise.coaching_cues.length > 0 && (
+                        <View style={styles.infoSection}>
+                          <Text style={[styles.infoSectionLabel, { color: OBSIDIAN_COLORS.voltLime }]}>
+                            PRO COACHING CUES
+                          </Text>
+                          <View style={styles.cuesContainer}>
+                            {selectedInfoExercise.coaching_cues.map((cue, idx) => (
+                              <View key={`cue-${idx}`} style={styles.cueItemRow}>
+                                <Icon name="CheckCircle" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                                <Text style={styles.cueText}>{cue}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                    {/* Common Mistakes */}
+                    {Array.isArray(selectedInfoExercise.common_mistakes) &&
+                      selectedInfoExercise.common_mistakes.length > 0 && (
+                        <View style={styles.infoSection}>
+                          <Text style={[styles.infoSectionLabel, { color: OBSIDIAN_COLORS.coralAccent }]}>
+                            COMMON MISTAKES TO AVOID
+                          </Text>
+                          <View style={styles.mistakesContainer}>
+                            {selectedInfoExercise.common_mistakes.map((mistake, idx) => (
+                              <View key={`mistake-${idx}`} style={styles.mistakeItemRow}>
+                                <Icon name="X" size={13} color={OBSIDIAN_COLORS.coralAccent} weight="bold" />
+                                <Text style={styles.mistakeText}>{mistake}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                  </ScrollView>
+
+                  {/* Dismiss Hint */}
+                  <Text style={styles.infoDismissHint}>Tap anywhere outside or X to close</Text>
+                </>
+              )}
+            </Pressable>
+          </Pressable>
         </Modal>
       </View>
     </ScreenContainer>
@@ -1580,10 +2034,18 @@ const styles = StyleSheet.create({
   exerciseTextGroup: {
     flex: 1,
   },
+  exerciseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   exerciseNameText: {
     ...OBSIDIAN_TYPOGRAPHY.headlineSm,
     fontSize: 15,
     color: OBSIDIAN_COLORS.textWhite,
+  },
+  exerciseInfoBtn: {
+    padding: 2,
   },
   exerciseMetaRow: {
     flexDirection: 'row',
@@ -2047,5 +2509,328 @@ const styles = StyleSheet.create({
     ...OBSIDIAN_TYPOGRAPHY.bodySm,
     color: OBSIDIAN_COLORS.textMuted,
     marginTop: 1,
+  },
+  modalSubtitle: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  muscleCategoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  muscleCategoryCard: {
+    width: '48.5%',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  muscleCategoryIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  muscleCategoryName: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 11,
+  },
+  muscleCategoryFocus: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
+    marginTop: 1,
+  },
+  muscleCategoryCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+  },
+  muscleCategoryCountText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  pickerBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  pickerBackText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  pickerItemMain: {
+    flex: 1,
+  },
+  pickerExMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
+  },
+  pickerMuscleChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+  },
+  pickerMuscleChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 9,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  pickerEquipmentText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  pickerDifficultyText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.cyanAccent,
+  },
+  pickerInfoBtn: {
+    padding: 8,
+  },
+  pickerEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 6,
+  },
+  pickerEmptyTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    fontSize: 14,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  pickerEmptySub: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  infoModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: OBSIDIAN_SPACING.md,
+  },
+  infoModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '82%',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 12,
+  },
+  infoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingBottom: 10,
+  },
+  infoModalHeaderLeft: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  infoModalTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    fontSize: 17,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  infoModalPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  infoDifficultyChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(204, 255, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
+  },
+  infoDifficultyText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 9,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  infoMetaChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+  },
+  infoMetaText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  infoModalCloseBtn: {
+    padding: 4,
+  },
+  infoModalScroll: {
+    flexShrink: 1,
+  },
+  infoSection: {
+    gap: 6,
+  },
+  infoSectionLabel: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textMuted,
+    letterSpacing: 0.8,
+  },
+  muscleChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  primaryMuscleChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.3)',
+  },
+  primaryMuscleChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  muscleDetailChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+  },
+  muscleDetailChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  secondaryMuscleChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.2)',
+  },
+  secondaryMuscleChipText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.cyanAccent,
+  },
+  stepItemBox: {
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    padding: 8,
+    borderRadius: OBSIDIAN_RADIUS.md,
+  },
+  stepNumberBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  stepNumberText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  stepNameTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginBottom: 2,
+  },
+  stepBodyText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.textMuted,
+    lineHeight: 16,
+  },
+  instructionsRawText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.textMuted,
+    lineHeight: 18,
+  },
+  cuesContainer: {
+    gap: 6,
+    backgroundColor: 'rgba(204, 255, 0, 0.04)',
+    padding: 10,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.15)',
+  },
+  cueItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  cueText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.textWhite,
+    flex: 1,
+    lineHeight: 16,
+  },
+  mistakesContainer: {
+    gap: 6,
+    backgroundColor: 'rgba(255, 107, 107, 0.04)',
+    padding: 10,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.15)',
+  },
+  mistakeItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  mistakeText: {
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.textWhite,
+    flex: 1,
+    lineHeight: 16,
+  },
+  infoDismissHint: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    fontSize: 9,
+    color: OBSIDIAN_COLORS.textSlate,
+    textAlign: 'center',
+    paddingTop: 4,
   },
 });
