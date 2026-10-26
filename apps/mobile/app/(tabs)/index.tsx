@@ -23,7 +23,6 @@ import {
 import { api } from '@/services/api';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = SCREEN_WIDTH - OBSIDIAN_SPACING.md * 2;
 
 interface ProgramExerciseItem {
   exercise?: { name?: string };
@@ -87,7 +86,7 @@ export default function HomeDashboard() {
     queryKey: ['recentSessions'],
     queryFn: async () => {
       const res = await api.get('/sessions').catch(() => null);
-      return Array.isArray(res?.data) ? res.data.slice(0, 3) : [];
+      return Array.isArray(res?.data) ? res.data.slice(0, 5) : [];
     },
   });
 
@@ -141,12 +140,22 @@ export default function HomeDashboard() {
     day: 'numeric',
   });
 
+  const sessionCount = recentSessions?.length || 0;
+
   return (
     <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
       <View style={styles.container}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: sessionCount >= 4 ? 96 : sessionCount > 0 ? 44 : 16,
+              flexGrow: sessionCount === 0 ? 1 : undefined,
+            },
+          ]}
+          bounces={sessionCount >= 4}
+          alwaysBounceVertical={false}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -177,177 +186,189 @@ export default function HomeDashboard() {
           <ScrollView
             horizontal
             pagingEnabled
+            snapToInterval={SCREEN_WIDTH}
+            snapToAlignment="center"
+            decelerationRate="fast"
             showsHorizontalScrollIndicator={false}
             onScroll={(e) => {
               const offsetX = e.nativeEvent.contentOffset.x;
-              const index = Math.round(offsetX / CARD_WIDTH);
-              setActiveCardIndex(index);
+              const index = Math.min(Math.max(Math.round(offsetX / SCREEN_WIDTH), 0), 2);
+              if (index !== activeCardIndex) {
+                setActiveCardIndex(index);
+              }
             }}
             scrollEventThrottle={16}
             style={styles.carouselContainer}
+            contentContainerStyle={styles.carouselScrollContent}
           >
             {/* Card 1: Today's Workout Hero */}
-            <View style={styles.carouselCard}>
-              <View style={styles.glowUnderlay} />
+            <View style={styles.carouselSlide}>
+              <View style={styles.carouselCard}>
+                <View style={styles.glowUnderlay} />
 
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.workoutBadge}>
-                  <Text style={styles.workoutBadgeText}>TODAY'S WORKOUT</Text>
+                <View style={styles.cardHeaderRow}>
+                  <View style={styles.workoutBadge}>
+                    <Text style={styles.workoutBadgeText}>TODAY'S WORKOUT</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editSplitLink}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/program/builder')}
+                  >
+                    <Text style={styles.editSplitText}>EDIT SPLIT</Text>
+                    <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                  </TouchableOpacity>
                 </View>
+
+                <Text style={styles.workoutTitle} numberOfLines={1}>
+                  {todayWorkoutTitle}
+                </Text>
+
+                {/* Category Chips & Duration */}
+                <View style={styles.pillsRow}>
+                  {todayExercises.length > 0 ? (
+                    todayExercises.slice(0, 3).map((ex: ProgramExerciseItem, i: number) => (
+                      <View key={i} style={styles.categoryChip}>
+                        <Text style={styles.categoryChipText}>
+                          {ex.exercise?.name || ex.exercise_name || `Ex ${i + 1}`}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <>
+                      <View style={styles.categoryChip}>
+                        <Text style={styles.categoryChipText}>Chest</Text>
+                      </View>
+                      <View style={styles.categoryChip}>
+                        <Text style={styles.categoryChipText}>Triceps</Text>
+                      </View>
+                    </>
+                  )}
+                  <Text style={styles.durationMeta}>
+                    {exerciseCount} Exercises • ~{estimatedMin} min
+                  </Text>
+                </View>
+
+                {/* High-Energy Electric Volt Lime Start Button */}
                 <TouchableOpacity
-                  style={styles.editSplitLink}
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/program/builder')}
+                  style={styles.startWorkoutBtn}
+                  activeOpacity={0.88}
+                  onPress={() => router.push('/workout/active')}
                 >
-                  <Text style={styles.editSplitText}>EDIT SPLIT</Text>
-                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                  <Icon name="Play" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
+                  <Text style={styles.startWorkoutText}>Start Workout</Text>
                 </TouchableOpacity>
               </View>
-
-              <Text style={styles.workoutTitle} numberOfLines={1}>
-                {todayWorkoutTitle}
-              </Text>
-
-              {/* Category Chips & Duration */}
-              <View style={styles.pillsRow}>
-                {todayExercises.length > 0 ? (
-                  todayExercises.slice(0, 3).map((ex: ProgramExerciseItem, i: number) => (
-                    <View key={i} style={styles.categoryChip}>
-                      <Text style={styles.categoryChipText}>
-                        {ex.exercise?.name || ex.exercise_name || `Ex ${i + 1}`}
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <>
-                    <View style={styles.categoryChip}>
-                      <Text style={styles.categoryChipText}>Chest</Text>
-                    </View>
-                    <View style={styles.categoryChip}>
-                      <Text style={styles.categoryChipText}>Triceps</Text>
-                    </View>
-                  </>
-                )}
-                <Text style={styles.durationMeta}>
-                  {exerciseCount} Exercises • ~{estimatedMin} min
-                </Text>
-              </View>
-
-              {/* High-Energy Electric Volt Lime Start Button */}
-              <TouchableOpacity
-                style={styles.startWorkoutBtn}
-                activeOpacity={0.88}
-                onPress={() => router.push('/workout/active')}
-              >
-                <Icon name="Play" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
-                <Text style={styles.startWorkoutText}>Start Workout</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Card 2: Daily Nutrition Overview */}
-            <View style={styles.carouselCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={[styles.workoutBadge, { borderColor: 'rgba(0, 227, 253, 0.3)', backgroundColor: 'rgba(0, 227, 253, 0.1)' }]}>
-                  <Text style={[styles.workoutBadgeText, { color: OBSIDIAN_COLORS.cyanAccent }]}>DAILY NUTRITION</Text>
+            <View style={styles.carouselSlide}>
+              <View style={styles.carouselCard}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.workoutBadge, { borderColor: 'rgba(0, 227, 253, 0.3)', backgroundColor: 'rgba(0, 227, 253, 0.1)' }]}>
+                    <Text style={[styles.workoutBadgeText, { color: OBSIDIAN_COLORS.cyanAccent }]}>DAILY NUTRITION</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editSplitLink}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/(tabs)/nutrition')}
+                  >
+                    <Text style={[styles.editSplitText, { color: OBSIDIAN_COLORS.cyanAccent }]}>FULL LOG</Text>
+                    <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.cyanAccent} weight="bold" />
+                  </TouchableOpacity>
                 </View>
+
+                <View style={styles.nutritionRow}>
+                  <ProgressRing
+                    size={88}
+                    strokeWidth={8}
+                    progress={calRatio}
+                    color={OBSIDIAN_COLORS.voltLime}
+                  >
+                    <Text style={styles.ringValue}>{caloriesConsumed}</Text>
+                    <Text style={styles.ringLabel}>kcal</Text>
+                  </ProgressRing>
+
+                  <View style={styles.macroBarsContainer}>
+                    <View style={styles.macroItem}>
+                      <View style={styles.macroTextRow}>
+                        <Text style={styles.macroLabel}>Protein</Text>
+                        <Text style={styles.macroValue}>{proteinG}g / 180g</Text>
+                      </View>
+                      <ProgressBar progress={Math.min(proteinG / 180, 1)} color={OBSIDIAN_COLORS.coralAccent} />
+                    </View>
+
+                    <View style={styles.macroItem}>
+                      <View style={styles.macroTextRow}>
+                        <Text style={styles.macroLabel}>Carbs</Text>
+                        <Text style={styles.macroValue}>{carbsG}g / 250g</Text>
+                      </View>
+                      <ProgressBar progress={Math.min(carbsG / 250, 1)} color={OBSIDIAN_COLORS.cyanAccent} />
+                    </View>
+
+                    <View style={styles.macroItem}>
+                      <View style={styles.macroTextRow}>
+                        <Text style={styles.macroLabel}>Fats</Text>
+                        <Text style={styles.macroValue}>{fatG}g / 70g</Text>
+                      </View>
+                      <ProgressBar progress={Math.min(fatG / 70, 1)} color={OBSIDIAN_COLORS.voltLime} />
+                    </View>
+                  </View>
+                </View>
+
                 <TouchableOpacity
-                  style={styles.editSplitLink}
-                  activeOpacity={0.7}
+                  style={styles.quickLogBtn}
+                  activeOpacity={0.8}
                   onPress={() => router.push('/(tabs)/nutrition')}
                 >
-                  <Text style={[styles.editSplitText, { color: OBSIDIAN_COLORS.cyanAccent }]}>FULL LOG</Text>
-                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.cyanAccent} weight="bold" />
+                  <Text style={styles.quickLogBtnText}>+ Quick Log Meal</Text>
                 </TouchableOpacity>
               </View>
-
-              <View style={styles.nutritionRow}>
-                <ProgressRing
-                  size={88}
-                  strokeWidth={8}
-                  progress={calRatio}
-                  color={OBSIDIAN_COLORS.voltLime}
-                >
-                  <Text style={styles.ringValue}>{caloriesConsumed}</Text>
-                  <Text style={styles.ringLabel}>kcal</Text>
-                </ProgressRing>
-
-                <View style={styles.macroBarsContainer}>
-                  <View style={styles.macroItem}>
-                    <View style={styles.macroTextRow}>
-                      <Text style={styles.macroLabel}>Protein</Text>
-                      <Text style={styles.macroValue}>{proteinG}g / 180g</Text>
-                    </View>
-                    <ProgressBar progress={Math.min(proteinG / 180, 1)} color={OBSIDIAN_COLORS.coralAccent} />
-                  </View>
-
-                  <View style={styles.macroItem}>
-                    <View style={styles.macroTextRow}>
-                      <Text style={styles.macroLabel}>Carbs</Text>
-                      <Text style={styles.macroValue}>{carbsG}g / 250g</Text>
-                    </View>
-                    <ProgressBar progress={Math.min(carbsG / 250, 1)} color={OBSIDIAN_COLORS.cyanAccent} />
-                  </View>
-
-                  <View style={styles.macroItem}>
-                    <View style={styles.macroTextRow}>
-                      <Text style={styles.macroLabel}>Fats</Text>
-                      <Text style={styles.macroValue}>{fatG}g / 70g</Text>
-                    </View>
-                    <ProgressBar progress={Math.min(fatG / 70, 1)} color={OBSIDIAN_COLORS.voltLime} />
-                  </View>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.quickLogBtn}
-                activeOpacity={0.8}
-                onPress={() => router.push('/(tabs)/nutrition')}
-              >
-                <Text style={styles.quickLogBtnText}>+ Quick Log Meal</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Card 3: Weekly Grind & Rank */}
-            <View style={styles.carouselCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={[styles.workoutBadge, { borderColor: 'rgba(204, 255, 0, 0.3)', backgroundColor: 'rgba(204, 255, 0, 0.1)' }]}>
-                  <Text style={styles.workoutBadgeText}>WEEKLY GRIND</Text>
+            <View style={styles.carouselSlide}>
+              <View style={styles.carouselCard}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.workoutBadge, { borderColor: 'rgba(204, 255, 0, 0.3)', backgroundColor: 'rgba(204, 255, 0, 0.1)' }]}>
+                    <Text style={styles.workoutBadgeText}>WEEKLY GRIND</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editSplitLink}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/(tabs)/achievements')}
+                  >
+                    <Text style={styles.editSplitText}>TROPHIES</Text>
+                    <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.editSplitLink}
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/(tabs)/achievements')}
-                >
-                  <Text style={styles.editSplitText}>TROPHIES</Text>
-                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
-                </TouchableOpacity>
-              </View>
 
-              <View style={styles.rankProgressRow}>
-                <View style={styles.rankShield}>
-                  <Icon name="Trophy" size={24} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                <View style={styles.rankProgressRow}>
+                  <View style={styles.rankShield}>
+                    <Icon name="Trophy" size={24} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                  </View>
+                  <View style={styles.rankDetails}>
+                    <Text style={styles.rankTitle}>{rank}</Text>
+                    <Text style={styles.xpText}>{totalXp.toLocaleString()} Total XP Earned</Text>
+                    <ProgressBar progress={0.65} color={OBSIDIAN_COLORS.voltLime} style={{ marginTop: 6 }} />
+                  </View>
                 </View>
-                <View style={styles.rankDetails}>
-                  <Text style={styles.rankTitle}>{rank}</Text>
-                  <Text style={styles.xpText}>{totalXp.toLocaleString()} Total XP Earned</Text>
-                  <ProgressBar progress={0.65} color={OBSIDIAN_COLORS.voltLime} style={{ marginTop: 6 }} />
-                </View>
-              </View>
 
-              <View style={styles.weekDotsRow}>
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
-                  const completed = idx === 0 || idx === 2 || idx === 3;
-                  return (
-                    <View key={idx} style={styles.dayDotCol}>
-                      <View style={[styles.dayDot, completed && styles.dayDotCompleted]}>
-                        {completed && <Icon name="Check" size={12} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />}
+                <View style={styles.weekDotsRow}>
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                    const completed = idx === 0 || idx === 2 || idx === 3;
+                    return (
+                      <View key={idx} style={styles.dayDotCol}>
+                        <View style={[styles.dayDot, completed && styles.dayDotCompleted]}>
+                          {completed && <Icon name="Check" size={12} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />}
+                        </View>
+                        <Text style={[styles.dayLabel, completed && { color: OBSIDIAN_COLORS.voltLime }]}>
+                          {day}
+                        </Text>
                       </View>
-                      <Text style={[styles.dayLabel, completed && { color: OBSIDIAN_COLORS.voltLime }]}>
-                        {day}
-                      </Text>
-                    </View>
-                  );
-                })}
+                    );
+                  })}
+                </View>
               </View>
             </View>
           </ScrollView>
@@ -458,13 +479,14 @@ export default function HomeDashboard() {
             ) : (
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIconCircle}>
-                  <Icon name="Barbell" size={26} color={OBSIDIAN_COLORS.textMuted} />
+                  <Icon name="Barbell" size={22} color={OBSIDIAN_COLORS.voltLime} />
                 </View>
-                <Text style={styles.emptyText}>
-                  No recent workouts yet. Tap{' '}
-                  <Text style={styles.emptyVoltHighlight}>"Start Workout"</Text>
-                  {' '}above to crush your first session!
-                </Text>
+                <View style={styles.emptyTextCol}>
+                  <Text style={styles.emptyTitle}>Ready to begin</Text>
+                  <Text style={styles.emptyText}>
+                    Tap <Text style={styles.emptyVoltHighlight}>Start Workout</Text> above to log your first session.
+                  </Text>
+                </View>
               </View>
             )}
           </View>
@@ -533,11 +555,17 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     marginHorizontal: -OBSIDIAN_SPACING.md,
+  },
+  carouselScrollContent: {
+    alignItems: 'center',
+  },
+  carouselSlide: {
+    width: SCREEN_WIDTH,
     paddingHorizontal: OBSIDIAN_SPACING.md,
+    alignItems: 'center',
   },
   carouselCard: {
-    width: CARD_WIDTH,
-    marginRight: OBSIDIAN_SPACING.md,
+    width: '100%',
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     borderRadius: OBSIDIAN_RADIUS.xl,
     borderWidth: 1,
@@ -880,37 +908,39 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   emptyCard: {
-    backgroundColor: 'rgba(24, 27, 37, 0.8)',
-    borderRadius: OBSIDIAN_RADIUS.xl,
+    backgroundColor: 'rgba(24, 27, 37, 0.7)',
+    borderRadius: OBSIDIAN_RADIUS.lg,
     borderWidth: 1,
     borderColor: OBSIDIAN_COLORS.borderGhost,
-    paddingVertical: 36,
-    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    gap: 14,
   },
   emptyIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: OBSIDIAN_RADIUS.lg,
-    backgroundColor: OBSIDIAN_COLORS.surface,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(204, 255, 0, 0.08)',
     borderWidth: 1,
-    borderColor: OBSIDIAN_COLORS.borderGhost,
+    borderColor: 'rgba(204, 255, 0, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: OBSIDIAN_COLORS.voltLime,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 4,
+  },
+  emptyTextCol: {
+    flex: 1,
+  },
+  emptyTitle: {
+    ...OBSIDIAN_TYPOGRAPHY.headlineSm,
+    fontSize: 14,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginBottom: 2,
   },
   emptyText: {
-    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    ...OBSIDIAN_TYPOGRAPHY.bodySm,
     color: OBSIDIAN_COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 280,
+    lineHeight: 18,
   },
   emptyVoltHighlight: {
     color: OBSIDIAN_COLORS.voltLime,

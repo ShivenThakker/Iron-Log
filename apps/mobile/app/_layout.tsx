@@ -14,8 +14,10 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: 1,
       staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   },
 });
@@ -33,6 +35,7 @@ export default function RootLayout() {
 
   const { isAuthenticated, isHydrated, init } = useAuthStore();
   const segments = useSegments();
+  const rootSegment = segments[0];
   const router = useRouter();
 
   useEffect(() => {
@@ -48,14 +51,14 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isHydrated || !fontsLoaded) return;
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'register';
+    const inAuthGroup = rootSegment === 'login' || rootSegment === 'register';
 
-    if (!isAuthenticated && segments[0] === '(tabs)') {
+    if (!isAuthenticated && rootSegment === '(tabs)') {
       router.replace('/');
-    } else if (isAuthenticated && (inAuthGroup || !segments[0])) {
+    } else if (isAuthenticated && (inAuthGroup || !rootSegment)) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isHydrated, fontsLoaded, segments]);
+  }, [isAuthenticated, isHydrated, fontsLoaded, rootSegment]);
 
   if (!isHydrated || !fontsLoaded) {
     return (

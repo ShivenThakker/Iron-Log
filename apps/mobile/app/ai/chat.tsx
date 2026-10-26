@@ -44,7 +44,7 @@ export default function AiChatScreen() {
     {
       id: 'welcome-1',
       sender: 'ai',
-      text: "Hey! I'm your IronLog AI Coach, powered by Gemini 2.5 Flash. I have full context on your workouts, current rank, and nutrition. How can I optimize your gains today?",
+      text: "Hey! I'm your IronLog Coach. I have your workouts, current rank, and nutrition data. How can I optimize your training today?",
       timestamp: 'Just now',
     },
   ]);
@@ -132,7 +132,7 @@ export default function AiChatScreen() {
               <Text style={styles.title}>IronLog Coach</Text>
               <View style={styles.geminiBadge}>
                 <Icon name="Sparkle" size={11} color={OBSIDIAN_COLORS.voltLime} />
-                <Text style={styles.geminiBadgeText}>Gemini 2.5</Text>
+                <Text style={styles.geminiBadgeText}>Coach</Text>
               </View>
             </View>
             <Text style={styles.status}>Online • Ready to program</Text>

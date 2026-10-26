@@ -217,7 +217,7 @@ interface ParsedPlanResult {
   days: ParsedPlanDay[];
 }
 
-  // AI Parser State (Gemini 2.5 Flash)
+  // AI Routine Parser State
   const [aiInputType, setAiInputType] = useState<'text' | 'image'>('text');
   const [aiRoutineText, setAiRoutineText] = useState('');
   const [aiSelectedImage, setAiSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -751,7 +751,7 @@ interface ParsedPlanResult {
               <View style={styles.aiCard}>
                 <View style={styles.aiHeaderPill}>
                   <Icon name="Sparkle" size={14} color={OBSIDIAN_COLORS.voltLime} />
-                  <Text style={styles.aiHeaderPillText}>GEMINI 2.5 FLASH • MULTIMODAL INGESTION</Text>
+                  <Text style={styles.aiHeaderPillText}>AI PLAN INGESTION</Text>
                 </View>
 
                 <Text style={styles.aiTitle}>AI Workout Plan Ingestion</Text>
@@ -854,7 +854,7 @@ interface ParsedPlanResult {
                     weight="bold"
                   />
                   <Text style={styles.parseBtnText}>
-                    {aiParsing ? 'Gemini 2.5 Flash is Parsing...' : 'Parse & Extract Plan with AI'}
+                    {aiParsing ? 'Extracting Routine...' : 'Parse & Extract Plan with AI'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -865,7 +865,7 @@ interface ParsedPlanResult {
                   <Text style={styles.parsedBadge}>PARSED ROUTINE PREVIEW</Text>
                   <Text style={styles.parsedProgramName}>{aiParsedResult.program_name}</Text>
                   <Text style={styles.parsedProgramDesc}>
-                    {aiParsedResult.description || 'Custom multi-day routine extracted by Gemini.'}
+                    {aiParsedResult.description || 'Custom multi-day routine extracted from input.'}
                   </Text>
 
                   <View style={{ marginTop: 12, gap: 10 }}>

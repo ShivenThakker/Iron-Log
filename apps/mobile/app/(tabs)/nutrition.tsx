@@ -195,7 +195,7 @@ export default function NutritionScreen() {
               <Text variant="labelCaps" style={styles.kicker}>MACRO ENGINE</Text>
               <Text variant="headlineLgMobile" style={styles.title}>Daily Nutrition</Text>
             </View>
-            <Badge label="USDA Verified" variant="volt" />
+            <Badge label="Food Log" variant="volt" />
           </View>
 
           {/* Calorie Hero + Macro Breakdown Card */}
@@ -435,7 +435,7 @@ export default function NutritionScreen() {
                     Log to {activeSlot.charAt(0).toUpperCase() + activeSlot.slice(1)}
                   </Text>
                   <Text variant="bodySm" style={styles.modalSub}>
-                    Live search via USDA FoodData Central
+                    Search verified nutrition database
                   </Text>
                 </View>
 
@@ -451,7 +451,7 @@ export default function NutritionScreen() {
                   onPress={() => setManualMode(false)}
                 >
                   <Text style={[styles.toggleText, !manualMode && styles.toggleTextActive]}>
-                    USDA Database
+                    Food Database
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -525,7 +525,7 @@ export default function NutritionScreen() {
                     ) : (
                       <View style={styles.searchHint}>
                         <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textSlate, textAlign: 'center' }}>
-                          Type a food name above to query thousands of USDA verified items.
+                          Type a food name above to search verified items.
                         </Text>
                       </View>
                     )}

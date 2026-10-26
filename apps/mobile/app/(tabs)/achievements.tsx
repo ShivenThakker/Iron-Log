@@ -126,7 +126,7 @@ export default function AchievementsTab() {
               <Text variant="labelCaps" style={styles.kicker}>ATHLETE RANKING</Text>
               <Text variant="headlineLgMobile" style={styles.title}>Achievements</Text>
             </View>
-            <Badge label="Season 1" variant="volt" />
+            <Badge label="Rank Tier" variant="volt" />
           </View>
 
           {/* Hero Status Card: Tier, XP, Progress Bar */}

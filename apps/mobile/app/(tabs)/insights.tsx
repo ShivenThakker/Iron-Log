@@ -172,7 +172,7 @@ export default function InsightsTab() {
               <Text variant="labelCaps" style={styles.kicker}>ADVANCED ANALYTICS</Text>
               <Text variant="headlineLgMobile" style={styles.title}>Insights</Text>
             </View>
-            <Badge label="AI Powered" variant="volt" />
+            <Badge label="Analytics" variant="volt" />
           </View>
 
           {/* Time Period Filter Pills */}
@@ -297,7 +297,7 @@ export default function InsightsTab() {
                   Dynamic 3D Biometric Distribution
                 </Text>
               </View>
-              <Badge label="GYMSTREAK" variant="volt" size="sm" />
+              <Badge label="VOLUME" variant="volt" size="sm" />
             </View>
 
             <MuscleHeatmap data={heatmapData} theme="obsidian" />
@@ -314,7 +314,7 @@ export default function InsightsTab() {
                   6-Axis Muscular Equilibrium
                 </Text>
               </View>
-              <Badge label="RADAR" variant="cyan" size="sm" />
+              <Badge label="6-AXIS" variant="cyan" size="sm" />
             </View>
 
             <View style={{ alignItems: 'center', marginVertical: OBSIDIAN_SPACING.sm }}>
