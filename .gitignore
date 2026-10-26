@@ -35,4 +35,5 @@ apps/api/dev.db
 # Scratch & design artifacts
 graphify-out/
 design/
-data/
+/data/
+

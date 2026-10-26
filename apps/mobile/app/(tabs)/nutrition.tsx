@@ -39,6 +39,7 @@ interface MealFoodEntry {
   id?: string;
   food_name?: string;
   name?: string;
+  serving_size?: string;
   calories_kcal?: number;
   calories?: number;
   protein_g?: number;
@@ -471,7 +472,7 @@ export default function NutritionScreen() {
                     <Icon name="MagnifyingGlass" size={18} color={OBSIDIAN_COLORS.textSlate} />
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="e.g. Chicken breast, Oatmeal, Greek yogurt..."
+                      placeholder="e.g. Paneer Tikka, Roti, Chicken Biryani, Dal..."
                       placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                       value={searchQuery}
                       onChangeText={setSearchQuery}
@@ -503,7 +504,7 @@ export default function NutritionScreen() {
                               {item.name || item.description}
                             </Text>
                             <Text variant="bodySm" style={styles.resultMacros}>
-                              {item.protein || item.protein_g || 0}g P • {item.carbs || item.carbs_g || 0}g C • {item.fat || item.fats_g || 0}g F
+                              {item.serving_size ? `${item.serving_size} • ` : ''}{item.protein || item.protein_g || 0}g P • {item.carbs || item.carbs_g || 0}g C • {item.fat || item.fats_g || 0}g F
                             </Text>
                           </View>
                           <View style={styles.resultRight}>
