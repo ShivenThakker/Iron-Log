@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -10,6 +10,8 @@ import {
   Image,
   Switch,
   Platform,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -196,6 +198,18 @@ export default function WorkoutPlanBuilderScreen() {
   const [exerciseDb, setExerciseDb] = useState<{ id: string; name: string; primary_muscle: string }[]>([]);
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Exercise Reorder State & Gesture Handling
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const panY = useRef(new Animated.Value(0)).current;
+  const cardHeights = useRef<{ [key: number]: number }>({});
+  const dragRef = useRef({
+    startIndex: 0,
+    targetIndex: 0,
+    isDragging: false,
+  });
+  const panRespondersRef = useRef<Map<number, ReturnType<typeof PanResponder.create>>>(new Map());
 
 interface ParsedPlanExercise {
   name: string;
@@ -432,6 +446,183 @@ interface ParsedPlanResult {
     }
   };
 
+  const handleMoveExercise = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setSplitDays((prev) => {
+      const copy = [...prev];
+      const day = { ...copy[selectedDayIndex] };
+      const list = [...day.exercises];
+      if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) {
+        return prev;
+      }
+      const [moved] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, moved);
+      day.exercises = list;
+      copy[selectedDayIndex] = day;
+      return copy;
+    });
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
+  };
+
+  const openReorderMenu = (index: number) => {
+    const day = splitDays[selectedDayIndex];
+    if (!day || day.exercises.length <= 1) return;
+    const total = day.exercises.length;
+    const exName = day.exercises[index]?.name || 'Exercise';
+
+    Alert.alert(
+      'Reorder Exercise',
+      `Rearrange "${exName}"`,
+      [
+        ...(index > 0
+          ? [
+              {
+                text: 'Move Up (▲)',
+                onPress: () => handleMoveExercise(index, index - 1),
+              },
+            ]
+          : []),
+        ...(index < total - 1
+          ? [
+              {
+                text: 'Move Down (▼)',
+                onPress: () => handleMoveExercise(index, index + 1),
+              },
+            ]
+          : []),
+        ...(index > 0
+          ? [
+              {
+                text: 'Move to Top',
+                onPress: () => handleMoveExercise(index, 0),
+              },
+            ]
+          : []),
+        ...(index < total - 1
+          ? [
+              {
+                text: 'Move to Bottom',
+                onPress: () => handleMoveExercise(index, total - 1),
+              },
+            ]
+          : []),
+        {
+          text: 'Cancel',
+          style: 'cancel' as const,
+        },
+      ]
+    );
+  };
+
+  const latestStateRef = useRef({
+    splitDays,
+    selectedDayIndex,
+    handleMoveExercise,
+    openReorderMenu,
+  });
+
+  useEffect(() => {
+    latestStateRef.current = {
+      splitDays,
+      selectedDayIndex,
+      handleMoveExercise,
+      openReorderMenu,
+    };
+  });
+
+  const getPanResponder = (index: number) => {
+    let pr = panRespondersRef.current.get(index);
+    if (!pr) {
+      pr = PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
+        onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dy) > 4,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          dragRef.current = {
+            startIndex: index,
+            targetIndex: index,
+            isDragging: true,
+          };
+          panY.setValue(0);
+          setDraggingIndex(index);
+          setDragOverIndex(index);
+          if (Platform.OS !== 'web') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+          }
+        },
+        onPanResponderMove: (_, g) => {
+          panY.setValue(g.dy);
+          const start = dragRef.current.startIndex;
+          const { splitDays: curSplit, selectedDayIndex: curIdx } = latestStateRef.current;
+          const count = curSplit[curIdx]?.exercises.length || 0;
+          const cardH = (cardHeights.current[start] || 130) + 10;
+          const offset = Math.round(g.dy / cardH);
+          const target = Math.max(0, Math.min(count - 1, start + offset));
+
+          if (target !== dragRef.current.targetIndex) {
+            dragRef.current.targetIndex = target;
+            setDragOverIndex(target);
+            if (Platform.OS !== 'web') {
+              Haptics.selectionAsync().catch(() => {});
+            }
+          }
+        },
+        onPanResponderRelease: (_, g) => {
+          const start = dragRef.current.startIndex;
+          const target = dragRef.current.targetIndex;
+          dragRef.current.isDragging = false;
+
+          const isTap = Math.abs(g.dy) < 5 && Math.abs(g.dx) < 5;
+
+          if (isTap) {
+            setDraggingIndex(null);
+            setDragOverIndex(null);
+            latestStateRef.current.openReorderMenu(start);
+            return;
+          }
+
+          const { splitDays: curSplit, selectedDayIndex: curIdx } = latestStateRef.current;
+          const count = curSplit[curIdx]?.exercises.length || 0;
+
+          if (target !== start && target >= 0 && target < count) {
+            latestStateRef.current.handleMoveExercise(start, target);
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            }
+          }
+
+          Animated.spring(panY, {
+            toValue: 0,
+            friction: 6,
+            tension: 40,
+            useNativeDriver: false,
+          }).start(() => {
+            setDraggingIndex(null);
+            setDragOverIndex(null);
+          });
+        },
+        onPanResponderTerminate: () => {
+          dragRef.current.isDragging = false;
+          Animated.spring(panY, {
+            toValue: 0,
+            friction: 6,
+            tension: 40,
+            useNativeDriver: false,
+          }).start(() => {
+            setDraggingIndex(null);
+            setDragOverIndex(null);
+          });
+        },
+      });
+      panRespondersRef.current.set(index, pr);
+    }
+    return pr;
+  };
+
   const handleUpdateExerciseParam = (
     exIdx: number,
     field: 'target_sets' | 'target_reps' | 'rest_seconds',
@@ -509,6 +700,7 @@ interface ParsedPlanResult {
           style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={draggingIndex === null}
         >
           {activeMode === 'split' ? (
             <>
@@ -637,88 +829,211 @@ interface ParsedPlanResult {
                   </View>
 
                   {/* Exercise Cards */}
-                  {currentDay.exercises.map((ex, exIdx) => (
-                    <View key={ex.id || exIdx} style={styles.exerciseCard}>
-                      {exIdx === 0 && <View style={styles.exerciseVoltBar} />}
+                  {currentDay.exercises.map((ex, exIdx) => {
+                    const isBeingDragged = draggingIndex === exIdx;
+                    const isTargetSlot =
+                      dragOverIndex === exIdx && draggingIndex !== null && draggingIndex !== exIdx;
 
-                      <View style={styles.exerciseTopRow}>
-                        <View style={styles.exerciseInfoRow}>
-                          <View style={styles.exerciseNumBox}>
-                            <Text style={styles.exerciseNumText}>{exIdx + 1}</Text>
+                    return (
+                      <Animated.View
+                        key={ex.id || `${exIdx}-${ex.name}`}
+                        onLayout={(e) => {
+                          cardHeights.current[exIdx] = e.nativeEvent.layout.height;
+                        }}
+                        style={[
+                          styles.exerciseCard,
+                          isBeingDragged && [
+                            styles.exerciseCardDragging,
+                            {
+                              transform: [{ translateY: panY }],
+                            },
+                          ],
+                          isTargetSlot && styles.exerciseCardTargetSlot,
+                        ]}
+                      >
+                        {exIdx === 0 && <View style={styles.exerciseVoltBar} />}
+
+                        {/* Drop indicator bar for target slot */}
+                        {isTargetSlot && (
+                          <View
+                            style={[
+                              styles.dropIndicatorLine,
+                              draggingIndex !== null && draggingIndex > exIdx
+                                ? styles.dropIndicatorTop
+                                : styles.dropIndicatorBottom,
+                            ]}
+                          >
+                            <View style={styles.dropIndicatorDot} />
+                            <View style={styles.dropIndicatorBar} />
                           </View>
-                          <View style={styles.exerciseTextGroup}>
-                            <Text style={styles.exerciseNameText} numberOfLines={1}>
-                              {ex.name}
+                        )}
+
+                        {/* Floating pill while dragging */}
+                        {isBeingDragged && (
+                          <View style={styles.dragPill}>
+                            <Text style={styles.dragPillText}>
+                              Moving to #{dragOverIndex !== null ? dragOverIndex + 1 : exIdx + 1}
                             </Text>
-                            <View style={styles.exerciseMetaRow}>
-                              <View style={styles.tagChip}>
-                                <Text style={styles.tagChipText}>
-                                  {ex.categoryTag || 'HYPERTROPHY'}
+                          </View>
+                        )}
+
+                        <View style={styles.exerciseTopRow}>
+                          <View style={styles.exerciseInfoRow}>
+                            <View style={styles.exerciseNumBox}>
+                              <Text style={styles.exerciseNumText}>{exIdx + 1}</Text>
+                            </View>
+                            <View style={styles.exerciseTextGroup}>
+                              <Text style={styles.exerciseNameText} numberOfLines={1}>
+                                {ex.name}
+                              </Text>
+                              <View style={styles.exerciseMetaRow}>
+                                <View style={styles.tagChip}>
+                                  <Text style={styles.tagChipText}>
+                                    {ex.categoryTag || 'HYPERTROPHY'}
+                                  </Text>
+                                </View>
+                                <Text style={styles.muscleTargetText}>
+                                  {ex.muscleTarget || 'Primary Muscle'}
                                 </Text>
                               </View>
-                              <Text style={styles.muscleTargetText}>
-                                {ex.muscleTarget || 'Primary Muscle'}
+                            </View>
+                          </View>
+
+                          {/* Exercise Actions: Reorder Arrows, 6-Dot Drag Handle & Delete */}
+                          <View style={styles.exerciseActionCluster}>
+                            {currentDay.exercises.length > 1 && (
+                              <View style={styles.reorderArrowsCol}>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.miniArrowBtn,
+                                    exIdx === 0 && styles.miniArrowDisabled,
+                                  ]}
+                                  disabled={exIdx === 0}
+                                  onPress={() => handleMoveExercise(exIdx, exIdx - 1)}
+                                  activeOpacity={0.6}
+                                  hitSlop={{ top: 6, bottom: 3, left: 6, right: 6 }}
+                                  accessibilityLabel="Move exercise up"
+                                >
+                                  <Icon
+                                    name="CaretUp"
+                                    size={12}
+                                    color={
+                                      exIdx === 0
+                                        ? 'rgba(255, 255, 255, 0.15)'
+                                        : OBSIDIAN_COLORS.textMuted
+                                    }
+                                  />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.miniArrowBtn,
+                                    exIdx === currentDay.exercises.length - 1 &&
+                                      styles.miniArrowDisabled,
+                                  ]}
+                                  disabled={exIdx === currentDay.exercises.length - 1}
+                                  onPress={() => handleMoveExercise(exIdx, exIdx + 1)}
+                                  activeOpacity={0.6}
+                                  hitSlop={{ top: 3, bottom: 6, left: 6, right: 6 }}
+                                  accessibilityLabel="Move exercise down"
+                                >
+                                  <Icon
+                                    name="CaretDown"
+                                    size={12}
+                                    color={
+                                      exIdx === currentDay.exercises.length - 1
+                                        ? 'rgba(255, 255, 255, 0.15)'
+                                        : OBSIDIAN_COLORS.textMuted
+                                    }
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+
+                            {/* 6-Dot Drag Handle */}
+                            <View
+                              {...getPanResponder(exIdx).panHandlers}
+                              style={[
+                                styles.dragHandleBtn,
+                                isBeingDragged && styles.dragHandleBtnActive,
+                                Platform.OS === 'web' &&
+                                  ({
+                                    cursor: isBeingDragged ? 'grabbing' : 'grab',
+                                  } as any),
+                              ]}
+                              accessibilityLabel="Drag to reorder exercise or tap for options"
+                              accessibilityRole="button"
+                            >
+                              <Icon
+                                name="DotsSixVertical"
+                                size={19}
+                                color={
+                                  isBeingDragged
+                                    ? OBSIDIAN_COLORS.voltLime
+                                    : OBSIDIAN_COLORS.textMuted
+                                }
+                              />
+                            </View>
+
+                            {/* Delete Button */}
+                            <TouchableOpacity
+                              style={styles.deleteExBtn}
+                              activeOpacity={0.7}
+                              onPress={() => handleRemoveExercise(exIdx)}
+                              accessibilityLabel="Delete exercise"
+                            >
+                              <Icon name="Trash" size={16} color={OBSIDIAN_COLORS.coralAccent} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* 3 Metrics Parameter Grid */}
+                        <View style={styles.metricsGrid}>
+                          <View style={styles.metricBox}>
+                            <Text style={styles.metricLabel}>VOLUME</Text>
+                            <View style={styles.metricInputRow}>
+                              <TextInput
+                                style={styles.metricTextInput}
+                                keyboardType="numeric"
+                                value={String(ex.target_sets)}
+                                onChangeText={(val) =>
+                                  handleUpdateExerciseParam(exIdx, 'target_sets', Number(val) || 1)
+                                }
+                              />
+                              <Text style={styles.metricUnit}>Sets</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.metricBox}>
+                            <Text style={styles.metricLabel}>TARGET REPS</Text>
+                            <TextInput
+                              style={styles.metricTextInput}
+                              value={ex.target_reps}
+                              onChangeText={(val) =>
+                                handleUpdateExerciseParam(exIdx, 'target_reps', val)
+                              }
+                            />
+                          </View>
+
+                          <View style={styles.metricBox}>
+                            <Text style={styles.metricLabel}>RECOVERY</Text>
+                            <View style={styles.metricInputRow}>
+                              <TextInput
+                                style={[styles.metricTextInput, { color: OBSIDIAN_COLORS.voltLime }]}
+                                keyboardType="numeric"
+                                value={String(ex.rest_seconds)}
+                                onChangeText={(val) =>
+                                  handleUpdateExerciseParam(exIdx, 'rest_seconds', Number(val) || 60)
+                                }
+                              />
+                              <Text style={[styles.metricUnit, { color: OBSIDIAN_COLORS.voltLime }]}>
+                                s
                               </Text>
                             </View>
                           </View>
                         </View>
-
-                        <TouchableOpacity
-                          style={styles.deleteExBtn}
-                          activeOpacity={0.7}
-                          onPress={() => handleRemoveExercise(exIdx)}
-                        >
-                          <Icon name="Trash" size={16} color={OBSIDIAN_COLORS.coralAccent} />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* 3 Metrics Parameter Grid */}
-                      <View style={styles.metricsGrid}>
-                        <View style={styles.metricBox}>
-                          <Text style={styles.metricLabel}>VOLUME</Text>
-                          <View style={styles.metricInputRow}>
-                            <TextInput
-                              style={styles.metricTextInput}
-                              keyboardType="numeric"
-                              value={String(ex.target_sets)}
-                              onChangeText={(val) =>
-                                handleUpdateExerciseParam(exIdx, 'target_sets', Number(val) || 1)
-                              }
-                            />
-                            <Text style={styles.metricUnit}>Sets</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.metricBox}>
-                          <Text style={styles.metricLabel}>TARGET REPS</Text>
-                          <TextInput
-                            style={styles.metricTextInput}
-                            value={ex.target_reps}
-                            onChangeText={(val) =>
-                              handleUpdateExerciseParam(exIdx, 'target_reps', val)
-                            }
-                          />
-                        </View>
-
-                        <View style={styles.metricBox}>
-                          <Text style={styles.metricLabel}>RECOVERY</Text>
-                          <View style={styles.metricInputRow}>
-                            <TextInput
-                              style={[styles.metricTextInput, { color: OBSIDIAN_COLORS.voltLime }]}
-                              keyboardType="numeric"
-                              value={String(ex.rest_seconds)}
-                              onChangeText={(val) =>
-                                handleUpdateExerciseParam(exIdx, 'rest_seconds', Number(val) || 60)
-                              }
-                            />
-                            <Text style={[styles.metricUnit, { color: OBSIDIAN_COLORS.voltLime }]}>
-                              s
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
+                      </Animated.View>
+                    );
+                  })}
 
                   {/* Add Exercise Dashed Button */}
                   <TouchableOpacity
@@ -1292,8 +1607,106 @@ const styles = StyleSheet.create({
     color: OBSIDIAN_COLORS.textMuted,
     fontSize: 11,
   },
+  exerciseCardDragging: {
+    zIndex: 9999,
+    elevation: 12,
+    borderColor: OBSIDIAN_COLORS.voltLime,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+  },
+  exerciseCardTargetSlot: {
+    borderColor: 'rgba(204, 255, 0, 0.45)',
+    backgroundColor: 'rgba(204, 255, 0, 0.03)',
+  },
+  exerciseActionCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reorderArrowsCol: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingVertical: 1,
+  },
+  miniArrowBtn: {
+    padding: 2,
+    borderRadius: 3,
+  },
+  miniArrowDisabled: {
+    opacity: 0.35,
+  },
+  dragHandleBtn: {
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dragHandleBtnActive: {
+    backgroundColor: 'rgba(204, 255, 0, 0.18)',
+    borderColor: OBSIDIAN_COLORS.voltLime,
+  },
+  dropIndicatorLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  dropIndicatorTop: {
+    top: 0,
+  },
+  dropIndicatorBottom: {
+    bottom: 0,
+  },
+  dropIndicatorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    marginLeft: 0,
+  },
+  dropIndicatorBar: {
+    flex: 1,
+    height: 3,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+  },
+  dragPill: {
+    position: 'absolute',
+    top: 6,
+    right: 95,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    zIndex: 200,
+  },
+  dragPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 9,
+    color: OBSIDIAN_COLORS.onPrimary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   deleteExBtn: {
-    padding: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: OBSIDIAN_RADIUS.sm,
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   metricsGrid: {
     flexDirection: 'row',

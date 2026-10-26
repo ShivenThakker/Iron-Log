@@ -41,7 +41,13 @@ export type IconName =
   | 'Trash'
   | 'PencilSimple'
   | 'ArrowFatUp'
-  | 'ArrowFatDown';
+  | 'ArrowFatDown'
+  | 'DotsSixVertical'
+  | 'DotsSix'
+  | 'Equals'
+  | 'CaretUp'
+  | 'CaretDown'
+  | 'ArrowsDownUp';
 
 export interface IconProps {
   name: IconName;
