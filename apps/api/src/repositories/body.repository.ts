@@ -29,14 +29,14 @@ export class BodyRepository {
     return log;
   }
 
-  async getWeightHistory(userId: string) {
-    const logs = await prisma.bodyWeightLog.findMany({
+  async getWeightHistory(userId: string, period?: string | number) {
+    const allLogs = await prisma.bodyWeightLog.findMany({
       where: { user_id: userId },
       orderBy: { logged_at: 'asc' },
     });
 
-    // Compute 7-day moving averages
-    const logsWithMovingAverage = logs.map((log, index, arr) => {
+    // Compute 7-day moving averages across full timeline
+    const logsWithMovingAverage = allLogs.map((log, index, arr) => {
       const windowStart = Math.max(0, index - 6);
       const window = arr.slice(windowStart, index + 1);
       const avg = window.reduce((sum, item) => sum + item.weight_kg, 0) / window.length;
@@ -46,15 +46,36 @@ export class BodyRepository {
       };
     });
 
+    const parsedDays = Number(period);
+    const filterDays =
+      Number.isFinite(parsedDays) && parsedDays > 0
+        ? parsedDays
+        : period === '30'
+          ? 30
+          : period === '90'
+            ? 90
+            : null;
+
+    let filteredHistory = logsWithMovingAverage;
+    if (filterDays !== null && filterDays > 0) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - filterDays);
+      filteredHistory = logsWithMovingAverage.filter((item) => new Date(item.logged_at) >= cutoff);
+    }
+
     const goal = await prisma.weightGoal.findUnique({
       where: { user_id: userId },
     });
 
-    const currentWeight = logs.length > 0 ? logs[logs.length - 1].weight_kg : null;
-    const startingWeight = logs.length > 0 ? logs[0].weight_kg : null;
+    const currentWeight = allLogs.length > 0 ? allLogs[allLogs.length - 1].weight_kg : null;
+    const startingWeight = filteredHistory.length > 0
+      ? filteredHistory[0].weight_kg
+      : allLogs.length > 0
+        ? allLogs[0].weight_kg
+        : null;
 
     return {
-      history: logsWithMovingAverage,
+      history: filteredHistory,
       currentWeight,
       startingWeight,
       goal,

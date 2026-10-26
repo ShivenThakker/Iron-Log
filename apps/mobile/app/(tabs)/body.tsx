@@ -45,11 +45,11 @@ export default function BodyTab() {
   const [waistInput, setWaistInput] = useState('');
   const [thighsInput, setThighsInput] = useState('');
 
-  // Realigned to real backend endpoint: GET /body/weight
+  // Realigned to real backend endpoint: GET /body/weight?period=30|90|all
   const { data: weightData, refetch: refetchWeight, isRefetching } = useQuery({
-    queryKey: ['weightHistory'],
+    queryKey: ['weightHistory', timeRange],
     queryFn: async () => {
-      const res = await api.get('/body/weight').catch(() => null);
+      const res = await api.get(`/body/weight?period=${timeRange}`).catch(() => null);
       return res?.data ?? null;
     },
   });
@@ -109,30 +109,19 @@ export default function BodyTab() {
     : (weightData?.history?.history ?? []);
   const historyList: BodyWeightRecord[] = Array.isArray(rawLogs) ? rawLogs : [];
 
-  const filteredLogs = React.useMemo(() => {
+  const chartPoints: WeightPoint[] = React.useMemo(() => {
     if (historyList.length === 0) return [];
-    if (timeRange === 'all') return historyList;
-    const days = timeRange === '30' ? 30 : 90;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const filtered = historyList.filter((item) => new Date(item.logged_at) >= cutoff);
-    return filtered.length > 0 ? filtered : historyList.slice(-days);
-  }, [historyList, timeRange]);
-
-  const chartPoints: WeightPoint[] = filteredLogs.length > 0
-    ? filteredLogs.map((item) => ({
-        date: new Date(item.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        weight: Number(item.weight_kg),
-        movingAvg: item.moving_avg_kg ? Number(item.moving_avg_kg) : undefined,
-      }))
-    : DEFAULT_WEIGHT_HISTORY;
+    return historyList.map((item) => ({
+      date: new Date(item.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      weight: Number(item.weight_kg),
+      movingAvg: item.moving_avg_kg ? Number(item.moving_avg_kg) : undefined,
+    }));
+  }, [historyList]);
 
   const currentWeight = weightData?.currentWeight ??
-    weightData?.history?.currentWeight ??
     (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].weight : 78.5);
   const startWeight = weightData?.startingWeight ??
-    weightData?.history?.startingWeight ??
-    (chartPoints.length > 0 ? chartPoints[0].weight : 80.5);
+    (chartPoints.length > 0 ? chartPoints[0].weight : currentWeight);
   const deltaWeight = (currentWeight - startWeight).toFixed(1);
   const isLoss = Number(deltaWeight) <= 0;
   const goalWeight = weightData?.goal?.goal_weight_kg ??
@@ -218,7 +207,7 @@ export default function BodyTab() {
                   variant="volt"
                 />
                 <Text variant="bodySm" style={styles.deltaSub}>
-                  vs 30 days ago
+                  {timeRange === '30' ? 'vs 30 days ago' : timeRange === '90' ? 'vs 90 days ago' : 'vs start'}
                 </Text>
               </View>
             </View>

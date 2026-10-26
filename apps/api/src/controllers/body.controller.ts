@@ -15,7 +15,8 @@ export const addWeightLog = async (req: Request, res: Response) => {
 export const getWeightHistory = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const weightData = await bodyRepository.getWeightHistory(userId);
+    const period = req.query.period || req.query.days;
+    const weightData = await bodyRepository.getWeightHistory(userId, period ? String(period) : undefined);
     res.json(weightData);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

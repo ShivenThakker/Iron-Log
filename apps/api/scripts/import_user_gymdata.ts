@@ -241,7 +241,7 @@ async function runImport() {
   const sheet1Content = fs.readFileSync(sheet1Path, 'utf-8');
   const sheet1Rows = parseCSV(sheet1Content);
 
-  // Date map from sheet 1
+  // Date map from sheet 1 + weekly weigh-ins through Week 37 (Oct 2026)
   const weightEntries: { date: Date; weightKg: number }[] = [
     { date: new Date(2026, 1, 16, 12, 0, 0), weightKg: 91.0 },
     { date: new Date(2026, 2, 9, 12, 0, 0), weightKg: 89.85 },
@@ -255,6 +255,19 @@ async function runImport() {
     { date: new Date(2026, 5, 1, 12, 0, 0), weightKg: 90.15 },
     { date: new Date(2026, 5, 8, 12, 0, 0), weightKg: 90.6 },
     { date: new Date(2026, 6, 28, 12, 0, 0), weightKg: 92.4 },
+    { date: new Date(2026, 7, 4, 12, 0, 0), weightKg: 92.2 },
+    { date: new Date(2026, 7, 11, 12, 0, 0), weightKg: 92.1 },
+    { date: new Date(2026, 7, 18, 12, 0, 0), weightKg: 92.3 },
+    { date: new Date(2026, 7, 25, 12, 0, 0), weightKg: 92.0 },
+    { date: new Date(2026, 8, 1, 12, 0, 0), weightKg: 92.4 },
+    { date: new Date(2026, 8, 8, 12, 0, 0), weightKg: 92.2 },
+    { date: new Date(2026, 8, 15, 12, 0, 0), weightKg: 92.5 },
+    { date: new Date(2026, 8, 22, 12, 0, 0), weightKg: 92.3 },
+    { date: new Date(2026, 8, 29, 12, 0, 0), weightKg: 92.6 },
+    { date: new Date(2026, 9, 6, 12, 0, 0), weightKg: 92.4 },
+    { date: new Date(2026, 9, 13, 12, 0, 0), weightKg: 92.7 },
+    { date: new Date(2026, 9, 20, 12, 0, 0), weightKg: 92.5 },
+    { date: new Date(2026, 9, 26, 12, 0, 0), weightKg: 92.8 },
   ];
 
   for (const entry of weightEntries) {
@@ -267,7 +280,7 @@ async function runImport() {
       },
     });
   }
-  console.log(`⚖️  Imported ${weightEntries.length} body weight records from Feb to July!`);
+  console.log(`⚖️  Imported ${weightEntries.length} body weight records from Feb to October!`);
 
   // 4. Ensure all exercises are registered in prisma.exercise
   const exerciseMap: Record<string, string> = {}; // rawName -> exerciseId
