@@ -69,6 +69,24 @@ export class AnalyticsRepository {
       GROUP BY e.primary_muscle
     `;
 
+    const normalizeMuscleName = (raw: string): string => {
+      const clean = raw.trim().toLowerCase();
+      if (clean.includes('chest')) return 'Chest';
+      if (clean.includes('back')) return 'Back';
+      if (clean.includes('shoulder')) return 'Shoulders';
+      if (clean.includes('bicep')) return 'Biceps';
+      if (clean.includes('tricep')) return 'Triceps';
+      if (clean.includes('forearm')) return 'Forearms';
+      if (clean.includes('quad')) return 'Quads';
+      if (clean.includes('hamstring')) return 'Hamstrings';
+      if (clean.includes('calv') || clean.includes('calf')) return 'Calves';
+      if (clean.includes('glute')) return 'Glutes';
+      if (clean.includes('trap')) return 'Traps';
+      if (clean.includes('core') || clean.includes('ab')) return 'Core';
+      if (clean.includes('leg')) return 'Legs';
+      return clean.charAt(0).toUpperCase() + clean.slice(1);
+    };
+
     const muscleVolume: Record<string, { sets: number; volume_kg: number; intensity: number }> = {
       Chest: { sets: 0, volume_kg: 0, intensity: 0 },
       Back: { sets: 0, volume_kg: 0, intensity: 0 },
@@ -89,7 +107,8 @@ export class AnalyticsRepository {
     let maxSets = 1;
 
     for (const row of rows) {
-      const primary = row.primary_muscle;
+      if (!row.primary_muscle) continue;
+      const primary = normalizeMuscleName(row.primary_muscle);
       const sets = Number(row.sets_count) || 0;
       const volume = Math.round(Number(row.total_volume) || 0);
       totalWorkingSets += sets;
@@ -97,10 +116,10 @@ export class AnalyticsRepository {
       if (!muscleVolume[primary]) {
         muscleVolume[primary] = { sets: 0, volume_kg: 0, intensity: 0 };
       }
-      muscleVolume[primary].sets = sets;
-      muscleVolume[primary].volume_kg = volume;
-      if (sets > maxSets) {
-        maxSets = sets;
+      muscleVolume[primary].sets += sets;
+      muscleVolume[primary].volume_kg += volume;
+      if (muscleVolume[primary].sets > maxSets) {
+        maxSets = muscleVolume[primary].sets;
       }
     }
 
@@ -115,21 +134,27 @@ export class AnalyticsRepository {
     };
   }
 
-  async getMuscleRadar(userId: string) {
-    // 6 radar axes: Chest, Back, Shoulders, Arms, Legs, Core
-    const heatmap = await this.getMuscleHeatmap(userId, 30);
+  async getMuscleRadar(userId: string, days = 30) {
+    // 6 radar axes: Shoulders, Chest, Arms, Legs, Core, Back
+    const heatmap = await this.getMuscleHeatmap(userId, days);
     const m = heatmap.muscles;
 
+    const chestSets = m.Chest?.sets || 0;
+    const backSets = (m.Back?.sets || 0) + (m.Traps?.sets || 0);
+    const shouldersSets = m.Shoulders?.sets || 0;
     const armsSets = (m.Biceps?.sets || 0) + (m.Triceps?.sets || 0) + (m.Forearms?.sets || 0);
     const legsSets = (m.Quads?.sets || 0) + (m.Hamstrings?.sets || 0) + (m.Calves?.sets || 0) + (m.Glutes?.sets || 0) + (m.Legs?.sets || 0);
+    const coreSets = m.Core?.sets || 0;
+
+    const maxAxisSets = Math.max(chestSets, backSets, shouldersSets, armsSets, legsSets, coreSets, 1);
 
     const values = [
-      { axis: 'Chest', value: m.Chest?.intensity || 0, sets: m.Chest?.sets || 0 },
-      { axis: 'Back', value: m.Back?.intensity || 0, sets: m.Back?.sets || 0 },
-      { axis: 'Shoulders', value: m.Shoulders?.intensity || 0, sets: m.Shoulders?.sets || 0 },
-      { axis: 'Arms', value: Math.min(1, armsSets / 10), sets: armsSets },
-      { axis: 'Legs', value: Math.min(1, legsSets / 15), sets: legsSets },
-      { axis: 'Core', value: m.Core?.intensity || 0, sets: m.Core?.sets || 0 },
+      { axis: 'Shoulders', value: Math.round((shouldersSets / maxAxisSets) * 100) / 100, sets: shouldersSets },
+      { axis: 'Chest', value: Math.round((chestSets / maxAxisSets) * 100) / 100, sets: chestSets },
+      { axis: 'Arms', value: Math.round((armsSets / maxAxisSets) * 100) / 100, sets: armsSets },
+      { axis: 'Legs', value: Math.round((legsSets / maxAxisSets) * 100) / 100, sets: legsSets },
+      { axis: 'Core', value: Math.round((coreSets / maxAxisSets) * 100) / 100, sets: coreSets },
+      { axis: 'Back', value: Math.round((backSets / maxAxisSets) * 100) / 100, sets: backSets },
     ];
 
     return values;

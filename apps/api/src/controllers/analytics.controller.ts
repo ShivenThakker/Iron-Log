@@ -36,7 +36,17 @@ export const getHeatmap = async (req: Request, res: Response) => {
 export const getRadar = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const radar = await analyticsRepository.getMuscleRadar(userId);
+    const rawPeriod = req.query.period;
+    const parsedDays = Number(rawPeriod);
+    const days =
+      Number.isFinite(parsedDays) && parsedDays > 0
+        ? parsedDays
+        : rawPeriod === 'week'
+          ? 7
+          : rawPeriod === 'all'
+            ? 365
+            : 30;
+    const radar = await analyticsRepository.getMuscleRadar(userId, days);
     res.json(radar);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

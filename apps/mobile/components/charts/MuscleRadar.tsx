@@ -59,14 +59,20 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280, th
     }).join(' ');
   };
 
-  // Calculate polygon points for actual scores (clamped 0 to 100)
-  const scorePoints = AXES.map((axis) => {
-    const rawVal = scores[axis.key] ?? 0;
-    const clamped = Math.min(Math.max(rawVal, 10), 100) / 100;
+  // Calculate coordinate for a given axis and score (0 to 100)
+  const getAxisPoint = (axis: typeof AXES[number], rawVal: number) => {
+    const normalized = rawVal > 0 ? Math.min(Math.max(rawVal, 6), 100) / 100 : 0;
     const rad = (axis.angle * Math.PI) / 180;
-    const r = maxRadius * clamped;
+    const r = maxRadius * normalized;
     const x = center + r * Math.cos(rad);
     const y = center + r * Math.sin(rad);
+    return { x, y, r, normalized };
+  };
+
+  // Calculate polygon points for actual scores
+  const scorePoints = AXES.map((axis) => {
+    const rawVal = scores[axis.key] ?? 0;
+    const { x, y } = getAxisPoint(axis, rawVal);
     return `${x},${y}`;
   }).join(' ');
 
@@ -118,16 +124,14 @@ export const MuscleRadar: React.FC<MuscleRadarProps> = ({ scores, size = 280, th
         {/* Data Node Dots */}
         {AXES.map((axis) => {
           const rawVal = scores[axis.key] ?? 0;
-          const clamped = Math.min(Math.max(rawVal, 10), 100) / 100;
-          const rad = (axis.angle * Math.PI) / 180;
-          const x = center + maxRadius * clamped;
-          const y = center + maxRadius * Math.sin(rad);
+          if (rawVal <= 0) return null;
+          const { x, y } = getAxisPoint(axis, rawVal);
           return (
             <Circle
               key={`dot-${axis.key}`}
               cx={x}
               cy={y}
-              r="4"
+              r="4.5"
               fill={isObsidian ? OBSIDIAN_COLORS.canvas : COLORS.dark.accentRed}
               stroke={dataStroke}
               strokeWidth="2"

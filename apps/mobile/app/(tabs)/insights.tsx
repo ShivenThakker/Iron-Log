@@ -62,11 +62,11 @@ export default function InsightsTab() {
     },
   });
 
-  // Realigned endpoint 3: GET /analytics/radar
+  // Realigned endpoint 3: GET /analytics/radar?period=30
   const { data: radarApiData, refetch: refetchRadar } = useQuery({
-    queryKey: ['muscleRadar'],
+    queryKey: ['muscleRadar', periodDays],
     queryFn: async () => {
-      const res = await api.get('/analytics/radar').catch(() => null);
+      const res = await api.get(`/analytics/radar?period=${periodDays}`).catch(() => null);
       return res?.data ?? null;
     },
   });
@@ -103,18 +103,32 @@ export default function InsightsTab() {
     return mapped;
   }, [heatmapApiData]);
 
-  // Process Radar Data: API returns [ { axis: 'Chest', value: 0.85 }, ... ]
+  // Process Radar Data: API returns [ { axis: 'Shoulders', value: 0.49 }, ... ]
   const radarScores: MuscleBalanceScores = React.useMemo(() => {
-    if (!Array.isArray(radarApiData)) return DEFAULT_RADAR_SCORES;
+    if (!Array.isArray(radarApiData) || radarApiData.length === 0) return DEFAULT_RADAR_SCORES;
     const scores: MuscleBalanceScores = {};
     for (const item of radarApiData) {
-      const key = item.axis.toLowerCase() as keyof MuscleBalanceScores;
+      if (!item || !item.axis) continue;
+      const key = item.axis.toLowerCase().trim() as keyof MuscleBalanceScores;
       const raw = item.value ?? 0;
       // Backend returns normalized 0.0 - 1.0 decimal; MuscleRadar expects 0 - 100 scale
       scores[key] = raw <= 1.0 && raw > 0 ? Math.round(raw * 100) : Math.round(raw);
     }
     return scores;
   }, [radarApiData]);
+
+  const equilibrium = React.useMemo(() => {
+    const rawScores = Object.values(radarScores).filter((v): v is number => typeof v === 'number');
+    const nonZero = rawScores.filter((v) => v > 0);
+    if (nonZero.length < 3) {
+      return { label: 'BUILDING DATA', color: OBSIDIAN_COLORS.textMuted };
+    }
+    const avg = rawScores.reduce((sum, v) => sum + v, 0) / 6;
+    const score = Math.max(10, Math.min(99, Math.round(avg * 0.85 + (nonZero.length / 6) * 30)));
+    if (score >= 80) return { label: `${score}% OPTIMAL`, color: OBSIDIAN_COLORS.voltLime };
+    if (score >= 60) return { label: `${score}% BALANCED`, color: OBSIDIAN_COLORS.cyanAccent };
+    return { label: `${score}% DEVELOPING`, color: OBSIDIAN_COLORS.coralAccent };
+  }, [radarScores]);
 
   interface EquipmentApiItem {
     name: string;
@@ -329,13 +343,13 @@ export default function InsightsTab() {
 
             <View style={styles.equilibriumRow}>
               <View style={styles.equilibriumLeft}>
-                <Icon name="CheckCircle" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                <Icon name="CheckCircle" size={16} color={equilibrium.color} />
                 <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textWhite }}>
                   Equilibrium Score
                 </Text>
               </View>
-              <Text variant="labelCaps" style={{ color: OBSIDIAN_COLORS.voltLime, fontWeight: '700' }}>
-                94% OPTIMAL
+              <Text variant="labelCaps" style={{ color: equilibrium.color, fontWeight: '700' }}>
+                {equilibrium.label}
               </Text>
             </View>
           </GlassCard>
