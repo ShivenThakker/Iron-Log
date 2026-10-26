@@ -19,6 +19,18 @@ interface UsdaSearchResponse {
   foods?: UsdaFood[];
 }
 
+export interface ServingOption {
+  name: string;
+  display_name: string;
+  unit: string;
+  weight_g: number;
+  calories_kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number;
+}
+
 export interface FoodItem {
   id: string;
   name: string;
@@ -28,6 +40,15 @@ export interface FoodItem {
   carbs_g: number;
   fat_g: number;
   fiber_g?: number;
+  servings?: ServingOption[];
+  nutrition_per_100g?: {
+    energy_kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    fiber_g: number;
+    sugar_g?: number;
+  };
 }
 
 interface ScrapedIndianFood {
@@ -62,6 +83,11 @@ interface ScrapedIndianFood {
     unit: string;
     weight_g: number;
     energy_kcal: number;
+    calories_kcal?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    fiber_g?: number;
   }>;
 }
 
@@ -137,6 +163,18 @@ try {
         f.nutrition_per_100g?.fiber_g ??
         0;
 
+      const servings: ServingOption[] = (f.serving_sizes || []).map((s) => ({
+        name: s.name,
+        display_name: s.display_name || s.name,
+        unit: s.unit || 'gms',
+        weight_g: s.weight_g || 100,
+        calories_kcal: s.calories_kcal || Math.round((f.nutrition_per_100g?.energy_kcal || 0) * (s.weight_g / 100)),
+        protein_g: s.protein_g ?? Math.round((f.nutrition_per_100g?.protein_g || 0) * (s.weight_g / 100) * 10) / 10,
+        carbs_g: s.carbs_g ?? Math.round((f.nutrition_per_100g?.carbs_g || 0) * (s.weight_g / 100) * 10) / 10,
+        fat_g: s.fat_g ?? Math.round((f.nutrition_per_100g?.fat_g || 0) * (s.weight_g / 100) * 10) / 10,
+        fiber_g: s.fiber_g ?? Math.round((f.nutrition_per_100g?.fiber_g || 0) * (s.weight_g / 100) * 10) / 10,
+      }));
+
       return {
         id: `ind_${f.id}`,
         name: f.name,
@@ -146,6 +184,8 @@ try {
         carbs_g: Math.round(carbs * 10) / 10,
         fat_g: Math.round(fat * 10) / 10,
         fiber_g: Math.round(fiber * 10) / 10,
+        servings,
+        nutrition_per_100g: f.nutrition_per_100g,
       };
     });
     logger.info({ count: indianFoodsList.length }, 'Loaded local Indian food database');

@@ -35,6 +35,18 @@ interface FoodItem {
   fat: number;
 }
 
+interface ServingOption {
+  name: string;
+  display_name: string;
+  unit: string;
+  weight_g: number;
+  calories_kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number;
+}
+
 interface MealFoodEntry {
   id?: string;
   food_name?: string;
@@ -50,6 +62,7 @@ interface MealFoodEntry {
   fat?: number;
   quantity_g?: number;
   description?: string;
+  servings?: ServingOption[];
 }
 
 const MEAL_SLOTS: { key: MealSlot; label: string; icon: IconName; accentColor: string }[] = [
@@ -81,6 +94,11 @@ export default function NutritionScreen() {
   const [manualProtein, setManualProtein] = useState('');
   const [manualCarbs, setManualCarbs] = useState('');
   const [manualFat, setManualFat] = useState('');
+
+  // Portion size selection state
+  const [selectedFoodForPortion, setSelectedFoodForPortion] = useState<MealFoodEntry | null>(null);
+  const [selectedServingIdx, setSelectedServingIdx] = useState<number>(1);
+  const [portionMultiplier, setPortionMultiplier] = useState<number>(1);
 
   // Daily Nutrition Query
   const { data: dailyData, refetch, isRefetching } = useQuery({
@@ -139,6 +157,23 @@ export default function NutritionScreen() {
     setActiveSlot(slot);
     setSearchQuery('');
     setShowSearchModal(true);
+  };
+
+  const handleSelectSearchResult = (item: MealFoodEntry) => {
+    if (item.servings && item.servings.length > 0) {
+      setSelectedFoodForPortion(item);
+      const defaultIdx = item.servings.length >= 2 ? 1 : 0;
+      setSelectedServingIdx(defaultIdx);
+      setPortionMultiplier(1);
+    } else {
+      handleQuickAddFood({
+        name: item.name || item.description || 'Food Item',
+        calories: item.calories || item.calories_kcal || 0,
+        protein: item.protein || item.protein_g || 0,
+        carbs: item.carbs || item.carbs_g || 0,
+        fat: item.fat || item.fats_g || 0,
+      });
+    }
   };
 
   const handleQuickAddFood = (food: FoodItem) => {
@@ -488,15 +523,7 @@ export default function NutritionScreen() {
                         <TouchableOpacity
                           key={idx}
                           style={styles.resultItem}
-                          onPress={() =>
-                            handleQuickAddFood({
-                              name: item.name || item.description || 'Food Item',
-                              calories: item.calories || item.calories_kcal || 0,
-                              protein: item.protein || item.protein_g || 0,
-                              carbs: item.carbs || item.carbs_g || 0,
-                              fat: item.fat || item.fats_g || 0,
-                            })
-                          }
+                          onPress={() => handleSelectSearchResult(item)}
                           activeOpacity={0.7}
                         >
                           <View style={{ flex: 1, paddingRight: 8 }}>
@@ -603,6 +630,153 @@ export default function NutritionScreen() {
                   />
                 </ScrollView>
               )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* ================= PORTION & SERVING SELECTOR MODAL ================= */}
+        <Modal
+          visible={selectedFoodForPortion !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedFoodForPortion(null)}
+        >
+          <View style={styles.portionModalBackdrop}>
+            <View style={styles.portionModalCard}>
+              {selectedFoodForPortion && (() => {
+                const servings = selectedFoodForPortion.servings || [];
+                const currentServing = servings[selectedServingIdx] || servings[0] || {
+                  display_name: 'Medium',
+                  weight_g: 100,
+                  calories_kcal: selectedFoodForPortion.calories || selectedFoodForPortion.calories_kcal || 0,
+                  protein_g: selectedFoodForPortion.protein || selectedFoodForPortion.protein_g || 0,
+                  carbs_g: selectedFoodForPortion.carbs || selectedFoodForPortion.carbs_g || 0,
+                  fat_g: selectedFoodForPortion.fat || selectedFoodForPortion.fats_g || 0,
+                };
+
+                const totalCals = Math.round((currentServing.calories_kcal || 0) * portionMultiplier);
+                const totalP = Math.round((currentServing.protein_g || 0) * portionMultiplier * 10) / 10;
+                const totalC = Math.round((currentServing.carbs_g || 0) * portionMultiplier * 10) / 10;
+                const totalF = Math.round((currentServing.fat_g || 0) * portionMultiplier * 10) / 10;
+
+                return (
+                  <>
+                    <View style={styles.portionModalHeader}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text variant="headlineSm" style={styles.portionFoodName} numberOfLines={2}>
+                          {selectedFoodForPortion.name || selectedFoodForPortion.description}
+                        </Text>
+                        <Text variant="bodySm" style={styles.portionSub}>
+                          Select portion size & quantity for {activeSlot}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setSelectedFoodForPortion(null)}
+                        style={{ padding: 4 }}
+                      >
+                        <Icon name="X" size={20} color={OBSIDIAN_COLORS.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Serving Size Chips (Small, Medium, Large, etc.) */}
+                    {servings.length > 0 && (
+                      <View style={{ gap: 6 }}>
+                        <Text variant="labelCaps" style={styles.portionSectionLabel}>PORTION SIZE</Text>
+                        <View style={styles.servingChipsRow}>
+                          {servings.map((srv, idx) => {
+                            const isSelected = selectedServingIdx === idx;
+                            return (
+                              <TouchableOpacity
+                                key={idx}
+                                style={[styles.servingChip, isSelected && styles.servingChipActive]}
+                                onPress={() => setSelectedServingIdx(idx)}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[styles.servingChipText, isSelected && styles.servingChipTextActive]}>
+                                  {srv.display_name}
+                                </Text>
+                                <Text style={[styles.servingChipWeight, isSelected && { color: OBSIDIAN_COLORS.voltLime }]}>
+                                  {srv.weight_g}g
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Quantity Stepper */}
+                    <View style={styles.quantityRow}>
+                      <Text variant="labelCaps" style={styles.portionSectionLabel}>QUANTITY</Text>
+                      <View style={styles.stepperWrap}>
+                        <TouchableOpacity
+                          style={styles.stepperBtn}
+                          onPress={() => setPortionMultiplier((prev) => Math.max(0.5, prev - (prev <= 1 ? 0.5 : 1)))}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name="Minus" size={14} color={OBSIDIAN_COLORS.textWhite} />
+                        </TouchableOpacity>
+                        <Text style={styles.quantityText}>{portionMultiplier}x</Text>
+                        <TouchableOpacity
+                          style={styles.stepperBtn}
+                          onPress={() => setPortionMultiplier((prev) => prev + (prev < 1 ? 0.5 : 1))}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name="Plus" size={14} color={OBSIDIAN_COLORS.textWhite} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Live Computed Macros Box */}
+                    <View style={styles.portionMacrosBox}>
+                      <View style={styles.portionCalsRow}>
+                        <Text variant="labelCaps" style={styles.portionMacroLabel}>CALORIES</Text>
+                        <Text style={styles.portionCalsNum}>{totalCals} <Text style={{ fontSize: 13, color: OBSIDIAN_COLORS.textMuted }}>KCAL</Text></Text>
+                      </View>
+                      <View style={styles.portionMacrosRow}>
+                        <View style={styles.portionMacroPill}>
+                          <Text variant="labelCaps" style={styles.portionMacroLabel}>PROTEIN</Text>
+                          <Text style={[styles.portionMacroVal, { color: '#FFB3B2' }]}>{totalP}g</Text>
+                        </View>
+                        <View style={styles.portionMacroPill}>
+                          <Text variant="labelCaps" style={styles.portionMacroLabel}>CARBS</Text>
+                          <Text style={[styles.portionMacroVal, { color: OBSIDIAN_COLORS.cyanAccent }]}>{totalC}g</Text>
+                        </View>
+                        <View style={styles.portionMacroPill}>
+                          <Text variant="labelCaps" style={styles.portionMacroLabel}>FAT</Text>
+                          <Text style={[styles.portionMacroVal, { color: OBSIDIAN_COLORS.voltLime }]}>{totalF}g</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Confirm Log Button */}
+                    <TouchableOpacity
+                      style={styles.logPortionBtn}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        const servingTitle = currentServing.display_name
+                          ? `${selectedFoodForPortion.name || selectedFoodForPortion.description} (${currentServing.display_name}${portionMultiplier !== 1 ? ` x${portionMultiplier}` : ''})`
+                          : (selectedFoodForPortion.name || 'Food Item');
+
+                        handleQuickAddFood({
+                          name: servingTitle,
+                          calories: totalCals,
+                          protein: totalP,
+                          carbs: totalC,
+                          fat: totalF,
+                        });
+                        setSelectedFoodForPortion(null);
+                        setShowSearchModal(false);
+                      }}
+                    >
+                      <Text style={styles.logPortionBtnText}>
+                        Log to {activeSlot.toUpperCase()}
+                      </Text>
+                      <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />
+                    </TouchableOpacity>
+                  </>
+                );
+              })()}
             </View>
           </View>
         </Modal>
@@ -1018,5 +1192,161 @@ const styles = StyleSheet.create({
   manualGrid: {
     flexDirection: 'row',
     gap: OBSIDIAN_SPACING.sm,
+  },
+  portionModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: OBSIDIAN_SPACING.md,
+  },
+  portionModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    padding: OBSIDIAN_SPACING.lg,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    gap: 14,
+  },
+  portionModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingBottom: 10,
+  },
+  portionFoodName: {
+    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 18,
+  },
+  portionSub: {
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  portionSectionLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  servingChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  servingChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
+    alignItems: 'center',
+    gap: 2,
+  },
+  servingChipActive: {
+    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    borderColor: OBSIDIAN_COLORS.voltLime,
+  },
+  servingChipText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 13,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  servingChipTextActive: {
+    color: OBSIDIAN_COLORS.voltLime,
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  servingChipWeight: {
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 10,
+    color: OBSIDIAN_COLORS.textMuted,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+  },
+  stepperWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    color: OBSIDIAN_COLORS.textWhite,
+    minWidth: 28,
+    textAlign: 'center',
+  },
+  portionMacrosBox: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    padding: 12,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  portionCalsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    paddingBottom: 6,
+  },
+  portionMacroLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  portionCalsNum: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 22,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  portionMacrosRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  portionMacroPill: {
+    alignItems: 'center',
+    gap: 2,
+    flex: 1,
+  },
+  portionMacroVal: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 14,
+  },
+  logPortionBtn: {
+    height: 48,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  logPortionBtnText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });

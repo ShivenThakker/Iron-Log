@@ -48,7 +48,8 @@ export type IconName =
   | 'CaretUp'
   | 'CaretDown'
   | 'ArrowsDownUp'
-  | 'Info';
+  | 'Info'
+  | 'Minus';
 
 export interface IconProps {
   name: IconName;
