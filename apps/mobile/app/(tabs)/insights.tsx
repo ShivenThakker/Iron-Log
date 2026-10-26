@@ -35,9 +35,9 @@ const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {
 
 const DEFAULT_EQUIPMENT_DATA = [
   { name: 'Barbell', percentage: 42, color: OBSIDIAN_COLORS.voltLime },
-  { name: 'Dumbbells', percentage: 28, color: OBSIDIAN_COLORS.cyanAccent },
-  { name: 'Cables', percentage: 18, color: OBSIDIAN_COLORS.secondary },
-  { name: 'Machines', percentage: 12, color: OBSIDIAN_COLORS.primaryFixedDim },
+  { name: 'Dumbbell', percentage: 28, color: OBSIDIAN_COLORS.cyanAccent },
+  { name: 'Cable', percentage: 18, color: OBSIDIAN_COLORS.secondary },
+  { name: 'Machine', percentage: 12, color: OBSIDIAN_COLORS.primaryFixedDim },
 ];
 
 export default function InsightsTab() {
@@ -137,12 +137,18 @@ export default function InsightsTab() {
       Machine: OBSIDIAN_COLORS.primaryFixedDim,
       Machines: OBSIDIAN_COLORS.primaryFixedDim,
       Bodyweight: OBSIDIAN_COLORS.coralAccent,
+      Custom: OBSIDIAN_COLORS.textMuted,
+      Bands: OBSIDIAN_COLORS.voltLime,
     };
-    return (equipmentApiData as EquipmentApiItem[]).map((item) => ({
-      name: item.name,
-      percentage: Math.round(item.percentage),
-      color: colorMap[item.name] || OBSIDIAN_COLORS.voltLime,
-    }));
+    return (equipmentApiData as EquipmentApiItem[]).map((item) => {
+      const cleanName = item.name.trim();
+      const normalizedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1).toLowerCase();
+      return {
+        name: normalizedName,
+        percentage: Math.round(item.percentage),
+        color: colorMap[normalizedName] || colorMap[item.name] || OBSIDIAN_COLORS.voltLime,
+      };
+    });
   }, [equipmentApiData]);
 
   const totalVolumeKg = statsData?.totalVolumeKg ?? 24500;

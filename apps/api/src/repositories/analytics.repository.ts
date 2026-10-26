@@ -146,27 +146,37 @@ export class AnalyticsRepository {
       GROUP BY e.equipment
     `;
 
-    const equipmentCounts: Record<string, number> = {
-      Barbell: 0,
-      Dumbbell: 0,
-      Cable: 0,
-      Machine: 0,
-      Bodyweight: 0,
+    const normalizeEquipmentName = (raw: string): string => {
+      const clean = raw.trim().toLowerCase();
+      if (clean.includes('barbell')) return 'Barbell';
+      if (clean.includes('dumbbell') || clean.includes('dumbell')) return 'Dumbbell';
+      if (clean.includes('cable')) return 'Cable';
+      if (clean.includes('machine')) return 'Machine';
+      if (clean.includes('bodyweight') || clean.includes('body weight')) return 'Bodyweight';
+      if (clean.includes('band')) return 'Bands';
+      if (clean.includes('custom')) return 'Custom';
+      return clean.charAt(0).toUpperCase() + clean.slice(1);
     };
+
+    const equipmentCounts: Record<string, number> = {};
 
     let total = 0;
     for (const row of distribution) {
-      const eq = row.equipment;
+      if (!row.equipment) continue;
+      const canonical = normalizeEquipmentName(row.equipment);
       const count = Number(row.count);
-      equipmentCounts[eq] = (equipmentCounts[eq] || 0) + count;
+      equipmentCounts[canonical] = (equipmentCounts[canonical] || 0) + count;
       total += count;
     }
 
-    return Object.entries(equipmentCounts).map(([equipment, count]) => ({
-      name: equipment,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-    }));
+    return Object.entries(equipmentCounts)
+      .filter(([_, count]) => count > 0)
+      .map(([equipment, count]) => ({
+        name: equipment,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.percentage - a.percentage);
   }
 }
 
