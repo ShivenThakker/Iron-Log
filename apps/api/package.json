@@ -19,6 +19,7 @@
     "@google/genai": "^2.31.0",
     "@ironlog/shared": "*",
     "@prisma/adapter-better-sqlite3": "^7.5.0",
+    "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.5.0",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.39.0",
@@ -31,6 +32,7 @@
     "google-auth-library": "^11.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.1",
     "pino": "^10.4.0",
     "pino-pretty": "^13.2.0",
     "zod": "^4.3.6"
@@ -40,6 +42,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
+    "@types/pg": "^8.23.1",
     "prisma": "^7.5.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",

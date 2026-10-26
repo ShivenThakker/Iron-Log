@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Copy workspace roots and package definitions
 COPY package*.json ./
+COPY prisma.config.ts ./
 COPY packages ./packages
 COPY apps/api/package*.json ./apps/api/
 
@@ -27,6 +28,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY package*.json ./
+COPY prisma.config.ts ./
 COPY packages ./packages
 COPY apps/api/package*.json ./apps/api/
 
