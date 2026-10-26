@@ -115,7 +115,7 @@ export default function AchievementsTab() {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={refetch}
+              onRefresh={() => void refetch()}
               tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }

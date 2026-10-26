@@ -73,12 +73,12 @@ Iron-Log/
 | **Production Database** | PostgreSQL (Supabase) | PostgreSQL 16+ | Production database with row security and connection pooling |
 | **Cache & Rate Limiting** | Upstash Redis | `@upstash/redis` `^1.39.0` | USDA food search caching, dynamic IP & auth rate limiting |
 | **AI Engine** | Google Gemini (configured via `GEMINI_MODEL`, active default `gemini-2.5-flash`) | `@google/genai` `^2.31.0` (Official modern Google GenAI SDK) | Multimodal workout parsing (doc/screenshot), routine analysis, coaching |
-| **Mobile Framework** | Expo / React Native | Expo `~54.0.37`, React Native `0.81.5`, React `19.1.0` | New Architecture enabled (`newArchEnabled: true`) |
-| **Mobile Navigation** | Expo Router | `~6.0.24` | File-based typed routing (`typedRoutes: true`) |
+| **Mobile Framework** | Expo / React Native | Expo `~58.0.19`, React Native `0.88.0`, React `19.3.0` | New Architecture enabled (`newArchEnabled: true`) |
+| **Mobile Navigation** | Expo Router | `~58.0.26` | File-based typed routing (`typedRoutes: true`) |
 | **Mobile State** | TanStack React Query + Zustand | React Query `^5.104`, Zustand `^5.0.15` | Server cache with auto-invalidation, persisted auth & refresh token |
-| **Local Device Storage** | Expo SecureStore & WatermelonDB | SecureStore `~15.0.8`, WatermelonDB `^0.28.0` | Offline-first sync, JWT keychain storage |
-| **Vision & Camera** | Expo Image Picker | `~17.0.11` | Image & screenshot capture with base64 conversion |
-| **Styling & Charts** | Custom Glassmorphism + React Native SVG | `react-native-svg` `15.12.1`, `phosphor-react-native` | Dark cyberpunk aesthetic with 60fps animations |
+| **Local Device Storage** | Expo SecureStore | SecureStore `~58.0.2` | Offline-first sync, JWT keychain storage |
+| **Vision & Camera** | Expo Image Picker | `~58.0.10` | Image & screenshot capture with base64 conversion |
+| **Styling & Charts** | Custom Glassmorphism + React Native SVG | `react-native-svg` `15.16.0`, `phosphor-react-native` | Dark cyberpunk aesthetic with 60fps animations |
 
 ---
 

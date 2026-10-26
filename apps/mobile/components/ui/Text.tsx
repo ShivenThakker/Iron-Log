@@ -46,17 +46,17 @@ export const Text: React.FC<TextProps> = ({
 }) => {
   const variantStyle = styles[variant] || styles.body;
 
+  let fontFamily: string | undefined;
+  if (weight === 'regular') fontFamily = 'Inter_400Regular';
+  else if (weight === 'medium') fontFamily = 'Inter_500Medium';
+  else if (weight === 'semibold') fontFamily = 'Inter_600SemiBold';
+  else if (weight === 'bold') fontFamily = 'Inter_700Bold';
+
   const dynamicStyle: TextStyle = {
     ...(color ? { color } : {}),
     ...(align ? { textAlign: align } : {}),
+    ...(fontFamily ? { fontFamily } : {}),
   };
-
-  if (weight) {
-    if (weight === 'regular') dynamicStyle.fontFamily = 'Inter_400Regular';
-    if (weight === 'medium') dynamicStyle.fontFamily = 'Inter_500Medium';
-    if (weight === 'semibold') dynamicStyle.fontFamily = 'Inter_600SemiBold';
-    if (weight === 'bold') dynamicStyle.fontFamily = 'Inter_700Bold';
-  }
 
   return (
     <RNText style={[variantStyle, dynamicStyle, style]} {...rest}>

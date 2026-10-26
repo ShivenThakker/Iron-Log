@@ -5,8 +5,8 @@ import {
   StyleSheet,
   ViewStyle,
   RefreshControl,
-  StatusBar,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, OBSIDIAN_COLORS } from '@/constants/tokens';
 
@@ -46,7 +46,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }, containerPadding, style]}>
-      <StatusBar barStyle="light-content" backgroundColor={bgColor} />
+      <StatusBar style="light" />
       {headerComponent}
       {scrollable ? (
         <ScrollView

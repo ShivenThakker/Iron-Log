@@ -30,7 +30,7 @@ export default function TabLayout() {
         options={{
           title: 'Workout',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="Barbell" size={22} color={color} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="Barbell" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -39,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: 'Nutrition',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="ForkKnife" size={22} color={color} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="ForkKnife" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -48,7 +48,7 @@ export default function TabLayout() {
         options={{
           title: 'Rank',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="Trophy" size={22} color={color} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="Trophy" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -57,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Body',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="Scales" size={22} color={color} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="Scales" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -66,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'Insights',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="ChartLineUp" size={22} color={color} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="ChartLineUp" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />

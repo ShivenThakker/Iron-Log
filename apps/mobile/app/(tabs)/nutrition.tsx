@@ -184,7 +184,7 @@ export default function NutritionScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={refetch}
+              onRefresh={() => void refetch()}
               tintColor={OBSIDIAN_COLORS.voltLime}
             />
           }

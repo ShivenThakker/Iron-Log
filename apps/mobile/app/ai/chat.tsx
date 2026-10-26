@@ -38,7 +38,7 @@ const STARTER_PROMPTS = [
 
 export default function AiChatScreen() {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
