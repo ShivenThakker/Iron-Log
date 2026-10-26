@@ -9,7 +9,7 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
@@ -43,6 +43,7 @@ interface ActiveExercise {
   name: string;
   targetMuscles: string;
   instructions?: string;
+  restSeconds?: number;
   sets: ActiveSet[];
 }
 
@@ -88,6 +89,7 @@ const DEFAULT_EXERCISES: ActiveExercise[] = [
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ dayId?: string; workoutName?: string }>();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<ActiveExercise[]>(DEFAULT_EXERCISES);
@@ -102,6 +104,7 @@ export default function ActiveWorkoutScreen() {
   // Modals
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEffortGuide, setShowEffortGuide] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
 
   // PR Celebration State
   const [prCelebration, setPrCelebration] = useState<{
@@ -124,17 +127,66 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // Initialize session & fetch exercise list from backend (Fix F9: preserve exercise ID lookup)
+  // Initialize session & fetch exercise list from active program or fallback
   useEffect(() => {
     const initSession = async () => {
       try {
-        const [sessionRes, exRes] = await Promise.all([
-          api.post('/sessions', { name: 'Upper Body Hypertrophy' }),
+        const [activeProgRes, sessionRes, exRes] = await Promise.all([
+          api.get('/programs/active').catch(() => null),
+          api.post('/sessions', { notes: params.workoutName || 'Workout Session' }),
           api.get('/exercises').catch(() => ({ data: [] })),
         ]);
-        if (sessionRes.data?.id) {
+
+        if (sessionRes?.data?.id) {
           setSessionId(sessionRes.data.id);
         }
+
+        const activeProg = activeProgRes?.data;
+        if (activeProg && Array.isArray(activeProg.workoutDays) && activeProg.workoutDays.length > 0) {
+          const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const todayName = daysOfWeek[new Date().getDay()];
+          const matchedDay =
+            activeProg.workoutDays.find((d: any) => d.id === params.dayId) ||
+            activeProg.workoutDays.find((d: any) => d.day_name?.toLowerCase().includes(todayName.toLowerCase())) ||
+            activeProg.workoutDays[0];
+
+          if (matchedDay && Array.isArray(matchedDay.exercises) && matchedDay.exercises.length > 0) {
+            const loadedExercises: ActiveExercise[] = matchedDay.exercises.map((dayEx: any, idx: number) => {
+              const setsCount = dayEx.target_sets || 2;
+              const targetReps = String(dayEx.target_reps || '10');
+              const repMatch = targetReps.match(/\d+/);
+              const repVal = repMatch ? repMatch[0] : '10';
+
+              const sets: ActiveSet[] = Array.from({ length: setsCount }).map((_, sIdx) => ({
+                id: `s-${idx + 1}-${sIdx + 1}-${Date.now()}`,
+                setNumber: sIdx + 1,
+                weight: '30',
+                reps: repVal,
+                setType: 'normal',
+                completed: false,
+                synced: false,
+              }));
+
+              return {
+                id: `ex-${idx + 1}`,
+                exerciseId: dayEx.exercise_id || dayEx.exercise?.id || `ex-${idx}`,
+                name: dayEx.exercise?.name || dayEx.exercise_name || `Exercise ${idx + 1}`,
+                targetMuscles: dayEx.exercise?.primary_muscle || 'Full Body',
+                instructions: dayEx.exercise?.instructions || '',
+                restSeconds: dayEx.rest_seconds ?? 90,
+                sets,
+              };
+            });
+
+            setExercises(loadedExercises);
+            if (loadedExercises[0]?.restSeconds) {
+              setRestDuration(loadedExercises[0].restSeconds);
+            }
+            return;
+          }
+        }
+
+        // Fallback: map default exercises with real DB exercise IDs
         if (Array.isArray(exRes.data) && exRes.data.length > 0) {
           interface DbExerciseItem {
             id: string;
@@ -142,7 +194,6 @@ export default function ActiveWorkoutScreen() {
           }
           const dbExercises = (exRes.data as DbExerciseItem[]).map((item) => ({ id: item.id, name: item.name }));
 
-          // Map default exercises to real database IDs so foreign key inserts succeed (F9)
           setExercises((prev) =>
             prev.map((ex, idx) => {
               const matched = dbExercises.find(
@@ -160,7 +211,34 @@ export default function ActiveWorkoutScreen() {
       }
     };
     initSession();
-  }, []);
+  }, [params.dayId, params.workoutName]);
+
+  // Synchronize rest duration when exercise changes
+  useEffect(() => {
+    if (exercises[currentExerciseIndex]?.restSeconds) {
+      setRestDuration(exercises[currentExerciseIndex].restSeconds || 90);
+    }
+  }, [currentExerciseIndex, exercises]);
+
+  const handleBackPress = () => {
+    const hasCompletedSets = exercises.some((ex) => ex.sets.some((s) => s.completed));
+    if (!hasCompletedSets) {
+      if (sessionId) {
+        api.delete(`/sessions/${sessionId}`).catch(() => {});
+      }
+      router.back();
+    } else {
+      setShowDiscardModal(true);
+    }
+  };
+
+  const handleConfirmDiscard = async () => {
+    setShowDiscardModal(false);
+    if (sessionId) {
+      await api.delete(`/sessions/${sessionId}`).catch(() => {});
+    }
+    router.back();
+  };
 
   const currentExercise = exercises[currentExerciseIndex] || exercises[0];
   const currentSet = currentExercise?.sets[activeSetIndex] || currentExercise?.sets[0];
@@ -229,6 +307,8 @@ export default function ActiveWorkoutScreen() {
     if (willBeCompleted) {
       const weightNum = parseFloat(currentSet.weight) || 0;
       const repsNum = parseInt(currentSet.reps, 10) || 1;
+      const restSec = currentExercise.restSeconds ?? 90;
+      setRestDuration(restSec);
 
       // 1. Sync to API if session is active and not already synced
       if (sessionId && !currentSet.synced) {
@@ -409,7 +489,7 @@ export default function ActiveWorkoutScreen() {
           <TouchableOpacity
             style={styles.backIconBtn}
             activeOpacity={0.7}
-            onPress={() => router.back()}
+            onPress={handleBackPress}
           >
             <Icon name="CaretLeft" size={22} color={OBSIDIAN_COLORS.textWhite} />
           </TouchableOpacity>
@@ -935,6 +1015,47 @@ export default function ActiveWorkoutScreen() {
               >
                 <Text style={styles.modalActionBtnText}>Got It, Back to Lifting</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Discard Workout Confirmation Modal */}
+        <Modal
+          visible={showDiscardModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDiscardModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Discard Workout?</Text>
+                <TouchableOpacity onPress={() => setShowDiscardModal(false)} hitSlop={12}>
+                  <Icon name="X" size={22} color={OBSIDIAN_COLORS.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.discardModalBody}>
+                You have active sets in progress. If you exit now, this session will be discarded and will NOT be logged or saved to your workout history.
+              </Text>
+
+              <View style={styles.discardBtnRow}>
+                <TouchableOpacity
+                  style={styles.discardConfirmBtn}
+                  activeOpacity={0.8}
+                  onPress={handleConfirmDiscard}
+                >
+                  <Text style={styles.discardConfirmText}>Discard Workout</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.keepLiftingBtn}
+                  activeOpacity={0.85}
+                  onPress={() => setShowDiscardModal(false)}
+                >
+                  <Text style={styles.keepLiftingText}>Resume Workout</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1601,6 +1722,46 @@ const styles = StyleSheet.create({
     marginTop: OBSIDIAN_SPACING.md,
   },
   modalActionBtnText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.onPrimary,
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  discardModalBody: {
+    ...OBSIDIAN_TYPOGRAPHY.bodyMd,
+    color: OBSIDIAN_COLORS.textMuted,
+    lineHeight: 20,
+    marginTop: 4,
+    marginBottom: OBSIDIAN_SPACING.md,
+  },
+  discardBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: OBSIDIAN_SPACING.sm,
+  },
+  discardConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: 'rgba(255, 69, 58, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 69, 58, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  discardConfirmText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: '#FF453A',
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  keepLiftingBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keepLiftingText: {
     ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
     color: OBSIDIAN_COLORS.onPrimary,
     fontFamily: 'SpaceGrotesk_700Bold',

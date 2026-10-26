@@ -172,6 +172,7 @@ export class AnalyticsRepository {
     const sessions = await prisma.workoutSession.findMany({
       where: {
         user_id: userId,
+        finished_at: { not: null },
         started_at: {
           gte: startOfYear,
           lte: endOfYear,

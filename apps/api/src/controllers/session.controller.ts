@@ -78,3 +78,13 @@ export const finishSession = async (req: Request, res: Response, next: NextFunct
     next(err);
   }
 };
+
+export const deleteSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await sessionRepository.deleteSession(sessionId, req.user!.id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};

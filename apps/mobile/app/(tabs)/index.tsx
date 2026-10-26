@@ -253,7 +253,15 @@ export default function HomeDashboard() {
                 <TouchableOpacity
                   style={styles.startWorkoutBtn}
                   activeOpacity={0.88}
-                  onPress={() => router.push('/workout/active')}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/workout/active',
+                      params: {
+                        dayId: todayWorkoutDay?.id || '',
+                        workoutName: todayWorkoutTitle,
+                      },
+                    })
+                  }
                 >
                   <Icon name="Play" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
                   <Text style={styles.startWorkoutText}>Start Workout</Text>

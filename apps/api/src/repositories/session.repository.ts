@@ -245,7 +245,10 @@ export class SessionRepository {
 
   async getSessions(userId: string) {
     return prisma.workoutSession.findMany({
-      where: { user_id: userId },
+      where: {
+        user_id: userId,
+        finished_at: { not: null },
+      },
       include: {
         exerciseSets: {
           include: { exercise: true },
@@ -253,6 +256,24 @@ export class SessionRepository {
       },
       orderBy: { started_at: 'desc' },
       take: 20,
+    });
+  }
+
+  async deleteSession(id: string, userId: string) {
+    const session = await prisma.workoutSession.findFirst({
+      where: { id, user_id: userId },
+    });
+    if (!session) {
+      throw new NotFoundError('Workout session not found');
+    }
+    await prisma.exerciseSet.deleteMany({
+      where: { session_id: id },
+    });
+    await prisma.personalRecord.deleteMany({
+      where: { session_id: id },
+    });
+    return prisma.workoutSession.delete({
+      where: { id },
     });
   }
 }
