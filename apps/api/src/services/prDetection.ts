@@ -9,7 +9,8 @@ export const checkAndCreatePR = async (
   exerciseId: string,
   weightKg: number,
   reps: number,
-  sessionId: string
+  sessionId: string,
+  achievedAt?: Date
 ) => {
   const currentPR = await prRepository.findCurrentPR(userId, exerciseId);
   const estimated1RM = calculateEstimated1RM(weightKg, reps);
@@ -23,6 +24,7 @@ export const checkAndCreatePR = async (
       estimated1rmKg: estimated1RM,
       sessionId,
       xpAmount: 25,
+      achievedAt,
     });
   }
 

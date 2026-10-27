@@ -49,6 +49,9 @@ export type IconName =
   | 'CaretDown'
   | 'ArrowsDownUp'
   | 'Info'
+  | 'UploadSimple'
+  | 'FileText'
+  | 'Table'
   | 'Minus';
 
 export interface IconProps {

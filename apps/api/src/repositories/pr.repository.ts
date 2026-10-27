@@ -24,6 +24,7 @@ export class PRRepository {
     estimated1rmKg: number;
     sessionId: string;
     xpAmount?: number;
+    achievedAt?: Date;
   }): Promise<{ isNewPR: boolean; record?: any }> {
     try {
       const record = await prisma.$transaction(async (tx) => {
@@ -36,7 +37,7 @@ export class PRRepository {
             reps: input.reps,
             estimated_1rm_kg: input.estimated1rmKg,
             session_id: input.sessionId,
-            achieved_at: new Date(),
+            achieved_at: input.achievedAt || new Date(),
           },
         });
 

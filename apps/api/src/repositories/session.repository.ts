@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { gamificationRepository } from './gamification.repository';
 import { NotFoundError } from '../utils/errors';
+import { checkAndCreatePR } from '../services/prDetection';
 
 export function getEffectiveStreak(
   streak: { current_streak: number; last_active_date: Date | string; grace_used_this_week: boolean } | null | undefined
@@ -43,6 +44,29 @@ export interface FinishSessionInput {
   fatigue_level?: number;
   duration_sec?: number;
   total_volume_kg?: number;
+}
+
+export interface RetroactiveSetInput {
+  set_number?: number;
+  weight_kg?: number;
+  reps?: number;
+  set_type?: string;
+  rpe?: number;
+  duration_seconds?: number;
+}
+
+export interface RetroactiveExerciseInput {
+  exercise_id?: string;
+  exercise_name?: string;
+  sets: RetroactiveSetInput[];
+}
+
+export interface CreateRetroactiveSessionInput {
+  date: string | Date;
+  workout_name?: string;
+  duration_minutes?: number;
+  notes?: string;
+  exercises: RetroactiveExerciseInput[];
 }
 
 export class SessionRepository {
@@ -275,6 +299,129 @@ export class SessionRepository {
     return prisma.workoutSession.delete({
       where: { id },
     });
+  }
+
+  async createRetroactiveSession(userId: string, input: CreateRetroactiveSessionInput) {
+    const sessionDate = new Date(input.date);
+    const durationMinutes = input.duration_minutes || 45;
+    const durationSeconds = durationMinutes * 60;
+    const finishedAt = new Date(sessionDate.getTime() + durationSeconds * 1000);
+
+    const combinedNotes = input.workout_name
+      ? `${input.workout_name}${input.notes ? ' - ' + input.notes : ''}`
+      : (input.notes || 'Past Workout Session');
+
+    const session = await prisma.workoutSession.create({
+      data: {
+        user_id: userId,
+        started_at: sessionDate,
+        finished_at: finishedAt,
+        session_date: sessionDate,
+        duration_seconds: durationSeconds,
+        notes: combinedNotes,
+      },
+    });
+
+    let totalVolumeKg = 0;
+    let totalSetsCount = 0;
+    let prCount = 0;
+
+    for (const exInput of input.exercises) {
+      let exerciseId = exInput.exercise_id;
+      if (!exerciseId && exInput.exercise_name) {
+        const found = await prisma.exercise.findFirst({
+          where: {
+            OR: [
+              { name: { equals: exInput.exercise_name, mode: 'insensitive' } },
+              { name: exInput.exercise_name },
+            ],
+          },
+        });
+        if (found) {
+          exerciseId = found.id;
+        } else {
+          const created = await prisma.exercise.create({
+            data: {
+              name: exInput.exercise_name,
+              primary_muscle: 'Full Body',
+              equipment: 'Other',
+              exercise_type: 'reps',
+              is_custom: true,
+              created_by_user_id: userId,
+            },
+          });
+          exerciseId = created.id;
+        }
+      }
+
+      if (!exerciseId) continue;
+
+      for (let i = 0; i < exInput.sets.length; i++) {
+        const s = exInput.sets[i];
+        const setNumber = s.set_number || i + 1;
+        const setType = s.set_type || 'normal';
+        const weight = s.weight_kg ?? 0;
+        const reps = s.reps ?? 0;
+
+        await prisma.exerciseSet.create({
+          data: {
+            session_id: session.id,
+            exercise_id: exerciseId,
+            set_number: setNumber,
+            set_type: setType,
+            weight_kg: weight,
+            reps: reps,
+            duration_seconds: s.duration_seconds,
+            rpe: s.rpe || 9,
+            logged_at: sessionDate,
+          },
+        });
+
+        totalSetsCount++;
+
+        if (setType !== 'warmup' && weight > 0 && reps > 0) {
+          totalVolumeKg += weight * reps;
+          const prResult = await checkAndCreatePR(
+            userId,
+            exerciseId,
+            weight,
+            reps,
+            session.id,
+            sessionDate
+          );
+          if (prResult.isNewPR) {
+            prCount++;
+          }
+        }
+      }
+    }
+
+    const xpEarned = 50 + prCount * 25;
+    await gamificationRepository.awardXp(userId, xpEarned, 'Logged Historical Workout');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(sessionDate);
+    checkDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today.getTime() - checkDate.getTime()) / (1000 * 3600 * 24));
+    if (diffDays >= 0 && diffDays <= 1) {
+      await this.updateUserStreak(userId);
+    }
+
+    const newlyUnlockedTrophies = await gamificationRepository.checkAndUnlockTrophies(userId);
+    const completeSession = await this.getSession(session.id, userId);
+
+    return {
+      session: completeSession || session,
+      summary: {
+        duration_seconds: durationSeconds,
+        total_volume_kg: totalVolumeKg,
+        total_sets: totalSetsCount,
+        pr_count: prCount,
+        xp_earned: xpEarned,
+        newly_unlocked_trophies: newlyUnlockedTrophies,
+      },
+    };
   }
 }
 

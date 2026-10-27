@@ -23,6 +23,7 @@
     "axios": "^1.13.6",
     "expo": "~58.0.19",
     "expo-constants": "~58.0.13",
+    "expo-document-picker": "^58.0.4",
     "expo-font": "~58.0.10",
     "expo-haptics": "~58.0.7",
     "expo-image": "~58.0.17",

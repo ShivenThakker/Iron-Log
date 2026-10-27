@@ -3,6 +3,7 @@ import { sessionRepository } from '../repositories/session.repository';
 import { checkAndCreatePR } from '../services/prDetection';
 import { NotFoundError } from '../utils/errors';
 import { eventBus } from '../services/eventBus';
+import { workoutImportService } from '../services/workoutImport.service';
 
 export const startSession = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -84,6 +85,44 @@ export const deleteSession = async (req: Request, res: Response, next: NextFunct
     const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await sessionRepository.deleteSession(sessionId, req.user!.id);
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createRetroactiveSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+    const result = await sessionRepository.createRetroactiveSession(userId, req.body);
+    res.status(201).json(result);
+
+    eventBus.emit('session.finished', {
+      userId,
+      sessionId: result.session.id,
+      durationSeconds: result.summary.duration_seconds,
+      totalVolumeKg: result.summary.total_volume_kg,
+      totalSets: result.summary.total_sets,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const importWorkoutSpreadsheet = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+    const { filename, fileData } = req.body;
+    if (!fileData) {
+      res.status(400).json({ error: 'fileData is required' });
+      return;
+    }
+
+    const result = await workoutImportService.importSpreadsheet(userId, {
+      filename: filename || 'workouts.csv',
+      fileData,
+    });
+
+    res.status(200).json(result);
   } catch (err) {
     next(err);
   }

@@ -391,7 +391,7 @@ export default function HomeDashboard() {
             ))}
           </View>
 
-          {/* Quick Action Matrix (Unified Obsidian & Volt 2-Column Grid) */}
+          {/* Quick Action Matrix (Unified Obsidian & Volt 3-Column Grid) */}
           <View style={styles.quickMatrix}>
             <TouchableOpacity
               style={styles.quickActionBtn}
@@ -402,6 +402,17 @@ export default function HomeDashboard() {
                 <Icon name="CalendarCheck" size={20} color={OBSIDIAN_COLORS.voltLime} />
               </View>
               <Text style={styles.quickActionText}>PLAN{'\n'}BUILDER</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push('/workout/import')}
+            >
+              <View style={styles.quickIconCircle}>
+                <Icon name="Table" size={20} color={OBSIDIAN_COLORS.voltLime} />
+              </View>
+              <Text style={styles.quickActionText}>LOG PAST{'\n'}& IMPORT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -420,14 +431,25 @@ export default function HomeDashboard() {
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Recent Workouts</Text>
-              <TouchableOpacity
-                style={styles.analyticsLink}
-                activeOpacity={0.7}
-                onPress={() => router.push('/(tabs)/insights')}
-              >
-                <Text style={styles.analyticsLinkText}>ANALYTICS</Text>
-                <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  style={styles.logPastLink}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/workout/import')}
+                >
+                  <Icon name="Plus" size={12} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                  <Text style={styles.logPastLinkText}>LOG PAST</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.analyticsLink}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/(tabs)/insights')}
+                >
+                  <Text style={styles.analyticsLinkText}>ANALYTICS</Text>
+                  <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {recentSessions && recentSessions.length > 0 ? (
@@ -851,6 +873,22 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...OBSIDIAN_TYPOGRAPHY.headlineSm,
     color: OBSIDIAN_COLORS.textWhite,
+  },
+  logPastLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(204, 255, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
+  },
+  logPastLinkText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 11,
   },
   analyticsLink: {
     flexDirection: 'row',
