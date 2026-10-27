@@ -36,12 +36,7 @@ const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {
   core: 30,
 };
 
-const DEFAULT_EQUIPMENT_DATA = [
-  { name: 'Barbell', percentage: 42, color: OBSIDIAN_COLORS.voltLime },
-  { name: 'Dumbbell', percentage: 28, color: OBSIDIAN_COLORS.cyanAccent },
-  { name: 'Cable', percentage: 18, color: OBSIDIAN_COLORS.secondary },
-  { name: 'Machine', percentage: 12, color: OBSIDIAN_COLORS.primaryFixedDim },
-];
+const DEFAULT_EQUIPMENT_DATA: { name: string; percentage: number; color: string }[] = [];
 
 export default function InsightsTab() {
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90' | 'all'>('30');
@@ -78,11 +73,12 @@ export default function InsightsTab() {
     },
   });
 
-  // Realigned endpoint 4: GET /analytics/equipment
+  // Realigned endpoint 4: GET /analytics/equipment?period=...
   const { data: equipmentApiData, refetch: refetchEquipment } = useQuery({
-    queryKey: ['equipmentUsage'],
+    queryKey: ['equipmentUsage', timeRange],
     queryFn: async () => {
-      const res = await api.get('/analytics/equipment').catch(() => null);
+      const param = timeRange === 'all' ? 'all' : periodDays;
+      const res = await api.get(`/analytics/equipment?period=${param}`).catch(() => null);
       return res?.data ?? null;
     },
   });

@@ -259,16 +259,28 @@ export class AnalyticsRepository {
     };
   }
 
-  async getEquipmentDistribution(userId: string) {
-    const distribution = await prisma.$queryRaw<Array<{ equipment: string; count: bigint | number }>>`
-      SELECT e.equipment as equipment, COUNT(es.id) as count
-      FROM "ExerciseSet" es
-      JOIN "Exercise" e ON es.exercise_id = e.id
-      JOIN "WorkoutSession" ws ON es.session_id = ws.id
-      WHERE ws.user_id = ${userId}
-        AND e.equipment IS NOT NULL
-      GROUP BY e.equipment
-    `;
+  async getEquipmentDistribution(userId: string, days?: number) {
+    const sinceDate = days && days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : undefined;
+    const distribution = sinceDate
+      ? await prisma.$queryRaw<Array<{ equipment: string; count: bigint | number }>>`
+          SELECT e.equipment as equipment, COUNT(es.id) as count
+          FROM "ExerciseSet" es
+          JOIN "Exercise" e ON es.exercise_id = e.id
+          JOIN "WorkoutSession" ws ON es.session_id = ws.id
+          WHERE ws.user_id = ${userId}
+            AND ws.started_at >= ${sinceDate}
+            AND e.equipment IS NOT NULL
+          GROUP BY e.equipment
+        `
+      : await prisma.$queryRaw<Array<{ equipment: string; count: bigint | number }>>`
+          SELECT e.equipment as equipment, COUNT(es.id) as count
+          FROM "ExerciseSet" es
+          JOIN "Exercise" e ON es.exercise_id = e.id
+          JOIN "WorkoutSession" ws ON es.session_id = ws.id
+          WHERE ws.user_id = ${userId}
+            AND e.equipment IS NOT NULL
+          GROUP BY e.equipment
+        `;
 
     const normalizeEquipmentName = (raw: string): string => {
       const clean = raw.trim().toLowerCase();

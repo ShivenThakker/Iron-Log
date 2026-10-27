@@ -65,7 +65,17 @@ export const getRadar = async (req: Request, res: Response) => {
 export const getEquipment = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const equipment = await analyticsRepository.getEquipmentDistribution(userId);
+    const rawPeriod = req.query.period;
+    const parsedDays = Number(rawPeriod);
+    const days =
+      rawPeriod === 'all'
+        ? undefined
+        : Number.isFinite(parsedDays) && parsedDays > 0
+          ? parsedDays
+          : rawPeriod === 'week'
+            ? 7
+            : 30;
+    const equipment = await analyticsRepository.getEquipmentDistribution(userId, days);
     res.json(equipment);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
