@@ -202,7 +202,7 @@ export default function ActiveWorkoutScreen() {
                   db.name.toLowerCase().includes(ex.name.toLowerCase()) ||
                   ex.name.toLowerCase().includes(db.name.toLowerCase())
               );
-              const resolvedId = matched?.id || dbExercises[idx % dbExercises.length]?.id || ex.exerciseId;
+              const resolvedId = matched?.id || ex.exerciseId;
               return { ...ex, exerciseId: resolvedId };
             })
           );

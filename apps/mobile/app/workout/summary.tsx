@@ -61,10 +61,10 @@ export default function PostWorkoutSummary() {
     },
   });
 
-  const currentRankName = gamificationData?.currentRank?.name || 'Vanguard';
-  const currentStreak = gamificationData?.currentStreak || 5;
-  const totalXp = gamificationData?.xpRecord?.total_xp || 780;
-  const nextRankXp = gamificationData?.nextRank?.min_xp || 1000;
+  const currentRankName = gamificationData?.currentRank?.name || 'Rookie';
+  const currentStreak = gamificationData?.currentStreak ?? 1;
+  const totalXp = gamificationData?.xpRecord?.total_xp ?? 0;
+  const nextRankXp = gamificationData?.nextRank?.minXp ?? gamificationData?.nextRank?.min_xp ?? 1000;
   const xpProgress = Math.min(1, totalXp / (nextRankXp || 1000));
 
   const handleShare = async () => {

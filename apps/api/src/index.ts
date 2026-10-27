@@ -22,13 +22,19 @@ import { env } from './lib/env';
 const app = express();
 const port = env.PORT;
 
+// Trust reverse proxy (Render, AWS ALB, Cloudflare, etc.) to correctly resolve client IP
+app.set('trust proxy', 1);
+
 app.use(helmet());
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : '*';
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
-// Global API rate limit (60 requests per minute per IP)
-app.use(rateLimit(60, 60000));
+// Global API rate limit (60 requests per minute per IP/User)
+app.use(rateLimit(60, 60000, 'global'));
 
 // Request logging
 app.use((req, res, next) => {

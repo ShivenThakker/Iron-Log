@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { geminiService } from '../services/gemini.service';
 import { prisma } from '../lib/prisma';
 import { getEffectiveStreak } from '../repositories/session.repository';
+import { sanitizeUserText } from '../utils/promptGuard';
 
 export const chatCompletion = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -13,7 +14,7 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
 
     let userContext = '';
     if (req.user?.id) {
-      const [user, streak, recentPrs] = await Promise.all([
+      const [user, streak, recentPrs, sessionsCount, latestWeight, recentSessions] = await Promise.all([
         prisma.user.findUnique({
           where: { id: req.user.id },
         }).catch(() => null),
@@ -22,14 +23,57 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
         }).catch(() => null),
         prisma.personalRecord.findMany({
           where: { user_id: req.user.id },
-          take: 3,
+          take: 6,
           include: { exercise: true },
+          orderBy: { weight_kg: 'desc' },
+        }).catch(() => []),
+        prisma.workoutSession.count({
+          where: { user_id: req.user.id, finished_at: { not: null } },
+        }).catch(() => 0),
+        prisma.bodyWeightLog.findFirst({
+          where: { user_id: req.user.id },
+          orderBy: { logged_at: 'desc' },
+        }).catch(() => null),
+        prisma.workoutSession.findMany({
+          where: { user_id: req.user.id, finished_at: { not: null } },
+          take: 5,
+          orderBy: { started_at: 'desc' },
+          include: {
+            exerciseSets: {
+              include: { exercise: true },
+            },
+          },
         }).catch(() => []),
       ]);
 
       if (user) {
         const activeStreak = getEffectiveStreak(streak);
-        userContext = `\n[User Context: Name: ${user.name || 'Athlete'}, Goal: ${user.fitness_goal || 'Build Muscle'}, Experience: ${user.experience_level || 'Intermediate'}, Active Streak: ${activeStreak} days, Recent PRs: ${recentPrs.map((p) => `${p.exercise?.name || 'Lift'}: ${p.weight_kg}kg`).join(', ') || 'None yet'}]`;
+        const safeName = sanitizeUserText(user.name || 'Athlete');
+        const safeGoal = sanitizeUserText(user.fitness_goal || 'Build Muscle');
+        const safeExp = sanitizeUserText(user.experience_level || 'Intermediate');
+        const weightStr = latestWeight ? `${latestWeight.weight_kg}kg` : 'Not logged';
+        const heightStr = user.height_cm ? `${user.height_cm}cm` : 'Not set';
+        const safePrs = recentPrs
+          .map((p) => `${sanitizeUserText(p.exercise?.name || 'Lift')}: ${p.weight_kg}kg (${p.reps} reps)`)
+          .join(', ') || 'None yet';
+
+        const recentLifts = Array.from(
+          new Set(recentSessions.flatMap((s) => s.exerciseSets.map((es) => es.exercise?.name)).filter(Boolean))
+        )
+          .slice(0, 8)
+          .join(', ');
+
+        userContext = `\n[User Profile & Context:
+Name: ${safeName}
+Current Bodyweight: ${weightStr}
+Height: ${heightStr}
+Fitness Goal: ${safeGoal}
+Experience Level: ${safeExp}
+Completed Sessions: ${sessionsCount} workouts logged
+Active Streak: ${activeStreak} days (Longest: ${streak?.longest_streak || 0} days)
+All-Time Top PRs: ${safePrs}
+Recent Exercises Trained: ${recentLifts || 'None recently'}
+]`;
       }
     }
 

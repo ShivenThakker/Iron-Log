@@ -11,15 +11,15 @@ import {
 } from '../controllers/session.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
-import { startSessionSchema, addSetSchema, finishSessionSchema } from '../validators/session.validator';
+import { startSessionSchema, addSetSchema, finishSessionSchema, retroactiveSessionSchema, importSpreadsheetSchema } from '../validators/session.validator';
 
 const router = Router();
 router.use(requireAuth);
 
 router.get('/', getSessions);
 router.post('/', validate(startSessionSchema), startSession);
-router.post('/retroactive', createRetroactiveSession);
-router.post('/import', importWorkoutSpreadsheet);
+router.post('/retroactive', validate(retroactiveSessionSchema), createRetroactiveSession);
+router.post('/import', validate(importSpreadsheetSchema), importWorkoutSpreadsheet);
 router.get('/:id', getSession);
 router.post('/:id/sets', validate(addSetSchema), addSet);
 router.put('/:id/finish', validate(finishSessionSchema), finishSession);

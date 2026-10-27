@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
 import { RANKS } from '@ironlog/shared';
 import { gamificationRepository } from '../repositories/gamification.repository';
+import { prisma } from '../lib/prisma';
 
 export const getGamificationProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const xpRecord = await gamificationRepository.getOrCreateUserXp(userId);
+    const [xpRecord, streak] = await Promise.all([
+      gamificationRepository.getOrCreateUserXp(userId),
+      prisma.streak.findUnique({ where: { user_id: userId } }),
+    ]);
 
     const currentRank = [...RANKS].reverse().find((r) => xpRecord.total_xp >= r.minXp) || RANKS[0];
     const nextRank = RANKS.find((r) => r.minXp > xpRecord.total_xp);
@@ -27,6 +31,7 @@ export const getGamificationProfile = async (req: Request, res: Response) => {
       xpRecord,
       currentRank,
       nextRank,
+      currentStreak: streak?.current_streak ?? 0,
       progressPct,
       xpToNextRank,
       recentTransactions,

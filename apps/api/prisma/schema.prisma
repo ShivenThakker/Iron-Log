@@ -63,6 +63,8 @@ model BodyWeightLog {
   note      String?
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, logged_at])
 }
 
 model WeightGoal {
@@ -89,6 +91,8 @@ model BodyMeasurement {
   body_fat_pct   Float?
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, logged_at])
 }
 
 model Exercise {
@@ -204,6 +208,9 @@ model WorkoutSession {
   exerciseSets        ExerciseSet[]
   personalRecords     PersonalRecord[]
   periodizationSuggestions AiPeriodizationSuggestion[]
+
+  @@index([user_id, started_at])
+  @@index([user_id, session_date])
 }
 
 model ExerciseSet {
@@ -220,6 +227,9 @@ model ExerciseSet {
 
   session  WorkoutSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
   exercise Exercise       @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@index([exercise_id])
 }
 
 model PersonalRecord {
@@ -267,6 +277,8 @@ model FoodLogEntry {
   logged_at     DateTime @default(now())
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, logged_date])
 }
 
 model UserXp {

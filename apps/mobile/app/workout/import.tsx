@@ -24,7 +24,7 @@ import {
 import { api } from '@/services/api';
 
 type ImportMode = 'manual' | 'spreadsheet';
-type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
+type SetType = 'normal' | 'warmup' | 'dropset' | 'drop' | 'failure';
 
 interface ExerciseSetInput {
   set_number: number;
@@ -234,8 +234,9 @@ export default function HistoricalWorkoutImportScreen() {
   };
 
   const toggleSetType = (exIndex: number, setIndex: number, currentType: SetType) => {
-    const cycle: SetType[] = ['normal', 'warmup', 'drop', 'failure'];
-    const nextIdx = (cycle.indexOf(currentType) + 1) % cycle.length;
+    const cycle: SetType[] = ['normal', 'warmup', 'dropset', 'failure'];
+    const normalizedType = currentType === 'drop' ? 'dropset' : currentType;
+    const nextIdx = (cycle.indexOf(normalizedType) + 1) % cycle.length;
     handleUpdateSet(exIndex, setIndex, 'set_type', cycle[nextIdx]);
   };
 
@@ -260,7 +261,7 @@ export default function HistoricalWorkoutImportScreen() {
             set_number: s.set_number,
             weight_kg: parseFloat(s.weight_kg) || 0,
             reps: parseInt(s.reps, 10) || 0,
-            set_type: s.set_type,
+            set_type: s.set_type === 'drop' ? 'dropset' : s.set_type,
             rpe: s.set_type === 'failure' ? 10 : 9,
           })),
         })),
@@ -618,7 +619,7 @@ export default function HistoricalWorkoutImportScreen() {
                           styles.setTypeChip,
                           set.set_type === 'failure' && styles.setTypeFailure,
                           set.set_type === 'warmup' && styles.setTypeWarmup,
-                          set.set_type === 'drop' && styles.setTypeDrop,
+                          (set.set_type === 'drop' || set.set_type === 'dropset') && styles.setTypeDrop,
                         ]}
                         activeOpacity={0.7}
                         onPress={() => toggleSetType(exIdx, sIdx, set.set_type)}
@@ -629,7 +630,7 @@ export default function HistoricalWorkoutImportScreen() {
                             set.set_type === 'failure' && styles.setTypeChipTextFailure,
                           ]}
                         >
-                          {set.set_type.toUpperCase()}
+                          {set.set_type === 'dropset' ? 'DROP' : set.set_type.toUpperCase()}
                         </Text>
                       </TouchableOpacity>
 

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { userService } from '../services/user.service';
 
-const updateProfileSchema = z.object({
+export const updateProfileSchema = z.object({
   name: z.string().optional(),
   fitness_goal: z.string().optional(),
   activity_level: z.string().optional(),

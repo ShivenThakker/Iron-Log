@@ -114,12 +114,12 @@ export default function HomeDashboard() {
   const totalXp = gamificationData?.xpRecord?.total_xp || 0;
 
   // Nutrition calculations
-  const caloriesConsumed = nutritionData?.totals?.calories || 1650;
+  const caloriesConsumed = nutritionData?.totals?.calories ?? 0;
   const caloriesTarget = profileData?.profile?.daily_calorie_target || 2500;
   const calRatio = Math.min(caloriesConsumed / (caloriesTarget || 2500), 1);
-  const proteinG = nutritionData?.totals?.protein || 135;
-  const carbsG = nutritionData?.totals?.carbs || 190;
-  const fatG = nutritionData?.totals?.fats || 52;
+  const proteinG = nutritionData?.totals?.protein ?? 0;
+  const carbsG = nutritionData?.totals?.carbs ?? 0;
+  const fatG = nutritionData?.totals?.fats ?? 0;
 
   // Today's dynamic workout computation
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

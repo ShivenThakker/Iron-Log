@@ -151,6 +151,7 @@ export class ProgramRepository {
       where: {
         name: {
           equals: trimmed,
+          mode: 'insensitive',
         },
         OR: [
           { is_custom: false },

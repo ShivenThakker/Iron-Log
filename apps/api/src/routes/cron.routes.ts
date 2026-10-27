@@ -53,18 +53,20 @@ router.post('/streaks', async (req: Request, res: Response): Promise<void> => {
       logger.info({ expiredGrace: expiredGrace.count, expiredInactive: expiredInactive.count }, 'Expired inactive streaks');
     }
 
-    // 2. Reset weekly grace periods and weekly XP on Mondays
+    // 2. Reset weekly grace periods and weekly XP on Mondays (runs only once per week)
     if (today.getDay() === 1) {
-      await prisma.streak.updateMany({
-        data: { grace_used_this_week: false },
-      });
-      await prisma.userXp.updateMany({
+      const xpResetResult = await prisma.userXp.updateMany({
         where: {
           week_reset_at: { lt: today },
         },
         data: { xp_this_week: 0, week_reset_at: today },
       });
-      logger.info('Reset weekly streak grace periods and XP counters');
+      if (xpResetResult.count > 0) {
+        await prisma.streak.updateMany({
+          data: { grace_used_this_week: false },
+        });
+        logger.info({ resetUsers: xpResetResult.count }, 'Reset weekly streak grace periods and XP counters');
+      }
     }
 
     res.json({

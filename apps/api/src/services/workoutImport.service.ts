@@ -50,11 +50,6 @@ export const EXERCISE_METADATA: Record<string, { name: string; muscle: string; e
   'Pec Deck': { name: 'Pec Deck Fly', muscle: 'Chest', equipment: 'Machine' },
   'Decline Press Machine': { name: 'Decline Press Machine', muscle: 'Chest', equipment: 'Machine' },
   'Lower Chest Cable Fly': { name: 'Lower Chest Cable Fly', muscle: 'Chest', equipment: 'Cable' },
-  'Cable Overhead Extension rope gives better mm connection,  keep head up': {
-    name: 'Cable Overhead Tricep Extension',
-    muscle: 'Triceps',
-    equipment: 'Cable',
-  },
   'Cable Overhead Extension': { name: 'Cable Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Cable' },
   'Cable Tricep Pushdown': { name: 'Cable Tricep Pushdown', muscle: 'Triceps', equipment: 'Cable' },
   'Assisted Tricep Dips': { name: 'Assisted Tricep Dips', muscle: 'Triceps', equipment: 'Machine' },
@@ -639,7 +634,7 @@ export class WorkoutImportService {
             const pr = await checkAndCreatePR(userId, exId, weight, reps, dbSession.id, s.date);
             if (pr.isNewPR) {
               prsCreated++;
-              totalXp += 25;
+              // Note: checkAndCreatePR already awards 25 XP for the PR in pr.repository.ts
             }
           }
         }
@@ -647,7 +642,9 @@ export class WorkoutImportService {
     }
 
     if (totalXp > 0) {
-      await gamificationRepository.awardXp(userId, totalXp, 'Historical Workout Import');
+      // Cap historical import session XP to prevent leaderboard distortion
+      const cappedXp = Math.min(totalXp, 200);
+      await gamificationRepository.awardXp(userId, cappedXp, 'Historical Workout Import');
     }
 
     await gamificationRepository.checkAndUnlockTrophies(userId);

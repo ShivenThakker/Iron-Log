@@ -31,7 +31,13 @@ async function readPersistedQueue(): Promise<PendingSetItem[]> {
 
 async function writePersistedQueue(queue: PendingSetItem[]): Promise<void> {
   try {
-    const serialized = JSON.stringify(queue);
+    // Keep queue bounded within Android SecureStore limits (under 1.8KB)
+    let bounded = queue.slice(-20);
+    let serialized = JSON.stringify(bounded);
+    while (serialized.length > 1800 && bounded.length > 1) {
+      bounded = bounded.slice(1);
+      serialized = JSON.stringify(bounded);
+    }
     if (Platform.OS === 'web') {
       localStorage.setItem(QUEUE_STORAGE_KEY, serialized);
     } else {

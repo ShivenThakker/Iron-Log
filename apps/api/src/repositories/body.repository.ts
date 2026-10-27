@@ -35,10 +35,13 @@ export class BodyRepository {
       orderBy: { logged_at: 'asc' },
     });
 
-    // Compute 7-day moving averages across full timeline
+    // Compute 7-day moving averages across full timeline based on calendar window
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const logsWithMovingAverage = allLogs.map((log, index, arr) => {
-      const windowStart = Math.max(0, index - 6);
-      const window = arr.slice(windowStart, index + 1);
+      const currentLogTime = new Date(log.logged_at).getTime();
+      const window = arr
+        .slice(0, index + 1)
+        .filter((item) => currentLogTime - new Date(item.logged_at).getTime() <= SEVEN_DAYS_MS);
       const avg = window.reduce((sum, item) => sum + item.weight_kg, 0) / window.length;
       return {
         ...log,

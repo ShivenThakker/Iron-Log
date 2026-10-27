@@ -48,6 +48,8 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 WORKDIR /app/apps/api
 
+USER node
+
 EXPOSE 3000
 
 CMD ["node", "dist/index.js"]

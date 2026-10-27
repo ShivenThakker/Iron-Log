@@ -13,9 +13,9 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 
 const ratelimitInstances = new Map<string, Ratelimit>();
 
-function getRedisLimiter(limit: number, windowMs: number): Ratelimit | null {
+function getRedisLimiter(limit: number, windowMs: number, namespace: string): Ratelimit | null {
   if (!upstashRedis) return null;
-  const key = `${limit}:${windowMs}`;
+  const key = `${namespace}:${limit}:${windowMs}`;
   let instance = ratelimitInstances.get(key);
   if (!instance) {
     const windowStr = windowMs >= 60000 ? (`${Math.round(windowMs / 60000)} m` as const) : (`${Math.round(windowMs / 1000)} s` as const);
@@ -32,11 +32,12 @@ function getRedisLimiter(limit: number, windowMs: number): Ratelimit | null {
 // In-memory sliding window fallback for development
 const requestTimestamps = new Map<string, number[]>();
 
-export const rateLimit = (limit = 60, windowMs = 60000) => {
-  const redisLimiter = getRedisLimiter(limit, windowMs);
+export const rateLimit = (limit = 60, windowMs = 60000, namespace = 'global') => {
+  const redisLimiter = getRedisLimiter(limit, windowMs, namespace);
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const identifier = (req.user?.id || req.ip || 'anonymous') as string;
+    const rawIdentifier = (req.user?.id || req.ip || 'anonymous') as string;
+    const identifier = `${namespace}:${rawIdentifier}`;
 
     if (redisLimiter) {
       try {

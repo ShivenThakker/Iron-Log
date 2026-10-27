@@ -32,6 +32,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token, refreshToken, userId, isAuthenticated: true });
   },
   logout: async () => {
+    const state = useAuthStore.getState();
+    if (state.refreshToken) {
+      try {
+        const { api } = await import('../services/api');
+        await api.post('/auth/logout', { refreshToken: state.refreshToken }).catch(() => {});
+      } catch {
+        // Ignore network failures on logout
+      }
+    }
     if (Platform.OS === 'web') {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');

@@ -205,9 +205,9 @@ export class SessionRepository {
     };
   }
 
-  async updateUserStreak(userId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  async updateUserStreak(userId: string, targetDate?: Date) {
+    const activityDate = targetDate ? new Date(targetDate) : new Date();
+    activityDate.setHours(0, 0, 0, 0);
 
     const streak = await prisma.streak.findUnique({
       where: { user_id: userId },
@@ -219,7 +219,7 @@ export class SessionRepository {
           user_id: userId,
           current_streak: 1,
           longest_streak: 1,
-          last_active_date: today,
+          last_active_date: activityDate,
         },
       });
     }
@@ -227,10 +227,10 @@ export class SessionRepository {
     const lastActive = new Date(streak.last_active_date);
     lastActive.setHours(0, 0, 0, 0);
 
-    const diffDays = Math.round((today.getTime() - lastActive.getTime()) / (1000 * 3600 * 24));
+    const diffDays = Math.round((activityDate.getTime() - lastActive.getTime()) / (1000 * 3600 * 24));
 
-    if (diffDays === 0) {
-      // Already active today
+    if (diffDays <= 0) {
+      // Already active or older date: preserve current streak
       return streak;
     } else if (diffDays === 1) {
       // Consecutive day! Increment streak
@@ -240,7 +240,7 @@ export class SessionRepository {
         data: {
           current_streak: newStreak,
           longest_streak: Math.max(newStreak, streak.longest_streak),
-          last_active_date: today,
+          last_active_date: activityDate,
         },
       });
     } else if (diffDays === 2 && !streak.grace_used_this_week) {
@@ -251,7 +251,7 @@ export class SessionRepository {
         data: {
           current_streak: newStreak,
           longest_streak: Math.max(newStreak, streak.longest_streak),
-          last_active_date: today,
+          last_active_date: activityDate,
           grace_used_this_week: true,
         },
       });
@@ -261,7 +261,7 @@ export class SessionRepository {
         where: { user_id: userId },
         data: {
           current_streak: 1,
-          last_active_date: today,
+          last_active_date: activityDate,
         },
       });
     }
@@ -405,7 +405,7 @@ export class SessionRepository {
     checkDate.setHours(0, 0, 0, 0);
     const diffDays = Math.round((today.getTime() - checkDate.getTime()) / (1000 * 3600 * 24));
     if (diffDays >= 0 && diffDays <= 1) {
-      await this.updateUserStreak(userId);
+      await this.updateUserStreak(userId, checkDate);
     }
 
     const newlyUnlockedTrophies = await gamificationRepository.checkAndUnlockTrophies(userId);

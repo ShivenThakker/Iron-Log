@@ -34,7 +34,14 @@ export interface ParsedWorkoutPlan {
 export class GeminiService {
   private client: GoogleGenAI | null = null;
   private readonly apiKey = env.GEMINI_API_KEY;
-  private readonly modelName = env.GEMINI_MODEL;
+
+  private get modelName(): string {
+    const configured = env.GEMINI_MODEL || 'gemini-3.5-flash';
+    if (configured.includes('2.5') || configured.includes('2.0') || configured.includes('1.5')) {
+      return 'gemini-3.5-flash';
+    }
+    return configured;
+  }
 
   private get isEnabled(): boolean {
     return this.apiKey.length > 0 && this.modelName.length > 0;

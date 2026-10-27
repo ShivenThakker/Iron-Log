@@ -110,7 +110,7 @@ export class ExerciseRepository {
       results = await prisma.exercise.findMany({
         where: {
           AND: [
-            { name: { contains: query } },
+            { name: { contains: query, mode: 'insensitive' } },
             ownershipFilter,
           ],
         },

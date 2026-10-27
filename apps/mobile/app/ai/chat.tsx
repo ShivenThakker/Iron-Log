@@ -94,11 +94,13 @@ export default function AiChatScreen() {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
+    } catch (err: any) {
+      console.warn('Coach AI error:', err?.response?.data || err?.message);
+      const errorDetail = err?.response?.data?.error || 'Unable to connect to IronLog Coach right now. Please check your connection and try again.';
       const fallbackMsg: ChatMessage = {
         id: `ai-err-${Date.now()}`,
         sender: 'ai',
-        text: 'Focus on hitting 1.6g–2.2g of protein per kg of bodyweight, prioritize compound lifts (Squat, Bench, Deadlift, OHP), and aim for 1–2 reps in reserve on your working sets.',
+        text: `⚠️ ${errorDetail}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);

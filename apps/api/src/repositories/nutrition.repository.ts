@@ -25,16 +25,18 @@ export interface SetNutritionGoalInput {
 
 export class NutritionRepository {
   async getDailyLog(userId: string, dateStr: string, timezoneOffsetMinutes?: number) {
-    let startOfDay: Date;
-    let endOfDay: Date;
+    const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
+    const nextDay = new Date(`${dateStr}T23:59:59.999Z`);
+
+    let startOfDay = targetDate;
+    let endOfDay = nextDay;
 
     if (typeof timezoneOffsetMinutes === 'number' && Number.isFinite(timezoneOffsetMinutes)) {
       const utcMs = Date.parse(`${dateStr}T00:00:00.000Z`);
-      startOfDay = new Date(utcMs + timezoneOffsetMinutes * 60 * 1000);
-      endOfDay = new Date(utcMs + (timezoneOffsetMinutes + 24 * 60) * 60 * 1000 - 1);
-    } else {
-      startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-      endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+      const tzStart = new Date(utcMs + timezoneOffsetMinutes * 60 * 1000);
+      const tzEnd = new Date(utcMs + (timezoneOffsetMinutes + 24 * 60) * 60 * 1000 - 1);
+      startOfDay = tzStart < targetDate ? tzStart : targetDate;
+      endOfDay = tzEnd > nextDay ? tzEnd : nextDay;
     }
 
     const [logs, goal] = await Promise.all([
@@ -114,12 +116,14 @@ export class NutritionRepository {
   async logFood(userId: string, data: LogFoodInput) {
     let logDate: Date;
     if (typeof data.logged_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.logged_date)) {
-      logDate = new Date(`${data.logged_date}T12:00:00.000Z`);
+      logDate = new Date(`${data.logged_date}T00:00:00.000Z`);
     } else if (data.logged_date) {
-      logDate = new Date(data.logged_date);
+      const d = new Date(data.logged_date);
+      const iso = d.toISOString().split('T')[0];
+      logDate = new Date(`${iso}T00:00:00.000Z`);
     } else {
       const todayStr = new Date().toISOString().split('T')[0];
-      logDate = new Date(`${todayStr}T12:00:00.000Z`);
+      logDate = new Date(`${todayStr}T00:00:00.000Z`);
     }
 
     const log = await prisma.foodLogEntry.create({

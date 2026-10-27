@@ -67,7 +67,11 @@ async function getRefreshedToken(): Promise<string | null> {
       const { accessToken, refreshToken: newRefreshToken, userId } = res.data;
       await useAuthStore.getState().login(accessToken, newRefreshToken, userId);
       return accessToken as string;
-    } catch {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        // Do not log out user on temporary rate limit
+        return null;
+      }
       await useAuthStore.getState().logout();
       return null;
     } finally {

@@ -34,6 +34,8 @@ export class AuthService {
   async login(email: string, password_hash: string) {
     const user = await authRepository.findUserByEmail(email);
     if (!user || !user.password_hash) {
+      // Execute dummy bcrypt to prevent account enumeration via timing discrepancy
+      await bcrypt.compare(password_hash, '$2a$10$wT5g8.u8x4eP5N0K2eI8uuQzYj3hG8vK3oY6sL5nQ9rR1sU5vO2uC');
       throw new UnauthorizedError('Invalid credentials');
     }
 
@@ -119,6 +121,10 @@ export class AuthService {
 
       if (!email) {
         throw new UnauthorizedError('Unable to extract email from Google token');
+      }
+
+      if (!payload?.email_verified) {
+        throw new UnauthorizedError('Google account email has not been verified');
       }
 
       let user = await authRepository.findUserByEmail(email);
