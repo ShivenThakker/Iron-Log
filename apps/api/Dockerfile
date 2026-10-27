@@ -11,6 +11,9 @@ COPY apps/api/package*.json ./apps/api/
 # Install monorepo dependencies
 RUN npm ci
 
+# Build shared package first
+RUN npm run build --workspace=@ironlog/shared
+
 # Copy API application source
 COPY apps/api ./apps/api
 
@@ -34,8 +37,13 @@ COPY apps/api/package*.json ./apps/api/
 
 RUN npm ci --omit=dev
 
+# Copy compiled shared package
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+
+# Copy compiled API dist and generated Prisma artifacts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 WORKDIR /app/apps/api
