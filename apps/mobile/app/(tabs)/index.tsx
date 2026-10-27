@@ -183,12 +183,21 @@ export default function HomeDashboard() {
             />
           }
         >
-          {/* Top Greeting Row */}
+          {/* Top Greeting & Account Settings Row */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Text style={styles.dateLabel}>{todayDateFormatted.toUpperCase()}</Text>
               <Text style={styles.greeting}>Let's grind, {userName}</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.settingsButton}
+              activeOpacity={0.7}
+              onPress={() => router.push('/settings')}
+              accessibilityLabel="Account and Settings"
+            >
+              <Icon name="Gear" size={20} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
+            </TouchableOpacity>
           </View>
 
           {/* Active Session Carousel */}
@@ -576,21 +585,15 @@ const styles = StyleSheet.create({
     ...OBSIDIAN_TYPOGRAPHY.headlineLg,
     color: OBSIDIAN_COLORS.textWhite,
   },
-  rankPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  settingsButton: {
+    width: 42,
+    height: 42,
     borderRadius: OBSIDIAN_RADIUS.full,
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  rankPillText: {
-    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
-    color: OBSIDIAN_COLORS.voltLime,
-    fontSize: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   carouselContainer: {
     marginHorizontal: -OBSIDIAN_SPACING.md,

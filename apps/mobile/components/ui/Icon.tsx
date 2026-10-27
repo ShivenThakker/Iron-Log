@@ -15,6 +15,8 @@ export type IconName =
   | 'CaretLeft'
   | 'DotsThreeVertical'
   | 'Gear'
+  | 'User'
+  | 'UserCircle'
   | 'Robot'
   | 'MagnifyingGlass'
   | 'Timer'
