@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { register, login, refresh, logout, googleAuth } from '../controllers/auth.controller';
+import { register, login, refresh, logout, googleAuth, changePassword } from '../controllers/auth.controller';
 import { validate } from '../middleware/validate.middleware';
-import { registerSchema, loginSchema, refreshSchema, googleAuthSchema } from '../validators/auth.validator';
+import { registerSchema, loginSchema, refreshSchema, googleAuthSchema, changePasswordSchema } from '../validators/auth.validator';
 import { rateLimit } from '../middleware/ratelimit.middleware';
+import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.post('/login', authLimiter, validate(loginSchema), login);
 router.post('/refresh', authLimiter, validate(refreshSchema), refresh);
 router.post('/logout', logout);
 router.post('/google', authLimiter, validate(googleAuthSchema), googleAuth);
+router.post('/change-password', requireAuth, authLimiter, validate(changePasswordSchema), changePassword);
 
 export default router;

@@ -60,3 +60,15 @@ export const googleAuth = async (req: Request, res: Response) => {
     res.status(status).json({ error: message });
   }
 };
+
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { current_password, new_password } = req.body;
+    const result = await authService.changePassword(req.user!.id, current_password, new_password);
+    res.status(200).json(result);
+  } catch (err) {
+    const status = err instanceof AppError ? err.statusCode : 400;
+    const message = err instanceof Error ? err.message : 'Failed to change password';
+    res.status(status).json({ error: message });
+  }
+};

@@ -4,7 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { authRepository } from '../repositories/auth.repository';
 import { redis } from '../lib/redis';
 import { gamificationRepository } from '../repositories/gamification.repository';
-import { AppError, UnauthorizedError } from '../utils/errors';
+import { AppError, UnauthorizedError, NotFoundError, BadRequestError } from '../utils/errors';
 import { env } from '../lib/env';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -73,6 +73,31 @@ export class AuthService {
       await redis.set(`blacklist:${refreshTokenString}`, 'revoked', { ex: 30 * 24 * 3600 });
     }
     return { success: true, message: 'Logged out successfully' };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (!user.password_hash) {
+      throw new BadRequestError('Account does not have a password set (signed up with Google)');
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValid) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestError('New password must be at least 8 characters');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await authRepository.updatePassword(userId, hashed);
+
+    return { success: true, message: 'Password updated successfully' };
   }
 
   async googleAuth(idToken: string) {

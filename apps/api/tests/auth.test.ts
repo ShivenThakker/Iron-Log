@@ -44,4 +44,29 @@ describe('Auth Security & JWT Standards', () => {
     expect(env.JWT_REFRESH_SECRET).toBeDefined();
     expect(env.JWT_SECRET).not.toBe(env.JWT_REFRESH_SECRET);
   });
+
+  it('validates changePassword payload correctly', async () => {
+    const { changePasswordSchema } = await import('../src/validators/auth.validator');
+    
+    // Valid case
+    const valid = changePasswordSchema.safeParse({
+      current_password: 'OldPassword123!',
+      new_password: 'NewStrongPassword456!',
+    });
+    expect(valid.success).toBe(true);
+
+    // Short new password
+    const shortPass = changePasswordSchema.safeParse({
+      current_password: 'OldPassword123!',
+      new_password: 'short',
+    });
+    expect(shortPass.success).toBe(false);
+
+    // Missing current password
+    const missingCurrent = changePasswordSchema.safeParse({
+      current_password: '',
+      new_password: 'NewStrongPassword456!',
+    });
+    expect(missingCurrent.success).toBe(false);
+  });
 });
