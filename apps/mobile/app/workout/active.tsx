@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -239,6 +240,15 @@ export default function ActiveWorkoutScreen() {
     }
     router.back();
   };
+
+  useEffect(() => {
+    const onBackPress = () => {
+      handleBackPress();
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [exercises, sessionId]);
 
   const currentExercise = exercises[currentExerciseIndex] || exercises[0];
   const currentSet = currentExercise?.sets[activeSetIndex] || currentExercise?.sets[0];
