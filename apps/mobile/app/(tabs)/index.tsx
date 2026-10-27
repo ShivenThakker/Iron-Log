@@ -109,36 +109,54 @@ export default function HomeDashboard() {
   };
 
   const user = profileData?.user;
-  const userName = user?.name ? user.name.split(' ')[0] : 'Lifter';
+  const userName = useMemo(() => (user?.name ? user.name.split(' ')[0] : 'Lifter'), [user?.name]);
   const rank = gamificationData?.currentRank?.name || 'Rookie';
   const totalXp = gamificationData?.xpRecord?.total_xp || 0;
 
-  // Nutrition calculations
-  const caloriesConsumed = nutritionData?.totals?.calories ?? 0;
-  const caloriesTarget = profileData?.profile?.daily_calorie_target || 2500;
-  const calRatio = Math.min(caloriesConsumed / (caloriesTarget || 2500), 1);
-  const proteinG = nutritionData?.totals?.protein ?? 0;
-  const carbsG = nutritionData?.totals?.carbs ?? 0;
-  const fatG = nutritionData?.totals?.fats ?? 0;
+  // Memoized nutrition calculations
+  const { caloriesConsumed, caloriesTarget, calRatio, proteinG, carbsG, fatG } = useMemo(() => {
+    const consumed = nutritionData?.totals?.calories ?? 0;
+    const target = profileData?.profile?.daily_calorie_target || 2500;
+    const ratio = Math.min(consumed / (target || 2500), 1);
+    return {
+      caloriesConsumed: consumed,
+      caloriesTarget: target,
+      calRatio: ratio,
+      proteinG: nutritionData?.totals?.protein ?? 0,
+      carbsG: nutritionData?.totals?.carbs ?? 0,
+      fatG: nutritionData?.totals?.fats ?? 0,
+    };
+  }, [nutritionData?.totals, profileData?.profile?.daily_calorie_target]);
 
-  // Today's dynamic workout computation
-  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const todayDayName = daysOfWeek[new Date().getDay()];
-  const activeDays: WorkoutDayItem[] = activeProgramData?.workoutDays || [];
-  const todayWorkoutDay = activeDays.find((d) =>
-    d.day_name?.toLowerCase().includes(todayDayName.toLowerCase())
-  ) || activeDays[0];
+  // Memoized dynamic workout computation
+  const { todayWorkoutDay, todayWorkoutTitle, todayExercises, exerciseCount, estimatedMin } = useMemo(() => {
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayDayName = daysOfWeek[new Date().getDay()];
+    const activeDays: WorkoutDayItem[] = activeProgramData?.workoutDays || [];
+    const foundDay =
+      activeDays.find((d) => d.day_name?.toLowerCase().includes(todayDayName.toLowerCase())) || activeDays[0];
 
-  const todayWorkoutTitle = todayWorkoutDay?.day_name || (activeProgramData ? activeProgramData.name : 'Upper Body Hypertrophy A');
-  const todayExercises = todayWorkoutDay?.exercises || [];
-  const exerciseCount = todayExercises.length > 0 ? todayExercises.length : 5;
-  const estimatedMin = exerciseCount * 10;
+    const title = foundDay?.day_name || (activeProgramData ? activeProgramData.name : 'Upper Body Hypertrophy A');
+    const exercises = foundDay?.exercises || [];
+    const count = exercises.length > 0 ? exercises.length : 5;
+    return {
+      todayWorkoutDay: foundDay,
+      todayWorkoutTitle: title,
+      todayExercises: exercises,
+      exerciseCount: count,
+      estimatedMin: count * 10,
+    };
+  }, [activeProgramData]);
 
-  const todayDateFormatted = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
+  const todayDateFormatted = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      }),
+    []
+  );
 
   const sessionCount = recentSessions?.length || 0;
 
