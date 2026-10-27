@@ -9,11 +9,17 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ironlog-api-3ljb.onrender.com"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ironlog-api-3ljb.onrender.com"
+      },
       "android": {
         "buildType": "app-bundle"
       }
