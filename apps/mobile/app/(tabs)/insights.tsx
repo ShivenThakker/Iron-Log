@@ -60,18 +60,20 @@ export default function InsightsTab() {
 
   // Realigned endpoint 2: GET /analytics/heatmap?period=...
   const { data: heatmapApiData, refetch: refetchHeatmap } = useQuery({
-    queryKey: ['muscleHeatmap', periodDays],
+    queryKey: ['muscleHeatmap', timeRange],
     queryFn: async () => {
-      const res = await api.get(`/analytics/heatmap?period=${periodDays}`).catch(() => null);
+      const param = timeRange === 'all' ? 'all' : periodDays;
+      const res = await api.get(`/analytics/heatmap?period=${param}`).catch(() => null);
       return res?.data ?? null;
     },
   });
 
-  // Realigned endpoint 3: GET /analytics/radar?period=30
+  // Realigned endpoint 3: GET /analytics/radar?period=...
   const { data: radarApiData, refetch: refetchRadar } = useQuery({
-    queryKey: ['muscleRadar', periodDays],
+    queryKey: ['muscleRadar', timeRange],
     queryFn: async () => {
-      const res = await api.get(`/analytics/radar?period=${periodDays}`).catch(() => null);
+      const param = timeRange === 'all' ? 'all' : periodDays;
+      const res = await api.get(`/analytics/radar?period=${param}`).catch(() => null);
       return res?.data ?? null;
     },
   });

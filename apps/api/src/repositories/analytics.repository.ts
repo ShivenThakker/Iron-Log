@@ -72,25 +72,39 @@ export class AnalyticsRepository {
     };
   }
 
-  async getMuscleHeatmap(userId: string, days = 30) {
-    const sinceDate = new Date();
-    sinceDate.setDate(sinceDate.getDate() - days);
+  async getMuscleHeatmap(userId: string, days?: number) {
+    const sinceDate = days && days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : undefined;
 
-    const rows = await prisma.$queryRaw<
-      Array<{ primary_muscle: string; sets_count: bigint | number; total_volume: number | null }>
-    >`
-      SELECT 
-        e.primary_muscle,
-        COUNT(es.id) as sets_count,
-        SUM(COALESCE(es.weight_kg * es.reps, 0)) as total_volume
-      FROM "ExerciseSet" es
-      JOIN "Exercise" e ON es.exercise_id = e.id
-      JOIN "WorkoutSession" ws ON es.session_id = ws.id
-      WHERE ws.user_id = ${userId}
-        AND ws.started_at >= ${sinceDate}
-        AND e.primary_muscle IS NOT NULL
-      GROUP BY e.primary_muscle
-    `;
+    const rows = sinceDate
+      ? await prisma.$queryRaw<
+          Array<{ primary_muscle: string; sets_count: bigint | number; total_volume: number | null }>
+        >`
+          SELECT 
+            e.primary_muscle,
+            COUNT(es.id) as sets_count,
+            SUM(COALESCE(es.weight_kg * es.reps, 0)) as total_volume
+          FROM "ExerciseSet" es
+          JOIN "Exercise" e ON es.exercise_id = e.id
+          JOIN "WorkoutSession" ws ON es.session_id = ws.id
+          WHERE ws.user_id = ${userId}
+            AND ws.started_at >= ${sinceDate}
+            AND e.primary_muscle IS NOT NULL
+          GROUP BY e.primary_muscle
+        `
+      : await prisma.$queryRaw<
+          Array<{ primary_muscle: string; sets_count: bigint | number; total_volume: number | null }>
+        >`
+          SELECT 
+            e.primary_muscle,
+            COUNT(es.id) as sets_count,
+            SUM(COALESCE(es.weight_kg * es.reps, 0)) as total_volume
+          FROM "ExerciseSet" es
+          JOIN "Exercise" e ON es.exercise_id = e.id
+          JOIN "WorkoutSession" ws ON es.session_id = ws.id
+          WHERE ws.user_id = ${userId}
+            AND e.primary_muscle IS NOT NULL
+          GROUP BY e.primary_muscle
+        `;
 
     const normalizeMuscleName = (raw: string): string => {
       const clean = raw.trim().toLowerCase();
@@ -157,7 +171,7 @@ export class AnalyticsRepository {
     };
   }
 
-  async getMuscleRadar(userId: string, days = 30) {
+  async getMuscleRadar(userId: string, days?: number) {
     // 8 radar axes: Shoulders, Chest, Biceps, Triceps, Forearms, Legs, Core, Back
     const heatmap = await this.getMuscleHeatmap(userId, days);
     const m = heatmap.muscles;

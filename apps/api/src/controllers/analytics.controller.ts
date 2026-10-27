@@ -26,12 +26,12 @@ export const getHeatmap = async (req: Request, res: Response) => {
     const rawPeriod = req.query.period;
     const parsedDays = Number(rawPeriod);
     const days =
-      Number.isFinite(parsedDays) && parsedDays > 0
-        ? parsedDays
-        : rawPeriod === 'week'
-          ? 7
-          : rawPeriod === 'all'
-            ? 365
+      rawPeriod === 'all'
+        ? undefined
+        : Number.isFinite(parsedDays) && parsedDays > 0
+          ? parsedDays
+          : rawPeriod === 'week'
+            ? 7
             : 30;
     const heatmap = await analyticsRepository.getMuscleHeatmap(userId, days);
     res.json(heatmap);
@@ -47,12 +47,12 @@ export const getRadar = async (req: Request, res: Response) => {
     const rawPeriod = req.query.period;
     const parsedDays = Number(rawPeriod);
     const days =
-      Number.isFinite(parsedDays) && parsedDays > 0
-        ? parsedDays
-        : rawPeriod === 'week'
-          ? 7
-          : rawPeriod === 'all'
-            ? 365
+      rawPeriod === 'all'
+        ? undefined
+        : Number.isFinite(parsedDays) && parsedDays > 0
+          ? parsedDays
+          : rawPeriod === 'week'
+            ? 7
             : 30;
     const radar = await analyticsRepository.getMuscleRadar(userId, days);
     res.json(radar);
