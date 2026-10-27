@@ -46,11 +46,11 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      const res = await api.post('/auth/register', { email: email.trim(), password, name: name.trim() });
+      const res = await api.post('/auth/register', { email: email.trim().toLowerCase(), password, name: name.trim() });
       await loginStore(res.data.accessToken, res.data.refreshToken, res.data.userId);
       router.replace('/onboarding');
     } catch (err) {
-      const axiosErr = err as { response?: { data?: { error?: unknown } } };
+      const axiosErr = err as { code?: string; message?: string; response?: { data?: { error?: unknown } } };
       const apiError = axiosErr?.response?.data?.error;
       if (apiError) {
         if (Array.isArray(apiError)) {
@@ -58,6 +58,10 @@ export default function RegisterScreen() {
         } else {
           setError(String(apiError));
         }
+      } else if (axiosErr.code === 'ECONNABORTED' || axiosErr.message?.includes('timeout')) {
+        setError('Connection timed out. Server may be waking up, please tap Create Account again.');
+      } else if (!axiosErr.response) {
+        setError('Cannot reach server. Please check your internet connection.');
       } else {
         setError('Failed to create account. Please try again.');
       }

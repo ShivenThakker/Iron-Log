@@ -45,12 +45,20 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const res = await api.post('/auth/login', { email: email.trim(), password });
+      const res = await api.post('/auth/login', { email: email.trim().toLowerCase(), password });
       await loginStore(res.data.accessToken, res.data.refreshToken, res.data.userId);
       router.replace('/(tabs)');
     } catch (err) {
-      const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error || 'Invalid email or password. Please try again.');
+      const axiosErr = err as { code?: string; message?: string; response?: { status?: number; data?: { error?: string } } };
+      if (axiosErr.response?.data?.error) {
+        setError(axiosErr.response.data.error);
+      } else if (axiosErr.code === 'ECONNABORTED' || axiosErr.message?.includes('timeout')) {
+        setError('Connection timed out. Server may be waking up, please tap Login again.');
+      } else if (!axiosErr.response) {
+        setError('Cannot reach server. Please check your internet connection.');
+      } else {
+        setError('Invalid email or password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
