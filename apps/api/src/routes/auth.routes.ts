@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { register, login, refresh, logout, googleAuth, changePassword } from '../controllers/auth.controller';
+import { register, login, refresh, logout, googleAuth, changePassword, forgotPassword, resetPassword } from '../controllers/auth.controller';
 import { validate } from '../middleware/validate.middleware';
-import { registerSchema, loginSchema, refreshSchema, googleAuthSchema, changePasswordSchema } from '../validators/auth.validator';
+import { registerSchema, loginSchema, refreshSchema, googleAuthSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
 import { rateLimit } from '../middleware/ratelimit.middleware';
 import { requireAuth } from '../middleware/auth.middleware';
 
@@ -16,5 +16,7 @@ router.post('/refresh', authLimiter, validate(refreshSchema), refresh);
 router.post('/logout', logout);
 router.post('/google', authLimiter, validate(googleAuthSchema), googleAuth);
 router.post('/change-password', requireAuth, authLimiter, validate(changePasswordSchema), changePassword);
+router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), forgotPassword);
+router.post('/reset-password', authLimiter, validate(resetPasswordSchema), resetPassword);
 
 export default router;

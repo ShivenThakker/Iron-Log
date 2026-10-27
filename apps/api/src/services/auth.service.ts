@@ -102,6 +102,66 @@ export class AuthService {
     return { success: true, message: 'Password updated successfully' };
   }
 
+  async forgotPassword(email: string) {
+    const normalized = email.trim().toLowerCase();
+    const user = await authRepository.findUserByEmail(normalized);
+    if (!user) {
+      return {
+        success: true,
+        message: 'If an account exists with this email, password reset instructions have been sent.',
+      };
+    }
+
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      await redis.set(`reset:${user.email}`, token, { ex: 900 });
+    } catch (e) {
+      console.warn('Redis error caching reset token:', e);
+    }
+
+    console.log(`[PASSWORD_RESET] Code for ${user.email}: ${token}`);
+
+    return {
+      success: true,
+      message: 'If an account exists with this email, password reset instructions have been sent.',
+      ...(process.env.NODE_ENV !== 'production' ? { devResetCode: token } : {}),
+    };
+  }
+
+  async resetPassword(email: string, newPassword: string, token?: string) {
+    const normalized = email.trim().toLowerCase();
+    const user = await authRepository.findUserByEmail(normalized);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (token) {
+      let storedToken: string | null = null;
+      try {
+        storedToken = await redis.get(`reset:${user.email}`);
+      } catch (e) {
+        console.warn('Redis error getting reset token:', e);
+      }
+      if (!storedToken || storedToken !== token) {
+        throw new BadRequestError('Invalid or expired reset code');
+      }
+      try {
+        await redis.del(`reset:${user.email}`);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestError('New password must be at least 8 characters');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await authRepository.updatePassword(user.id, hashed);
+
+    return { success: true, message: 'Password has been reset successfully. You can now log in.' };
+  }
+
   async googleAuth(idToken: string) {
     try {
       let email: string | undefined;

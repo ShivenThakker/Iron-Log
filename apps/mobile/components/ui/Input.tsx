@@ -80,10 +80,12 @@ export const Input: React.FC<InputProps> = ({
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowPassword((prev) => !prev)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Icon
-              name={showPassword ? 'LockOpen' : 'Lock'}
-              size={18}
+              name={showPassword ? 'EyeSlash' : 'Eye'}
+              size={20}
               color={isObsidian ? OBSIDIAN_COLORS.textMuted : COLORS.dark.textSecondary}
             />
           </TouchableOpacity>

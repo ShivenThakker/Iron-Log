@@ -69,4 +69,39 @@ describe('Auth Security & JWT Standards', () => {
     });
     expect(missingCurrent.success).toBe(false);
   });
+
+  it('validates forgotPassword and resetPassword payloads correctly', async () => {
+    const { forgotPasswordSchema, resetPasswordSchema } = await import('../src/validators/auth.validator');
+
+    // Valid forgot password
+    const validForgot = forgotPasswordSchema.safeParse({ email: 'Athlete@IronLog.app' });
+    expect(validForgot.success).toBe(true);
+    if (validForgot.success) {
+      expect(validForgot.data.email).toBe('athlete@ironlog.app');
+    }
+
+    // Invalid email
+    const invalidForgot = forgotPasswordSchema.safeParse({ email: 'not-an-email' });
+    expect(invalidForgot.success).toBe(false);
+
+    // Valid reset password
+    const validReset = resetPasswordSchema.safeParse({
+      email: 'ATHLETE@ironlog.app',
+      new_password: 'BrandNewPassword123!',
+      token: '123456',
+    });
+    expect(validReset.success).toBe(true);
+    if (validReset.success) {
+      expect(validReset.data.email).toBe('athlete@ironlog.app');
+      expect(validReset.data.new_password).toBe('BrandNewPassword123!');
+      expect(validReset.data.token).toBe('123456');
+    }
+
+    // Reset password with password too short (< 8 chars)
+    const shortReset = resetPasswordSchema.safeParse({
+      email: 'athlete@ironlog.app',
+      new_password: 'short',
+    });
+    expect(shortReset.success).toBe(false);
+  });
 });

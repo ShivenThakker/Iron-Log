@@ -29,6 +29,7 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -140,17 +141,31 @@ export default function RegisterScreen() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>PASSWORD</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor={OBSIDIAN_COLORS.textMuted}
-                secureTextEntry
-                value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
-                  if (error) setError('');
-                }}
-              />
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="••••••••"
+                  placeholderTextColor={OBSIDIAN_COLORS.textMuted}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={(t) => {
+                    setPassword(t);
+                    if (error) setError('');
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Icon
+                    name={showPassword ? 'EyeSlash' : 'Eye'}
+                    size={20}
+                    color={OBSIDIAN_COLORS.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -310,5 +325,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: OBSIDIAN_COLORS.primaryFixed,
+  },
+  passwordInputContainer: {
+    height: 52,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.lg,
+    paddingLeft: OBSIDIAN_SPACING.md,
+    paddingRight: OBSIDIAN_SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  eyeButton: {
+    padding: OBSIDIAN_SPACING.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

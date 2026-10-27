@@ -72,3 +72,27 @@ export const changePassword = async (req: Request, res: Response) => {
     res.status(status).json({ error: message });
   }
 };
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    const result = await authService.forgotPassword(email);
+    res.status(200).json(result);
+  } catch (err) {
+    const status = err instanceof AppError ? err.statusCode : 400;
+    const message = err instanceof Error ? err.message : 'Failed to request password reset';
+    res.status(status).json({ error: message });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, new_password, token } = req.body;
+    const result = await authService.resetPassword(email, new_password, token);
+    res.status(200).json(result);
+  } catch (err) {
+    const status = err instanceof AppError ? err.statusCode : 400;
+    const message = err instanceof Error ? err.message : 'Failed to reset password';
+    res.status(status).json({ error: message });
+  }
+};
