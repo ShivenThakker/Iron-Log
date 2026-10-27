@@ -14,17 +14,24 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
 
     let userContext = '';
     if (req.user?.id) {
+      // Optimized query projections: select only necessary fields, avoiding sensitive token/hash transfer
       const [user, streak, recentPrs, sessionsCount, latestWeight, recentSessions] = await Promise.all([
         prisma.user.findUnique({
           where: { id: req.user.id },
+          select: { name: true, fitness_goal: true, experience_level: true, height_cm: true },
         }).catch(() => null),
         prisma.streak.findUnique({
           where: { user_id: req.user.id },
+          select: { current_streak: true, longest_streak: true, last_active_date: true, grace_used_this_week: true },
         }).catch(() => null),
         prisma.personalRecord.findMany({
           where: { user_id: req.user.id },
           take: 6,
-          include: { exercise: true },
+          select: {
+            weight_kg: true,
+            reps: true,
+            exercise: { select: { name: true } },
+          },
           orderBy: { weight_kg: 'desc' },
         }).catch(() => []),
         prisma.workoutSession.count({
@@ -32,15 +39,18 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
         }).catch(() => 0),
         prisma.bodyWeightLog.findFirst({
           where: { user_id: req.user.id },
+          select: { weight_kg: true },
           orderBy: { logged_at: 'desc' },
         }).catch(() => null),
         prisma.workoutSession.findMany({
           where: { user_id: req.user.id, finished_at: { not: null } },
           take: 5,
           orderBy: { started_at: 'desc' },
-          include: {
+          select: {
             exerciseSets: {
-              include: { exercise: true },
+              select: {
+                exercise: { select: { name: true } },
+              },
             },
           },
         }).catch(() => []),
@@ -63,8 +73,7 @@ export const chatCompletion = async (req: Request, res: Response, next: NextFunc
           .slice(0, 8)
           .join(', ');
 
-        userContext = `\n[User Profile & Context:
-Name: ${safeName}
+        userContext = `Name: ${safeName}
 Current Bodyweight: ${weightStr}
 Height: ${heightStr}
 Fitness Goal: ${safeGoal}
@@ -72,12 +81,11 @@ Experience Level: ${safeExp}
 Completed Sessions: ${sessionsCount} workouts logged
 Active Streak: ${activeStreak} days (Longest: ${streak?.longest_streak || 0} days)
 All-Time Top PRs: ${safePrs}
-Recent Exercises Trained: ${recentLifts || 'None recently'}
-]`;
+Recent Exercises Trained: ${recentLifts || 'None recently'}`;
       }
     }
 
-    const reply = await geminiService.getCoachResponse(message + userContext, history || []);
+    const reply = await geminiService.getCoachResponse(message, history || [], userContext);
     res.json({ reply });
   } catch (err) {
     next(err);
@@ -87,8 +95,8 @@ Recent Exercises Trained: ${recentLifts || 'None recently'}
 export const analyzeWorkout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
-    const mockRoutine = req.body?.routine || { previousSession: 'Leg Day', setsComplete: 14, avgRpe: 8 };
-    const analysis = await geminiService.analyzeRoutine(userId, mockRoutine);
+    const routine = req.body?.routine || { previousSession: 'Leg Day', setsComplete: 14, avgRpe: 8 };
+    const analysis = await geminiService.analyzeRoutine(userId, routine);
     res.json({ analysis });
   } catch (err) {
     next(err);

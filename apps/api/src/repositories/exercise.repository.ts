@@ -94,8 +94,40 @@ function enrichExercise<
   };
 }
 
+let cachedStandardExercises: any[] | null = null;
+let lastStandardExerciseFetch = 0;
+const EXERCISE_CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+async function getStandardExercises() {
+  const now = Date.now();
+  if (cachedStandardExercises && now - lastStandardExerciseFetch < EXERCISE_CACHE_TTL) {
+    return cachedStandardExercises;
+  }
+  const dbExercises = await prisma.exercise.findMany({
+    where: { is_custom: false },
+  });
+  cachedStandardExercises = dbExercises.map((ex) => enrichExercise(ex));
+  lastStandardExerciseFetch = now;
+  return cachedStandardExercises;
+}
+
 export class ExerciseRepository {
   async findAll(userId?: string, query?: string) {
+    if (!query && !userId) {
+      return getStandardExercises();
+    }
+
+    if (!query && userId) {
+      const [standards, custom] = await Promise.all([
+        getStandardExercises(),
+        prisma.exercise.findMany({
+          where: { is_custom: true, created_by_user_id: userId },
+        }),
+      ]);
+      const enrichedCustom = custom.map((ex) => enrichExercise(ex));
+      return [...standards, ...enrichedCustom];
+    }
+
     const ownershipFilter: Prisma.ExerciseWhereInput = userId
       ? {
           OR: [
@@ -105,21 +137,14 @@ export class ExerciseRepository {
         }
       : { is_custom: false };
 
-    let results;
-    if (query) {
-      results = await prisma.exercise.findMany({
-        where: {
-          AND: [
-            { name: { contains: query, mode: 'insensitive' } },
-            ownershipFilter,
-          ],
-        },
-      });
-    } else {
-      results = await prisma.exercise.findMany({
-        where: ownershipFilter,
-      });
-    }
+    const results = await prisma.exercise.findMany({
+      where: {
+        AND: [
+          { name: { contains: query, mode: 'insensitive' } },
+          ownershipFilter,
+        ],
+      },
+    });
 
     return results.map((ex) => enrichExercise(ex));
   }

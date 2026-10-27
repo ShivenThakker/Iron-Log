@@ -290,15 +290,18 @@ export class SessionRepository {
     if (!session) {
       throw new NotFoundError('Workout session not found');
     }
-    await prisma.exerciseSet.deleteMany({
-      where: { session_id: id },
-    });
-    await prisma.personalRecord.deleteMany({
-      where: { session_id: id },
-    });
-    return prisma.workoutSession.delete({
-      where: { id },
-    });
+    const [, , deleted] = await prisma.$transaction([
+      prisma.exerciseSet.deleteMany({
+        where: { session_id: id },
+      }),
+      prisma.personalRecord.deleteMany({
+        where: { session_id: id },
+      }),
+      prisma.workoutSession.delete({
+        where: { id },
+      }),
+    ]);
+    return deleted;
   }
 
   async createRetroactiveSession(userId: string, input: CreateRetroactiveSessionInput) {

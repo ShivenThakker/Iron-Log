@@ -14,17 +14,36 @@ const userText = (max: number) =>
 
 export const chatHistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
-  parts: z.union([
-    z.string().transform(sanitizeUserText),
-    z.array(z.object({ text: z.string().transform(sanitizeUserText) }))
-  ]).optional(),
-  message: z.string().optional(),
+  parts: z
+    .union([
+      z.string().transform(sanitizeUserText).refine((text) => !matchesInjectionPattern(text), { message: NOT_ALLOWED }),
+      z.array(
+        z.object({
+          text: z.string().transform(sanitizeUserText).refine((text) => !matchesInjectionPattern(text), { message: NOT_ALLOWED }),
+        })
+      ),
+    ])
+    .optional(),
+  message: z.string().transform(sanitizeUserText).refine((text) => !matchesInjectionPattern(text), { message: NOT_ALLOWED }).optional(),
 });
 
 export const chatMessageSchema = z.object({
   message: userText(AI_LIMITS.CHAT_MESSAGE_MAX),
   history: z.array(z.union([chatHistoryItemSchema, z.record(z.string(), z.any())])).max(20).optional(),
 });
+
+export const analyzeWorkoutSchema = z.object({
+  routine: z.record(z.string(), z.any()).optional(),
+});
+
+export const generatePlanSchema = z
+  .object({
+    goal: z.string().max(200).optional().transform((v) => (v ? sanitizeUserText(v) : undefined)),
+    experience_level: z.string().max(100).optional().transform((v) => (v ? sanitizeUserText(v) : undefined)),
+    days_per_week: z.coerce.number().int().min(1).max(7).optional(),
+    preferences: z.record(z.string(), z.any()).optional(),
+  })
+  .passthrough();
 
 export const parsePlanSchema = z
   .object({

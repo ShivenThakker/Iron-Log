@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, SafeAreaView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Text';
-import { Icon } from '@/components/ui/Icon';
 import {
   OBSIDIAN_COLORS,
   OBSIDIAN_SPACING,
@@ -37,11 +36,11 @@ export default function WelcomeScreen() {
         <View style={styles.heroContainer}>
           <View style={styles.iconGlowWrapper}>
             <View style={styles.iconGlow} />
-            <View style={styles.iconBox}>
-              <View style={styles.iconRotator}>
-                <Icon name="Barbell" size={32} color={OBSIDIAN_COLORS.primaryFixed} weight="fill" />
-              </View>
-            </View>
+            <Image
+              source={require('@/assets/images/logo.png')}
+              style={styles.heroLogo}
+              resizeMode="contain"
+            />
           </View>
 
           <Text style={styles.title}>IRONLOG</Text>
@@ -109,46 +108,26 @@ const styles = StyleSheet.create({
   },
   iconGlow: {
     position: 'absolute',
-    width: 84,
-    height: 84,
-    borderRadius: 24,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: OBSIDIAN_COLORS.primaryFixed,
-    opacity: 0.16,
+    opacity: 0.18,
     ...Platform.select({
       ios: {
         shadowColor: OBSIDIAN_COLORS.primaryFixed,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 18,
+        shadowOpacity: 0.7,
+        shadowRadius: 20,
       },
       android: {
-        elevation: 8,
+        elevation: 10,
       },
     }),
   },
-  iconBox: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
-    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 14,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  iconRotator: {
-    transform: [{ rotate: '-45deg' }],
+  heroLogo: {
+    width: 80,
+    height: 80,
   },
   title: {
     fontFamily: 'SpaceGrotesk_700Bold',

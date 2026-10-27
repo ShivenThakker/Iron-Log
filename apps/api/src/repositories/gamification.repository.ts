@@ -1,6 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
+let cachedTrophies: any[] | null = null;
+let lastTrophyFetch = 0;
+const TROPHY_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
 export class GamificationRepository {
   async getOrCreateUserXp(userId: string) {
     return prisma.userXp.upsert({
@@ -45,14 +49,19 @@ export class GamificationRepository {
   }
 
   async getTrophyCase(userId: string) {
-    const [allTrophies, unlockedTrophies] = await Promise.all([
-      prisma.trophy.findMany({
+    const now = Date.now();
+    let allTrophies = cachedTrophies;
+    if (!allTrophies || now - lastTrophyFetch > TROPHY_CACHE_TTL) {
+      allTrophies = await prisma.trophy.findMany({
         orderBy: { xp_reward: 'asc' },
-      }),
-      prisma.userTrophy.findMany({
-        where: { user_id: userId },
-      }),
-    ]);
+      });
+      cachedTrophies = allTrophies;
+      lastTrophyFetch = now;
+    }
+
+    const unlockedTrophies = await prisma.userTrophy.findMany({
+      where: { user_id: userId },
+    });
 
     const unlockedMap = new Map<string, Date>();
     for (const ut of unlockedTrophies) {

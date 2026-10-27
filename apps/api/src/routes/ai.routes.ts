@@ -3,7 +3,12 @@ import { chatCompletion, analyzeWorkout, generatePlan, parsePlan } from '../cont
 import { requireAuth } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { rateLimit } from '../middleware/ratelimit.middleware';
-import { chatMessageSchema, parsePlanSchema } from '../validators/ai.validator';
+import {
+  chatMessageSchema,
+  parsePlanSchema,
+  analyzeWorkoutSchema,
+  generatePlanSchema,
+} from '../validators/ai.validator';
 
 const router = Router();
 router.use(requireAuth);
@@ -12,8 +17,8 @@ router.use(requireAuth);
 router.use(rateLimit(10, 60000));
 
 router.post('/chat', validate(chatMessageSchema), chatCompletion);
-router.post('/analyze', analyzeWorkout);
-router.post('/generate-plan', generatePlan);
+router.post('/analyze', validate(analyzeWorkoutSchema), analyzeWorkout);
+router.post('/generate-plan', validate(generatePlanSchema), generatePlan);
 router.post('/parse-plan', validate(parsePlanSchema), parsePlan);
 
 export default router;

@@ -15,7 +15,7 @@
     "android": {
       "package": "com.shiventhakker.ironlog",
       "adaptiveIcon": {
-        "backgroundColor": "#1A1A2E",
+        "backgroundColor": "#090B10",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -39,9 +39,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#1A1A2E",
+          "backgroundColor": "#090B10",
           "dark": {
-            "backgroundColor": "#1A1A2E"
+            "backgroundColor": "#090B10"
           }
         }
       ],
