@@ -775,7 +775,7 @@ interface ParsedPlanResult {
 
     if (searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase().trim();
-      return list.filter(
+      list = list.filter(
         (e) =>
           e.name.toLowerCase().includes(q) ||
           (e.equipment && e.equipment.toLowerCase().includes(q)) ||
@@ -783,7 +783,13 @@ interface ParsedPlanResult {
       );
     }
 
-    return list;
+    const seen = new Set<string>();
+    return list.filter((e) => {
+      const key = e.name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [exerciseDb, selectedMuscleCategory, searchQuery]);
 
   return (

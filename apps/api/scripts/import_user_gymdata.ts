@@ -130,11 +130,11 @@ function parseSetString(rawStr: string): { sets: ParsedSet[]; notes: string } {
 
 const EXERCISE_METADATA: Record<string, { name: string; muscle: string; equipment: string }> = {
   'Bench Press': { name: 'Bench Press', muscle: 'Chest', equipment: 'Barbell' },
-  'Dumbell Press': { name: 'Dumbbell Chest Press', muscle: 'Chest', equipment: 'Dumbbell' },
+  'Dumbell Press': { name: 'Flat Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
   'Incline Bench Press': { name: 'Incline Bench Press', muscle: 'Chest', equipment: 'Barbell' },
   'Incline Press Machine': { name: 'Incline Chest Press Machine', muscle: 'Chest', equipment: 'Machine' },
   'Pec Deck': { name: 'Pec Deck Fly', muscle: 'Chest', equipment: 'Machine' },
-  'Decline Press Machine': { name: 'Decline Press Machine', muscle: 'Chest', equipment: 'Machine' },
+  'Decline Press Machine': { name: 'Decline Machine Press', muscle: 'Chest', equipment: 'Machine' },
   'Lower Chest Cable Fly': { name: 'Lower Chest Cable Fly', muscle: 'Chest', equipment: 'Cable' },
   'Cable Overhead Extension rope gives better mm connection,  keep head up': {
     name: 'Cable Overhead Tricep Extension',
@@ -289,8 +289,8 @@ async function runImport() {
     let ex = await prisma.exercise.findFirst({
       where: {
         OR: [
-          { name: meta.name },
-          { name: rawName },
+          { name: { equals: meta.name, mode: 'insensitive' } },
+          { name: { equals: rawName, mode: 'insensitive' } },
         ],
       },
     });

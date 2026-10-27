@@ -97,7 +97,7 @@ model BodyMeasurement {
 
 model Exercise {
   id                       String   @id @default(uuid())
-  name                     String
+  name                     String   @unique
   primary_muscle           String
   secondary_muscles        String?   // store as JSON string
   equipment                String

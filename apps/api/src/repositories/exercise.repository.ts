@@ -105,6 +105,7 @@ async function getStandardExercises() {
   }
   const dbExercises = await prisma.exercise.findMany({
     where: { is_custom: false },
+    orderBy: { name: 'asc' },
   });
   cachedStandardExercises = dbExercises.map((ex) => enrichExercise(ex));
   lastStandardExerciseFetch = now;
@@ -122,10 +123,20 @@ export class ExerciseRepository {
         getStandardExercises(),
         prisma.exercise.findMany({
           where: { is_custom: true, created_by_user_id: userId },
+          orderBy: { name: 'asc' },
         }),
       ]);
       const enrichedCustom = custom.map((ex) => enrichExercise(ex));
-      return [...standards, ...enrichedCustom];
+      const seen = new Set<string>();
+      const combined: any[] = [];
+      for (const ex of [...standards, ...enrichedCustom]) {
+        const key = ex.name.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          combined.push(ex);
+        }
+      }
+      return combined.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     const ownershipFilter: Prisma.ExerciseWhereInput = userId
@@ -144,9 +155,20 @@ export class ExerciseRepository {
           ownershipFilter,
         ],
       },
+      orderBy: { name: 'asc' },
     });
 
-    return results.map((ex) => enrichExercise(ex));
+    const seen = new Set<string>();
+    const deduplicatedResults: any[] = [];
+    for (const ex of results) {
+      const key = ex.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicatedResults.push(enrichExercise(ex));
+      }
+    }
+
+    return deduplicatedResults;
   }
 
   async findById(id: string, userId?: string) {
@@ -159,7 +181,36 @@ export class ExerciseRepository {
   }
 
   async createCustom(data: Prisma.ExerciseCreateInput) {
-    return prisma.exercise.create({ data });
+    const trimmed = data.name.trim();
+    // Case-insensitive check for existing exercise
+    const existing = await prisma.exercise.findFirst({
+      where: {
+        name: { equals: trimmed, mode: 'insensitive' },
+      },
+    });
+    if (existing) {
+      return enrichExercise(existing);
+    }
+
+    // Reset cache so custom exercise can be picked up
+    cachedStandardExercises = null;
+
+    try {
+      const created = await prisma.exercise.create({
+        data: {
+          ...data,
+          name: trimmed,
+        },
+      });
+      return enrichExercise(created);
+    } catch (err: any) {
+      // Handle concurrent insert / unique constraint
+      const fallback = await prisma.exercise.findFirst({
+        where: { name: { equals: trimmed, mode: 'insensitive' } },
+      });
+      if (fallback) return enrichExercise(fallback);
+      throw err;
+    }
   }
 }
 

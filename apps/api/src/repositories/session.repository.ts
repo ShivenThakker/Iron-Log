@@ -332,28 +332,37 @@ export class SessionRepository {
     for (const exInput of input.exercises) {
       let exerciseId = exInput.exercise_id;
       if (!exerciseId && exInput.exercise_name) {
+        const trimmed = exInput.exercise_name.trim();
         const found = await prisma.exercise.findFirst({
           where: {
-            OR: [
-              { name: { equals: exInput.exercise_name, mode: 'insensitive' } },
-              { name: exInput.exercise_name },
-            ],
+            name: { equals: trimmed, mode: 'insensitive' },
           },
         });
         if (found) {
           exerciseId = found.id;
         } else {
-          const created = await prisma.exercise.create({
-            data: {
-              name: exInput.exercise_name,
-              primary_muscle: 'Full Body',
-              equipment: 'Other',
-              exercise_type: 'reps',
-              is_custom: true,
-              created_by_user_id: userId,
-            },
-          });
-          exerciseId = created.id;
+          try {
+            const created = await prisma.exercise.create({
+              data: {
+                name: trimmed,
+                primary_muscle: 'Full Body',
+                equipment: 'Other',
+                exercise_type: 'reps',
+                is_custom: true,
+                created_by_user_id: userId,
+              },
+            });
+            exerciseId = created.id;
+          } catch (err: any) {
+            const fallback = await prisma.exercise.findFirst({
+              where: { name: { equals: trimmed, mode: 'insensitive' } },
+            });
+            if (fallback) {
+              exerciseId = fallback.id;
+            } else {
+              throw err;
+            }
+          }
         }
       }
 

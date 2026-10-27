@@ -43,42 +43,58 @@ export interface ImportResult {
 
 export const EXERCISE_METADATA: Record<string, { name: string; muscle: string; equipment: string }> = {
   'Bench Press': { name: 'Bench Press', muscle: 'Chest', equipment: 'Barbell' },
-  'Dumbell Press': { name: 'Dumbbell Chest Press', muscle: 'Chest', equipment: 'Dumbbell' },
-  'Dumbbell Press': { name: 'Dumbbell Chest Press', muscle: 'Chest', equipment: 'Dumbbell' },
+  'Barbell Bench Press': { name: 'Bench Press', muscle: 'Chest', equipment: 'Barbell' },
+  'Dumbell Press': { name: 'Flat Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
+  'Dumbbell Press': { name: 'Flat Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
+  'Dumbbell Chest Press': { name: 'Flat Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
+  'Dumbbell Bench Press': { name: 'Flat Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
+  'Flat Dumbbell Press': { name: 'Flat Dumbbell Press', muscle: 'Chest', equipment: 'Dumbbell' },
   'Incline Bench Press': { name: 'Incline Bench Press', muscle: 'Chest', equipment: 'Barbell' },
   'Incline Press Machine': { name: 'Incline Chest Press Machine', muscle: 'Chest', equipment: 'Machine' },
   'Pec Deck': { name: 'Pec Deck Fly', muscle: 'Chest', equipment: 'Machine' },
-  'Decline Press Machine': { name: 'Decline Press Machine', muscle: 'Chest', equipment: 'Machine' },
+  'Decline Press Machine': { name: 'Decline Machine Press', muscle: 'Chest', equipment: 'Machine' },
+  'Decline Machine Press': { name: 'Decline Machine Press', muscle: 'Chest', equipment: 'Machine' },
   'Lower Chest Cable Fly': { name: 'Lower Chest Cable Fly', muscle: 'Chest', equipment: 'Cable' },
   'Cable Overhead Extension': { name: 'Cable Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Cable' },
+  'Overhead Cable Extension': { name: 'Cable Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Cable' },
+  'Rope Overhead Tricep Extension': { name: 'Cable Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Cable' },
+  'Cable Overhead Tricep Extension': { name: 'Cable Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Cable' },
   'Cable Tricep Pushdown': { name: 'Cable Tricep Pushdown', muscle: 'Triceps', equipment: 'Cable' },
   'Assisted Tricep Dips': { name: 'Assisted Tricep Dips', muscle: 'Triceps', equipment: 'Machine' },
   Kickback: { name: 'Tricep Kickback', muscle: 'Triceps', equipment: 'Cable' },
   'Tricep Kickback': { name: 'Tricep Kickback', muscle: 'Triceps', equipment: 'Cable' },
+  'Tricep Kickbacks': { name: 'Tricep Kickback', muscle: 'Triceps', equipment: 'Cable' },
   'Dumbell Overhead Extension': { name: 'Dumbbell Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Dumbbell' },
   'Dumbbell Overhead Extension': { name: 'Dumbbell Overhead Tricep Extension', muscle: 'Triceps', equipment: 'Dumbbell' },
   'Flat Bench Crunches': { name: 'Flat Bench Crunches', muscle: 'Core', equipment: 'Bodyweight' },
   'Cable Crunches': { name: 'Cable Crunches', muscle: 'Core', equipment: 'Cable' },
   'Dumbell Wrist Curls': { name: 'Dumbbell Wrist Curls', muscle: 'Forearms', equipment: 'Dumbbell' },
   'Dumbbell Wrist Curls': { name: 'Dumbbell Wrist Curls', muscle: 'Forearms', equipment: 'Dumbbell' },
+  'Dumbbell Wrist Curls (Palms Up)': { name: 'Dumbbell Wrist Curls', muscle: 'Forearms', equipment: 'Dumbbell' },
   'Dumbell Reverse Wrist Curls': { name: 'Dumbbell Reverse Wrist Curls', muscle: 'Forearms', equipment: 'Dumbbell' },
   'Dumbbell Reverse Wrist Curls': { name: 'Dumbbell Reverse Wrist Curls', muscle: 'Forearms', equipment: 'Dumbbell' },
+  'Dumbbell Reverse Wrist Curls (Palms Down)': { name: 'Dumbbell Reverse Wrist Curls', muscle: 'Forearms', equipment: 'Dumbbell' },
   'Dumbell Overhead Press': { name: 'Dumbbell Overhead Press', muscle: 'Shoulders', equipment: 'Dumbbell' },
   'Dumbbell Overhead Press': { name: 'Dumbbell Overhead Press', muscle: 'Shoulders', equipment: 'Dumbbell' },
+  'Overhead Shoulder Press': { name: 'Dumbbell Overhead Press', muscle: 'Shoulders', equipment: 'Dumbbell' },
   'Cable Lateral Raises': { name: 'Cable Lateral Raises', muscle: 'Shoulders', equipment: 'Cable' },
   'Dumbell Lateral Raises': { name: 'Dumbbell Lateral Raises', muscle: 'Shoulders', equipment: 'Dumbbell' },
   'Dumbbell Lateral Raises': { name: 'Dumbbell Lateral Raises', muscle: 'Shoulders', equipment: 'Dumbbell' },
   'Pec Deck Reverse Fly': { name: 'Pec Deck Reverse Fly', muscle: 'Shoulders', equipment: 'Machine' },
   'Dumbell Shrugs': { name: 'Dumbbell Shrugs', muscle: 'Shoulders', equipment: 'Dumbbell' },
   'Dumbbell Shrugs': { name: 'Dumbbell Shrugs', muscle: 'Shoulders', equipment: 'Dumbbell' },
+  'Bulgarian Split Squat': { name: 'Bulgarian Split Squats', muscle: 'Legs', equipment: 'Bodyweight' },
+  'Bulgarian Split Squat Lunges': { name: 'Bulgarian Split Squats', muscle: 'Legs', equipment: 'Bodyweight' },
   'Bulgarian Split Squats': { name: 'Bulgarian Split Squats', muscle: 'Legs', equipment: 'Bodyweight' },
   'Glute Bridge': { name: 'Glute Bridge', muscle: 'Legs', equipment: 'Bodyweight' },
   'Hip Abductions': { name: 'Hip Abductions', muscle: 'Legs', equipment: 'Machine' },
   'Hip Adductors': { name: 'Hip Adductors', muscle: 'Legs', equipment: 'Machine' },
   'Romanian Dead Lifts': { name: 'Romanian Deadlifts', muscle: 'Legs', equipment: 'Barbell' },
   'Romanian Deadlifts': { name: 'Romanian Deadlifts', muscle: 'Legs', equipment: 'Barbell' },
+  'Calf Raises': { name: 'Standing Calf Raises', muscle: 'Legs', equipment: 'Bodyweight' },
   'Standing Calf Raises': { name: 'Standing Calf Raises', muscle: 'Legs', equipment: 'Bodyweight' },
   'Walking Lunges': { name: 'Walking Lunges', muscle: 'Legs', equipment: 'Dumbbell' },
+  'Barbell Squat': { name: 'Barbell Squats', muscle: 'Legs', equipment: 'Barbell' },
   'Barbell Squats': { name: 'Barbell Squats', muscle: 'Legs', equipment: 'Barbell' },
   'Leg Press': { name: 'Leg Press', muscle: 'Legs', equipment: 'Machine' },
   'Leg Extension': { name: 'Leg Extension', muscle: 'Legs', equipment: 'Machine' },
@@ -86,7 +102,9 @@ export const EXERCISE_METADATA: Record<string, { name: string; muscle: string; e
   'Leg Curl Machine': { name: 'Leg Curl Machine', muscle: 'Legs', equipment: 'Machine' },
   'Machine Squats': { name: 'Machine Squats', muscle: 'Legs', equipment: 'Machine' },
   'Assisted Pull Ups': { name: 'Assisted Pull Ups', muscle: 'Back', equipment: 'Machine' },
+  'Assisted Pull-Up (Machine)': { name: 'Assisted Pull Ups', muscle: 'Back', equipment: 'Machine' },
   'Lat Pulldown': { name: 'Lat Pulldown', muscle: 'Back', equipment: 'Cable' },
+  'Machine Lat Pulldown': { name: 'Lat Pulldown', muscle: 'Back', equipment: 'Cable' },
   'Seated Cable Row': { name: 'Seated Cable Row', muscle: 'Back', equipment: 'Cable' },
   'Barbell Row': { name: 'Barbell Row', muscle: 'Back', equipment: 'Barbell' },
   'T Bar Row': { name: 'T Bar Row', muscle: 'Back', equipment: 'Machine' },
@@ -99,6 +117,7 @@ export const EXERCISE_METADATA: Record<string, { name: string; muscle: string; e
   'Bayesian Curl': { name: 'Bayesian Curl', muscle: 'Biceps', equipment: 'Cable' },
   'Barbell Curl': { name: 'Barbell Curl', muscle: 'Biceps', equipment: 'Barbell' },
   'Rever Barbell Curl': { name: 'Reverse Barbell Curl', muscle: 'Biceps', equipment: 'Barbell' },
+  'Reverse Barbell Curls': { name: 'Reverse Barbell Curl', muscle: 'Biceps', equipment: 'Barbell' },
   'Reverse Barbell Curl': { name: 'Reverse Barbell Curl', muscle: 'Biceps', equipment: 'Barbell' },
   'Preqcher Curl': { name: 'Preacher Curl', muscle: 'Biceps', equipment: 'Machine' },
   'Preacher Curl': { name: 'Preacher Curl', muscle: 'Biceps', equipment: 'Machine' },
@@ -530,40 +549,55 @@ export class WorkoutImportService {
 
   private async resolveExercise(userId: string, rawName: string, fallbackMuscle?: string): Promise<string> {
     const trimmed = rawName.trim();
+    const lowerKey = trimmed.toLowerCase();
 
-    // Check alias / metadata dictionary
-    const meta = EXERCISE_METADATA[trimmed];
+    // Check alias / metadata dictionary case-insensitively
+    let meta = EXERCISE_METADATA[trimmed];
+    if (!meta) {
+      for (const [k, v] of Object.entries(EXERCISE_METADATA)) {
+        if (k.toLowerCase() === lowerKey) {
+          meta = v;
+          break;
+        }
+      }
+    }
+
     const canonicalName = meta?.name || trimmed;
     const muscle = meta?.muscle || fallbackMuscle || 'Full Body';
     const equipment = meta?.equipment || 'Other';
 
-    // 1. Find by canonical name or raw name
+    // 1. Find by canonical name or raw name (case-insensitive)
     let ex = await prisma.exercise.findFirst({
       where: {
         OR: [
           { name: { equals: canonicalName, mode: 'insensitive' } },
           { name: { equals: trimmed, mode: 'insensitive' } },
-          { name: canonicalName },
-          { name: trimmed },
         ],
       },
     });
 
     if (ex) return ex.id;
 
-    // 2. Create custom exercise
-    const created = await prisma.exercise.create({
-      data: {
-        name: canonicalName,
-        primary_muscle: muscle,
-        equipment: equipment,
-        exercise_type: 'reps',
-        is_custom: true,
-        created_by_user_id: userId,
-      },
-    });
-
-    return created.id;
+    // 2. Create custom exercise safely
+    try {
+      const created = await prisma.exercise.create({
+        data: {
+          name: canonicalName,
+          primary_muscle: muscle,
+          equipment: equipment,
+          exercise_type: 'reps',
+          is_custom: true,
+          created_by_user_id: userId,
+        },
+      });
+      return created.id;
+    } catch (err: any) {
+      const fallback = await prisma.exercise.findFirst({
+        where: { name: { equals: canonicalName, mode: 'insensitive' } },
+      });
+      if (fallback) return fallback.id;
+      throw err;
+    }
   }
 
   private async saveSessions(userId: string, sessions: ParsedWorkoutSession[]): Promise<ImportResult> {

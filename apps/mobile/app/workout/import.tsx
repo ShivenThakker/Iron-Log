@@ -365,17 +365,26 @@ export default function HistoricalWorkoutImportScreen() {
     }
   };
 
-  // Filtered exercises for picker modal
-  const filteredExercises = exerciseDb.filter((ex) => {
-    const matchesCategory =
-      selectedMuscleFilter === 'All' ||
-      ex.primary_muscle.toLowerCase() === selectedMuscleFilter.toLowerCase();
-    const matchesSearch =
-      !searchQuery.trim() ||
-      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ex.primary_muscle.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Filtered exercises for picker modal (with deduplication safeguard)
+  const filteredExercises = React.useMemo(() => {
+    const seen = new Set<string>();
+    return exerciseDb.filter((ex) => {
+      const key = ex.name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      const matchesCategory =
+        selectedMuscleFilter === 'All' ||
+        ex.primary_muscle.toLowerCase() === selectedMuscleFilter.toLowerCase();
+      const matchesSearch =
+        !searchQuery.trim() ||
+        ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ex.primary_muscle.toLowerCase().includes(searchQuery.toLowerCase());
+      if (matchesCategory && matchesSearch) {
+        seen.add(key);
+        return true;
+      }
+      return false;
+    });
+  }, [exerciseDb, selectedMuscleFilter, searchQuery]);
 
   return (
     <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.canvas }}>

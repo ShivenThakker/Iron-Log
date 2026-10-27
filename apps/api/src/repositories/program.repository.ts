@@ -146,17 +146,13 @@ export class ProgramRepository {
       throw new Error('Exercise name cannot be empty');
     }
 
-    // Check existing (standard exercises or custom exercises created by this user)
+    // Check existing (standard exercises or custom exercises created by any user)
     const existing = await client.exercise.findFirst({
       where: {
         name: {
           equals: trimmed,
           mode: 'insensitive',
         },
-        OR: [
-          { is_custom: false },
-          { created_by_user_id: userId },
-        ],
       },
     });
 
@@ -183,18 +179,25 @@ export class ProgramRepository {
       muscle = 'Core';
     }
 
-    const created = await client.exercise.create({
-      data: {
-        name: trimmed,
-        primary_muscle: muscle,
-        equipment: 'Custom',
-        exercise_type: 'reps',
-        is_custom: true,
-        created_by_user_id: userId,
-      },
-    });
-
-    return created.id;
+    try {
+      const created = await client.exercise.create({
+        data: {
+          name: trimmed,
+          primary_muscle: muscle,
+          equipment: 'Custom',
+          exercise_type: 'reps',
+          is_custom: true,
+          created_by_user_id: userId,
+        },
+      });
+      return created.id;
+    } catch (err: any) {
+      const fallback = await client.exercise.findFirst({
+        where: { name: { equals: trimmed, mode: 'insensitive' } },
+      });
+      if (fallback) return fallback.id;
+      throw err;
+    }
   }
 
   async createFullProgram(userId: string, data: CreateFullProgramInput) {
