@@ -6,5 +6,6 @@ const router = Router();
 
 router.get('/profile', requireAuth, getProfile);
 router.put('/profile', requireAuth, updateProfile);
+router.patch('/profile', requireAuth, updateProfile);
 
 export default router;

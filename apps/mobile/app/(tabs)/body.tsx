@@ -37,13 +37,24 @@ export default function BodyTab() {
   const [timeRange, setTimeRange] = useState<'30' | '90' | 'all'>('30');
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showMeasureModal, setShowMeasureModal] = useState(false);
+  const [showHeightModal, setShowHeightModal] = useState(false);
 
   // Form inputs
   const [inputWeight, setInputWeight] = useState('');
+  const [heightInput, setHeightInput] = useState('');
   const [chestInput, setChestInput] = useState('');
   const [armsInput, setArmsInput] = useState('');
   const [waistInput, setWaistInput] = useState('');
   const [thighsInput, setThighsInput] = useState('');
+
+  // User profile query (height & profile info)
+  const { data: profileData, refetch: refetchProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const res = await api.get('/users/profile').catch(() => null);
+      return res?.data ?? null;
+    },
+  });
 
   // Realigned to real backend endpoint: GET /body/weight?period=30|90|all
   const { data: weightData, refetch: refetchWeight, isRefetching } = useQuery({
@@ -60,6 +71,20 @@ export default function BodyTab() {
     queryFn: async () => {
       const res = await api.get('/body/measurement').catch(() => null);
       return res?.data ?? null;
+    },
+  });
+
+  // Height update mutation: PATCH /users/profile
+  const updateHeightMutation = useMutation({
+    mutationFn: async (height: number) => {
+      await api.patch('/users/profile', {
+        height_cm: height,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      setShowHeightModal(false);
+      setHeightInput('');
     },
   });
 
@@ -135,6 +160,47 @@ export default function BodyTab() {
     thighs: latestMsmt?.left_thigh_cm ?? latestMsmt?.right_thigh_cm ?? 60,
   };
 
+  // BMI Calculations based on height and latest logged weight
+  const heightCm = profileData?.profile?.height_cm ?? 180;
+  const heightM = heightCm / 100;
+  const bmiVal = heightM > 0 && currentWeight > 0
+    ? parseFloat((currentWeight / (heightM * heightM)).toFixed(1))
+    : 24.2;
+
+  const getBmiCategory = (val: number) => {
+    if (val < 18.5) {
+      return {
+        label: 'Underweight',
+        color: OBSIDIAN_COLORS.cyanAccent,
+        sub: 'BMI < 18.5',
+      };
+    }
+    if (val < 25.0) {
+      return {
+        label: 'Normal Weight',
+        color: OBSIDIAN_COLORS.voltLime,
+        sub: 'BMI 18.5 – 24.9',
+      };
+    }
+    if (val < 30.0) {
+      return {
+        label: 'Overweight',
+        color: '#FFB800',
+        sub: 'BMI 25.0 – 29.9',
+      };
+    }
+    return {
+      label: 'Obese',
+      color: OBSIDIAN_COLORS.coralAccent,
+      sub: 'BMI ≥ 30.0',
+    };
+  };
+
+  const bmiCategory = getBmiCategory(bmiVal);
+  const minHealthyKg = (18.5 * heightM * heightM).toFixed(1);
+  const maxHealthyKg = (24.9 * heightM * heightM).toFixed(1);
+  const bmiScaleProgress = Math.min(Math.max(((bmiVal - 15) / (35 - 15)) * 100, 3), 97);
+
   const handleWeightSubmit = () => {
     const val = parseFloat(inputWeight);
     if (!val || val <= 0) return;
@@ -163,6 +229,7 @@ export default function BodyTab() {
               onRefresh={() => {
                 refetchWeight();
                 refetchMeasurements();
+                refetchProfile();
               }}
               tintColor={OBSIDIAN_COLORS.voltLime}
             />
@@ -286,42 +353,83 @@ export default function BodyTab() {
             </View>
           </View>
 
-          {/* Body Composition Visual Highlights Mosaic */}
-          <View style={styles.mosaicRow}>
-            {/* Skeletal Muscle Mass */}
-            <GlassCard variant="obsidianLevel1" style={styles.mosaicCard}>
-              <View style={styles.mosaicHeader}>
-                <Text variant="labelCaps" style={styles.mosaicLabel}>SKELETAL MUSCLE</Text>
-                <Icon name="Lightning" size={16} color={OBSIDIAN_COLORS.voltLime} />
-              </View>
+          {/* BMI & Body Composition Analytics Card */}
+          <GlassCard variant="obsidianLevel1" style={styles.bmiCard}>
+            <View style={styles.bmiHeader}>
               <View>
-                <View style={styles.mosaicValRow}>
-                  <Text style={styles.mosaicVal}>36.2</Text>
-                  <Text style={styles.mosaicUnit}>kg</Text>
+                <View style={styles.bmiTitleRow}>
+                  <Icon name="Scales" size={18} color={OBSIDIAN_COLORS.voltLime} />
+                  <Text variant="headlineSm" style={styles.bmiTitle}>Body Mass Index (BMI)</Text>
                 </View>
-                <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: '78%', backgroundColor: OBSIDIAN_COLORS.voltLime }]} />
-                </View>
+                <Text variant="bodySm" style={styles.bmiSub}>Calculated from latest weight & height</Text>
               </View>
-            </GlassCard>
 
-            {/* Body Fat Percentage */}
-            <GlassCard variant="obsidianLevel1" style={styles.mosaicCard}>
-              <View style={styles.mosaicHeader}>
-                <Text variant="labelCaps" style={styles.mosaicLabel}>BODY FAT</Text>
-                <Icon name="Flame" size={16} color={OBSIDIAN_COLORS.cyanAccent} />
-              </View>
-              <View>
-                <View style={styles.mosaicValRow}>
-                  <Text style={styles.mosaicVal}>14.8</Text>
-                  <Text style={styles.mosaicUnit}>%</Text>
+              <TouchableOpacity
+                style={styles.heightBadgeBtn}
+                onPress={() => {
+                  setHeightInput(String(heightCm));
+                  setShowHeightModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Icon name="PencilSimple" size={13} color={OBSIDIAN_COLORS.voltLime} />
+                <Text style={styles.heightBadgeText}>{heightCm} cm</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Main Score and Category */}
+            <View style={styles.bmiScoreRow}>
+              <View style={styles.bmiScoreLeft}>
+                <Text style={[styles.bmiScoreNum, { color: bmiCategory.color }]}>
+                  {bmiVal.toFixed(1)}
+                </Text>
+                <View style={styles.bmiCategoryCol}>
+                  <View style={[styles.categoryPill, { backgroundColor: `${bmiCategory.color}22`, borderColor: bmiCategory.color }]}>
+                    <Text style={[styles.categoryPillText, { color: bmiCategory.color }]}>
+                      {bmiCategory.label}
+                    </Text>
+                  </View>
+                  <Text variant="bodySm" style={styles.bmiRangeText}>{bmiCategory.sub}</Text>
                 </View>
-                <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: '42%', backgroundColor: OBSIDIAN_COLORS.cyanAccent }]} />
-                </View>
               </View>
-            </GlassCard>
-          </View>
+
+              <View style={styles.healthyRangeBox}>
+                <Text variant="labelCaps" style={styles.healthyRangeLabel}>HEALTHY RANGE</Text>
+                <Text style={styles.healthyRangeVal}>{minHealthyKg} – {maxHealthyKg} kg</Text>
+              </View>
+            </View>
+
+            {/* Spectrum Bar with Indicator Pin */}
+            <View style={styles.spectrumContainer}>
+              <View style={styles.spectrumTrack}>
+                <View style={[styles.spectrumSegment, { flex: 3.5, backgroundColor: OBSIDIAN_COLORS.cyanAccent }]} />
+                <View style={[styles.spectrumSegment, { flex: 6.4, backgroundColor: OBSIDIAN_COLORS.voltLime }]} />
+                <View style={[styles.spectrumSegment, { flex: 5.0, backgroundColor: '#FFB800' }]} />
+                <View style={[styles.spectrumSegment, { flex: 5.1, backgroundColor: OBSIDIAN_COLORS.coralAccent }]} />
+              </View>
+
+              {/* Pin indicator */}
+              <View style={[styles.spectrumIndicator, { left: `${bmiScaleProgress}%` }]}>
+                <View style={[styles.spectrumPin, { borderColor: bmiCategory.color }]} />
+              </View>
+            </View>
+
+            {/* Scale Labels */}
+            <View style={styles.spectrumLabelsRow}>
+              <Text style={styles.spectrumLabel}>Under (18.5)</Text>
+              <Text style={styles.spectrumLabel}>Normal (25)</Text>
+              <Text style={styles.spectrumLabel}>Over (30)</Text>
+              <Text style={styles.spectrumLabel}>Obese</Text>
+            </View>
+
+            {/* Athlete Nuance Note */}
+            <View style={styles.athleteNoteBox}>
+              <Icon name="Info" size={15} color={OBSIDIAN_COLORS.voltLime} />
+              <Text style={styles.athleteNoteText}>
+                For lifters & athletes with high muscle mass, BMI may classify you as overweight even with low body fat.
+              </Text>
+            </View>
+          </GlassCard>
         </ScrollView>
 
         {/* Log Weight Modal */}
@@ -449,6 +557,49 @@ export default function BodyTab() {
                 onPress={handleMeasureSubmit}
                 loading={logMeasureMutation.isPending}
                 style={{ marginTop: OBSIDIAN_SPACING.lg }}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* Height Update Modal */}
+        <Modal
+          visible={showHeightModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowHeightModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text variant="headlineSm" style={styles.modalTitle}>Set Height</Text>
+                <TouchableOpacity onPress={() => setShowHeightModal(false)}>
+                  <Icon name="X" size={20} color={OBSIDIAN_COLORS.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <Text variant="labelCaps" style={styles.modalLabel}>HEIGHT (CM)</Text>
+              <TextInput
+                style={styles.modalInput}
+                keyboardType="numeric"
+                placeholder="e.g. 180"
+                placeholderTextColor={OBSIDIAN_COLORS.textSlate}
+                value={heightInput}
+                onChangeText={setHeightInput}
+                autoFocus
+              />
+
+              <GradientButton
+                variant="volt"
+                title={updateHeightMutation.isPending ? 'Saving...' : 'Save Height'}
+                onPress={() => {
+                  const val = parseFloat(heightInput);
+                  if (val && val > 50 && val < 250) {
+                    updateHeightMutation.mutate(val);
+                  }
+                }}
+                loading={updateHeightMutation.isPending}
+                style={{ marginTop: OBSIDIAN_SPACING.md }}
               />
             </View>
           </View>
@@ -651,52 +802,150 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: OBSIDIAN_COLORS.textSlate,
   },
-  mosaicRow: {
+  bmiCard: {
+    padding: OBSIDIAN_SPACING.lg,
+    borderRadius: OBSIDIAN_RADIUS.xl,
+    marginTop: OBSIDIAN_SPACING.lg,
+  },
+  bmiHeader: {
     flexDirection: 'row',
-    gap: OBSIDIAN_SPACING.sm,
-    marginTop: OBSIDIAN_SPACING.md,
-  },
-  mosaicCard: {
-    flex: 1,
-    padding: OBSIDIAN_SPACING.md,
-    borderRadius: OBSIDIAN_RADIUS.lg,
     justifyContent: 'space-between',
-    minHeight: 100,
+    alignItems: 'flex-start',
+    marginBottom: OBSIDIAN_SPACING.md,
   },
-  mosaicHeader: {
+  bmiTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bmiTitle: {
+    color: OBSIDIAN_COLORS.textWhite,
+  },
+  bmiSub: {
+    color: OBSIDIAN_COLORS.textMuted,
+    marginTop: 2,
+  },
+  heightBadgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingVertical: 4,
+    paddingHorizontal: OBSIDIAN_SPACING.sm + 2,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderElevated,
+  },
+  heightBadgeText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 12,
+    color: OBSIDIAN_COLORS.voltLime,
+  },
+  bmiScoreRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: OBSIDIAN_SPACING.xs,
+    marginBottom: OBSIDIAN_SPACING.lg,
   },
-  mosaicLabel: {
-    color: OBSIDIAN_COLORS.textMuted,
-  },
-  mosaicValRow: {
+  bmiScoreLeft: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
+    alignItems: 'center',
+    gap: OBSIDIAN_SPACING.md,
   },
-  mosaicVal: {
+  bmiScoreNum: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 24,
-    color: OBSIDIAN_COLORS.textWhite,
+    fontSize: 40,
+    lineHeight: 46,
   },
-  mosaicUnit: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
+  bmiCategoryCol: {
+    gap: 3,
+  },
+  categoryPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  categoryPillText: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bmiRangeText: {
+    color: OBSIDIAN_COLORS.textSlate,
+    fontSize: 11,
+  },
+  healthyRangeBox: {
+    alignItems: 'flex-end',
+  },
+  healthyRangeLabel: {
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  healthyRangeVal: {
+    fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 13,
+    color: OBSIDIAN_COLORS.textWhite,
+    marginTop: 2,
+  },
+  spectrumContainer: {
+    position: 'relative',
+    height: 14,
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  spectrumTrack: {
+    flexDirection: 'row',
+    height: 6,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    overflow: 'hidden',
+    gap: 2,
+  },
+  spectrumSegment: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  spectrumIndicator: {
+    position: 'absolute',
+    top: 0,
+    marginLeft: -5,
+  },
+  spectrumPin: {
+    width: 10,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: OBSIDIAN_COLORS.textWhite,
+    borderWidth: 2,
+  },
+  spectrumLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: OBSIDIAN_SPACING.md,
+  },
+  spectrumLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
     color: OBSIDIAN_COLORS.textSlate,
   },
-  progressBarTrack: {
-    height: 6,
-    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHighest,
-    borderRadius: OBSIDIAN_RADIUS.full,
-    marginTop: 8,
-    overflow: 'hidden',
+  athleteNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
+    padding: OBSIDIAN_SPACING.sm,
+    borderRadius: OBSIDIAN_RADIUS.md,
+    borderWidth: 1,
+    borderColor: OBSIDIAN_COLORS.borderGhost,
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: OBSIDIAN_RADIUS.full,
+  athleteNoteText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.textMuted,
+    flex: 1,
+    lineHeight: 16,
   },
   modalOverlay: {
     flex: 1,
