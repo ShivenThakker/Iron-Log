@@ -1,9 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { OBSIDIAN_COLORS } from '@/constants/tokens';
 import { Icon } from '@/components/ui/Icon';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 10);
+  const tabHeight = 54 + bottomPadding;
+
   return (
     <Tabs 
       detachInactiveScreens={false}
@@ -16,9 +21,9 @@ export default function TabLayout() {
           backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
           borderTopColor: OBSIDIAN_COLORS.borderGhost,
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: tabHeight,
+          paddingBottom: bottomPadding,
+          paddingTop: 6,
         },
         tabBarActiveTintColor: OBSIDIAN_COLORS.voltLime,
         tabBarInactiveTintColor: OBSIDIAN_COLORS.textSlate,

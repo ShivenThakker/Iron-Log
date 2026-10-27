@@ -22,6 +22,11 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "barStyle": "light-content",
+      "backgroundColor": "#090B10"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"

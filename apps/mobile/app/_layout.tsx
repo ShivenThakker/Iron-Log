@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { NavigationBar } from 'expo-navigation-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 import { COLORS } from '@/constants/tokens';
 
@@ -70,6 +71,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {Platform.OS === 'android' ? <NavigationBar hidden={true} style="dark" /> : null}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.dark.bgPrimary } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" options={{ presentation: 'modal' }} />
