@@ -2,34 +2,56 @@ import { prisma } from '../lib/prisma';
 import { getEffectiveStreak } from './session.repository';
 
 export class AnalyticsRepository {
-  async getWorkoutStats(userId: string) {
+  async getWorkoutStats(userId: string, days?: number) {
+    const sinceDate = days && days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : undefined;
+    const sessionWhere = {
+      user_id: userId,
+      finished_at: { not: null },
+      ...(sinceDate ? { started_at: { gte: sinceDate } } : {}),
+    };
+
     const totalSessions = await prisma.workoutSession.count({ 
-      where: { user_id: userId, finished_at: { not: null } } 
+      where: sessionWhere,
     });
     
+    const prWhere = {
+      user_id: userId,
+      ...(sinceDate ? { achieved_at: { gte: sinceDate } } : {}),
+    };
     const prCount = await prisma.personalRecord.count({ 
-      where: { user_id: userId } 
+      where: prWhere,
     });
     
     const totalSets = await prisma.exerciseSet.count({
-      where: { session: { user_id: userId } }
+      where: { session: sessionWhere },
     });
 
     const sessionAgg = await prisma.workoutSession.aggregate({
-      where: { user_id: userId, finished_at: { not: null } },
+      where: sessionWhere,
       _sum: { duration_seconds: true },
     });
     const totalDurationSec = sessionAgg._sum.duration_seconds || 0;
 
-    const volumeResult = await prisma.$queryRaw<Array<{ total_volume: number | null }>>`
-      SELECT SUM(es.weight_kg * es.reps) as total_volume
-      FROM ExerciseSet es
-      JOIN WorkoutSession ws ON es.session_id = ws.id
-      WHERE ws.user_id = ${userId}
-        AND es.set_type != 'warmup'
-        AND es.weight_kg IS NOT NULL
-        AND es.reps IS NOT NULL
-    `;
+    const volumeResult = sinceDate
+      ? await prisma.$queryRaw<Array<{ total_volume: number | null }>>`
+          SELECT SUM(es.weight_kg * es.reps) as total_volume
+          FROM "ExerciseSet" es
+          JOIN "WorkoutSession" ws ON es.session_id = ws.id
+          WHERE ws.user_id = ${userId}
+            AND ws.started_at >= ${sinceDate}
+            AND es.set_type != 'warmup'
+            AND es.weight_kg IS NOT NULL
+            AND es.reps IS NOT NULL
+        `
+      : await prisma.$queryRaw<Array<{ total_volume: number | null }>>`
+          SELECT SUM(es.weight_kg * es.reps) as total_volume
+          FROM "ExerciseSet" es
+          JOIN "WorkoutSession" ws ON es.session_id = ws.id
+          WHERE ws.user_id = ${userId}
+            AND es.set_type != 'warmup'
+            AND es.weight_kg IS NOT NULL
+            AND es.reps IS NOT NULL
+        `;
     const totalVolumeKg = Math.round(Number(volumeResult[0]?.total_volume || 0));
 
     const streak = await prisma.streak.findUnique({
@@ -39,6 +61,7 @@ export class AnalyticsRepository {
     const currentStreak = getEffectiveStreak(streak);
 
     return {
+      periodDays: days ?? null,
       totalSessions,
       prCount,
       totalSets,
@@ -60,9 +83,9 @@ export class AnalyticsRepository {
         e.primary_muscle,
         COUNT(es.id) as sets_count,
         SUM(COALESCE(es.weight_kg * es.reps, 0)) as total_volume
-      FROM ExerciseSet es
-      JOIN Exercise e ON es.exercise_id = e.id
-      JOIN WorkoutSession ws ON es.session_id = ws.id
+      FROM "ExerciseSet" es
+      JOIN "Exercise" e ON es.exercise_id = e.id
+      JOIN "WorkoutSession" ws ON es.session_id = ws.id
       WHERE ws.user_id = ${userId}
         AND ws.started_at >= ${sinceDate}
         AND e.primary_muscle IS NOT NULL
@@ -225,9 +248,9 @@ export class AnalyticsRepository {
   async getEquipmentDistribution(userId: string) {
     const distribution = await prisma.$queryRaw<Array<{ equipment: string; count: bigint | number }>>`
       SELECT e.equipment as equipment, COUNT(es.id) as count
-      FROM ExerciseSet es
-      JOIN Exercise e ON es.exercise_id = e.id
-      JOIN WorkoutSession ws ON es.session_id = ws.id
+      FROM "ExerciseSet" es
+      JOIN "Exercise" e ON es.exercise_id = e.id
+      JOIN "WorkoutSession" ws ON es.session_id = ws.id
       WHERE ws.user_id = ${userId}
         AND e.equipment IS NOT NULL
       GROUP BY e.equipment

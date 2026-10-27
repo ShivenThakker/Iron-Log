@@ -27,11 +27,29 @@ export const PRCelebrationModal: React.FC<PRCelebrationModalProps> = ({
   value,
   onDismiss,
 }) => {
+  const [secondsRemaining, setSecondsRemaining] = React.useState(4);
+
   useEffect(() => {
-    if (visible && Platform.OS !== 'web') {
+    if (!visible) return;
+
+    if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  }, [visible]);
+
+    setSecondsRemaining(4);
+    const interval = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          onDismiss();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [visible, onDismiss]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
@@ -69,7 +87,11 @@ export const PRCelebrationModal: React.FC<PRCelebrationModalProps> = ({
           </View>
 
           <View style={styles.buttonWrapper}>
-            <GradientButton variant="volt" title="Hell Yeah! 💥" onPress={onDismiss} />
+            <GradientButton
+              variant="volt"
+              title={`Hell Yeah! 💥 (${secondsRemaining}s)`}
+              onPress={onDismiss}
+            />
           </View>
         </View>
       </View>

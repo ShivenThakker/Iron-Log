@@ -175,19 +175,19 @@ export const WorkoutActivityGrid: React.FC<WorkoutActivityGridProps> = ({
         <View style={styles.statPill}>
           <Icon name="CalendarCheck" size={14} color={OBSIDIAN_COLORS.voltLime} />
           <Text style={styles.statPillNum}>{data?.totalWorkouts ?? 0}</Text>
-          <Text style={styles.statPillLabel}>Workouts in {year}</Text>
+          <Text style={styles.statPillLabel} numberOfLines={1}>Workouts</Text>
         </View>
 
         <View style={styles.streakPill}>
           <Icon name="Fire" size={14} color={OBSIDIAN_COLORS.coralAccent} />
           <Text style={styles.streakPillNum}>{data?.currentStreak ?? 0}d</Text>
-          <Text style={styles.statPillLabel}>Streak</Text>
+          <Text style={styles.statPillLabel} numberOfLines={1}>Streak</Text>
         </View>
 
         <View style={styles.streakPill}>
           <Icon name="Trophy" size={14} color={OBSIDIAN_COLORS.cyanAccent} />
           <Text style={styles.streakPillNum}>{data?.activeDays ?? 0}d</Text>
-          <Text style={styles.statPillLabel}>Active</Text>
+          <Text style={styles.statPillLabel} numberOfLines={1}>Active</Text>
         </View>
       </View>
 
@@ -323,16 +323,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statPill: {
-    flex: 1.3,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 7,
     borderRadius: OBSIDIAN_RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(204, 255, 0, 0.2)',
-    gap: 6,
+    gap: 5,
+    overflow: 'hidden',
   },
   statPillNum: {
     fontFamily: 'SpaceGrotesk_700Bold',
@@ -348,6 +350,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
     paddingHorizontal: 8,
     paddingVertical: 7,
@@ -355,6 +358,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: OBSIDIAN_COLORS.borderGhost,
     gap: 5,
+    overflow: 'hidden',
   },
   streakPillNum: {
     fontFamily: 'SpaceGrotesk_700Bold',

@@ -4,7 +4,15 @@ import { analyticsRepository } from '../repositories/analytics.repository';
 export const getWorkoutStats = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const stats = await analyticsRepository.getWorkoutStats(userId);
+    const rawPeriod = req.query.period;
+    const parsedDays = Number(rawPeriod);
+    const days =
+      Number.isFinite(parsedDays) && parsedDays > 0
+        ? parsedDays
+        : rawPeriod === 'all'
+          ? undefined
+          : undefined;
+    const stats = await analyticsRepository.getWorkoutStats(userId, days);
     res.json(stats);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

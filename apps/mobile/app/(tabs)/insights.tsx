@@ -46,17 +46,19 @@ const DEFAULT_EQUIPMENT_DATA = [
 export default function InsightsTab() {
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90' | 'all'>('30');
 
-  // Realigned endpoint 1: GET /analytics/stats
+  const periodDays = timeRange === 'all' ? 365 : parseInt(timeRange, 10);
+
+  // Realigned endpoint 1: GET /analytics/stats?period=...
   const { data: statsData, refetch: refetchStats, isRefetching } = useQuery({
-    queryKey: ['analyticsStats'],
+    queryKey: ['analyticsStats', timeRange],
     queryFn: async () => {
-      const res = await api.get('/analytics/stats').catch(() => null);
+      const param = timeRange === 'all' ? 'all' : periodDays;
+      const res = await api.get(`/analytics/stats?period=${param}`).catch(() => null);
       return res?.data ?? null;
     },
   });
 
   // Realigned endpoint 2: GET /analytics/heatmap?period=...
-  const periodDays = timeRange === 'all' ? 365 : parseInt(timeRange, 10);
   const { data: heatmapApiData, refetch: refetchHeatmap } = useQuery({
     queryKey: ['muscleHeatmap', periodDays],
     queryFn: async () => {
@@ -178,11 +180,11 @@ export default function InsightsTab() {
     });
   }, [equipmentApiData]);
 
-  const totalVolumeKg = statsData?.totalVolumeKg ?? 24500;
+  const totalVolumeKg = statsData?.totalVolumeKg ?? 0;
   const totalVolumeStr = totalVolumeKg >= 1000 ? `${(totalVolumeKg / 1000).toFixed(1)}k` : `${totalVolumeKg}`;
-  const totalSessions = statsData?.totalSessions ?? 14;
-  const avgDuration = Math.round(statsData?.avgSessionDurationMin ?? 48);
-  const prsCount = statsData?.prCount ?? 6;
+  const totalSessions = statsData?.totalSessions ?? 0;
+  const avgDuration = Math.round(statsData?.avgSessionDurationMin ?? 0);
+  const prsCount = statsData?.prCount ?? 0;
 
   return (
     <ScreenContainer scrollable={false} theme="obsidian">
@@ -330,7 +332,6 @@ export default function InsightsTab() {
                   Annual 52-Week Workout Activity Matrix
                 </Text>
               </View>
-              <Badge label="52 WEEKS" variant="volt" size="sm" />
             </View>
 
             <WorkoutActivityGrid data={activityApiData} />
