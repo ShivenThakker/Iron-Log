@@ -249,16 +249,18 @@ export default function HistoricalWorkoutImportScreen() {
 
     setIsSavingManual(true);
     try {
+      const isoDate = getSelectedDate().toISOString();
       const payload = {
-        date: getSelectedDate().toISOString(),
+        date: isoDate,
+        session_date: isoDate,
         workout_name: workoutTitle.trim() || 'Past Workout',
         duration_minutes: parseInt(durationMin, 10) || 60,
         notes: notes.trim() || undefined,
         exercises: exercises.map((ex) => ({
           exercise_id: ex.exercise_id || undefined,
           exercise_name: ex.name,
-          sets: ex.sets.map((s) => ({
-            set_number: s.set_number,
+          sets: ex.sets.map((s, sIdx) => ({
+            set_number: s.set_number || sIdx + 1,
             weight_kg: parseFloat(s.weight_kg) || 0,
             reps: parseInt(s.reps, 10) || 0,
             set_type: s.set_type === 'drop' ? 'dropset' : s.set_type,
@@ -348,6 +350,7 @@ export default function HistoricalWorkoutImportScreen() {
 
       const res = await api.post('/sessions/import', {
         filename: pickedFile.name,
+        fileName: pickedFile.name,
         fileData: base64Content,
       });
 

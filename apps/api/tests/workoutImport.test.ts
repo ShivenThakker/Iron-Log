@@ -93,4 +93,59 @@ describe('workoutImport.service unit tests', () => {
       expect(d.getFullYear()).toBeGreaterThanOrEqual(2024);
     });
   });
+
+  describe('retroactiveSessionSchema validation', () => {
+    it('accepts payload with date field and failure set_type', async () => {
+      const { retroactiveSessionSchema } = await import('../src/validators/session.validator');
+      const payload = {
+        date: new Date().toISOString(),
+        workout_name: 'Chest & Back Hypertrophy',
+        duration_minutes: 45,
+        exercises: [
+          {
+            exercise_name: 'Incline Bench Press',
+            sets: [
+              { set_number: 1, weight_kg: 7.5, reps: 20, set_type: 'failure', rpe: 10 },
+              { set_number: 2, weight_kg: 7.5, reps: 20, set_type: 'failure', rpe: 10 },
+            ],
+          },
+        ],
+      };
+      const result = retroactiveSessionSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts payload with session_date field', async () => {
+      const { retroactiveSessionSchema } = await import('../src/validators/session.validator');
+      const payload = {
+        session_date: new Date().toISOString(),
+        exercises: [
+          {
+            exercise_name: 'Dumbbell Wrist Curls',
+            sets: [{ set_number: 1, weight_kg: 5, reps: 20 }],
+          },
+        ],
+      };
+      const result = retroactiveSessionSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects payload when no date is supplied with clear message', async () => {
+      const { retroactiveSessionSchema } = await import('../src/validators/session.validator');
+      const payload = {
+        workout_name: 'No date workout',
+        exercises: [
+          {
+            exercise_name: 'Bench Press',
+            sets: [{ set_number: 1, weight_kg: 60, reps: 10 }],
+          },
+        ],
+      };
+      const result = retroactiveSessionSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toContain('Session date is required');
+      }
+    });
+  });
 });

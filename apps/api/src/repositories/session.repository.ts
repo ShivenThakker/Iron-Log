@@ -62,7 +62,8 @@ export interface RetroactiveExerciseInput {
 }
 
 export interface CreateRetroactiveSessionInput {
-  date: string | Date;
+  date?: string | Date;
+  session_date?: string | Date;
   workout_name?: string;
   duration_minutes?: number;
   notes?: string;
@@ -305,7 +306,8 @@ export class SessionRepository {
   }
 
   async createRetroactiveSession(userId: string, input: CreateRetroactiveSessionInput) {
-    const sessionDate = new Date(input.date);
+    const rawDate = input.date || input.session_date || new Date();
+    const sessionDate = new Date(rawDate);
     const durationMinutes = input.duration_minutes || 45;
     const durationSeconds = durationMinutes * 60;
     const finishedAt = new Date(sessionDate.getTime() + durationSeconds * 1000);
@@ -330,7 +332,15 @@ export class SessionRepository {
     let prCount = 0;
 
     for (const exInput of input.exercises) {
-      let exerciseId = exInput.exercise_id;
+      let exerciseId = exInput.exercise_id || undefined;
+      // If exerciseId was passed, verify it exists; if not (e.g. merged during deduplication), fall back to name
+      if (exerciseId) {
+        const exists = await prisma.exercise.findUnique({ where: { id: exerciseId } });
+        if (!exists) {
+          exerciseId = undefined;
+        }
+      }
+
       if (!exerciseId && exInput.exercise_name) {
         const trimmed = exInput.exercise_name.trim();
         const found = await prisma.exercise.findFirst({

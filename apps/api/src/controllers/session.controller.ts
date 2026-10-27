@@ -111,14 +111,15 @@ export const createRetroactiveSession = async (req: Request, res: Response, next
 export const importWorkoutSpreadsheet = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
-    const { filename, fileData } = req.body;
+    const { filename, fileName, fileData } = req.body;
     if (!fileData) {
       res.status(400).json({ error: 'fileData is required' });
       return;
     }
 
+    const resolvedFilename = filename || fileName || 'workouts.csv';
     const result = await workoutImportService.importSpreadsheet(userId, {
-      filename: filename || 'workouts.csv',
+      filename: resolvedFilename,
       fileData,
     });
 

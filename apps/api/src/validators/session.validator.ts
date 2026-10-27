@@ -21,29 +21,52 @@ export const finishSessionSchema = z.object({
   duration_sec: z.number().int().nonnegative().optional(),
 }).optional().default({});
 
-export const retroactiveSessionSchema = z.object({
-  session_date: z.string().min(1, 'Session date is required'),
-  duration_minutes: z.number().int().min(1).max(600).optional(),
-  notes: z.string().max(1000).optional(),
-  exercises: z.array(
-    z.object({
-      exercise_id: z.string().optional(),
-      exercise_name: z.string().min(1),
-      sets: z.array(
-        z.object({
-          set_number: z.number().int().min(1),
-          weight_kg: z.number().nonnegative().default(0),
-          reps: z.number().int().nonnegative().default(0),
-          set_type: z.enum(['normal', 'warmup', 'dropset', 'drop', 'failure', 'amrap']).default('normal'),
-          rpe: z.number().min(1).max(10).optional().nullable(),
-        })
-      ).min(1, 'At least one set is required per exercise'),
-    })
-  ).min(1, 'At least one exercise is required'),
-});
+export const retroactiveSessionSchema = z
+  .object({
+    date: z.string().optional(),
+    session_date: z.string().optional(),
+    workout_name: z.string().max(200).optional(),
+    duration_minutes: z.coerce.number().int().min(1).max(600).optional().default(60),
+    notes: z.string().max(1000).optional().nullable(),
+    exercises: z
+      .array(
+        z
+          .object({
+            exercise_id: z.string().optional().nullable(),
+            exercise_name: z.string().optional().nullable(),
+            sets: z
+              .array(
+                z.object({
+                  set_number: z.coerce.number().int().min(1).optional(),
+                  weight_kg: z.coerce.number().nonnegative().optional().default(0),
+                  reps: z.coerce.number().int().nonnegative().optional().default(0),
+                  set_type: z
+                    .enum(['normal', 'warmup', 'dropset', 'drop', 'failure', 'amrap'])
+                    .optional()
+                    .default('normal'),
+                  rpe: z.coerce.number().min(1).max(10).optional().nullable(),
+                  duration_seconds: z.coerce.number().int().nonnegative().optional().nullable(),
+                })
+              )
+              .min(1, 'At least one set is required per exercise'),
+          })
+          .refine(
+            (ex) => !!(ex.exercise_id || (ex.exercise_name && ex.exercise_name.trim().length > 0)),
+            {
+              message: 'Either exercise_id or exercise_name is required',
+            }
+          )
+      )
+      .min(1, 'At least one exercise is required'),
+  })
+  .refine((data) => !!(data.date || data.session_date), {
+    message: 'Session date is required',
+    path: ['date'],
+  });
 
 export const importSpreadsheetSchema = z.object({
   fileData: z.string().min(1, 'File data is required'),
   fileType: z.enum(['csv', 'excel']).optional(),
   fileName: z.string().optional(),
+  filename: z.string().optional(),
 });
