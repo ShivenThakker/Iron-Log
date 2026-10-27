@@ -183,21 +183,12 @@ export default function HomeDashboard() {
             />
           }
         >
-          {/* Top Greeting & Rank Pill Row */}
+          {/* Top Greeting Row */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Text style={styles.dateLabel}>{todayDateFormatted.toUpperCase()}</Text>
               <Text style={styles.greeting}>Let's grind, {userName}</Text>
             </View>
-
-            <TouchableOpacity
-              style={styles.rankPill}
-              activeOpacity={0.8}
-              onPress={() => router.push('/(tabs)/achievements')}
-            >
-              <Icon name="Lightning" size={14} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
-              <Text style={styles.rankPillText}>{rank}</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Active Session Carousel */}

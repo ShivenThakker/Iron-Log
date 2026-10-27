@@ -231,7 +231,6 @@ export default function NutritionScreen() {
               <Text variant="labelCaps" style={styles.kicker}>MACRO ENGINE</Text>
               <Text variant="headlineLgMobile" style={styles.title}>Daily Nutrition</Text>
             </View>
-            <Badge label="Food Log" variant="volt" />
           </View>
 
           {/* Calorie Hero + Macro Breakdown Card */}

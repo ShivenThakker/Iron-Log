@@ -205,7 +205,6 @@ export default function InsightsTab() {
               <Text variant="labelCaps" style={styles.kicker}>ADVANCED ANALYTICS</Text>
               <Text variant="headlineLgMobile" style={styles.title}>Insights</Text>
             </View>
-            <Badge label="Analytics" variant="volt" />
           </View>
 
           {/* Time Period Filter Pills */}
