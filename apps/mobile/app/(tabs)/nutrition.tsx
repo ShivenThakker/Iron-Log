@@ -196,17 +196,17 @@ export default function NutritionScreen() {
   };
 
   // Calculations
-  const consumedCals = dailyData?.totals?.calories || 1650;
-  const targetCals = dailyData?.targets?.calories || 2500;
+  const consumedCals = dailyData?.totals?.calories ?? 0;
+  const targetCals = dailyData?.targets?.calories ?? dailyData?.goal?.daily_calories ?? 2500;
   const remainingCals = Math.max(0, targetCals - consumedCals);
-  const calRatio = Math.min(consumedCals / targetCals, 1);
+  const calRatio = targetCals > 0 ? Math.min(consumedCals / targetCals, 1) : 0;
 
-  const consumedP = dailyData?.totals?.protein || 140;
-  const targetP = dailyData?.targets?.protein || 180;
-  const consumedC = dailyData?.totals?.carbs || 195;
-  const targetC = dailyData?.targets?.carbs || 250;
-  const consumedF = dailyData?.totals?.fats || 50;
-  const targetF = dailyData?.targets?.fats || 70;
+  const consumedP = dailyData?.totals?.protein ?? 0;
+  const targetP = dailyData?.targets?.protein ?? dailyData?.goal?.protein_g ?? 180;
+  const consumedC = dailyData?.totals?.carbs ?? 0;
+  const targetC = dailyData?.targets?.carbs ?? dailyData?.goal?.carbs_g ?? 250;
+  const consumedF = dailyData?.totals?.fats ?? dailyData?.totals?.fat ?? 0;
+  const targetF = dailyData?.targets?.fats ?? dailyData?.goal?.fats_g ?? 70;
 
   const mealSlotsData = dailyData?.meals || {};
 
@@ -302,7 +302,7 @@ export default function NutritionScreen() {
                   </Text>
                 </View>
                 <ProgressBar
-                  progress={Math.min(consumedP / targetP, 1)}
+                  progress={targetP > 0 ? Math.min(consumedP / targetP, 1) : 0}
                   color="#FF5C5F"
                   trackColor={OBSIDIAN_COLORS.surfaceContainerHighest}
                   height={6}
@@ -322,7 +322,7 @@ export default function NutritionScreen() {
                   </Text>
                 </View>
                 <ProgressBar
-                  progress={Math.min(consumedC / targetC, 1)}
+                  progress={targetC > 0 ? Math.min(consumedC / targetC, 1) : 0}
                   color={OBSIDIAN_COLORS.cyanAccent}
                   trackColor={OBSIDIAN_COLORS.surfaceContainerHighest}
                   height={6}
@@ -342,7 +342,7 @@ export default function NutritionScreen() {
                   </Text>
                 </View>
                 <ProgressBar
-                  progress={Math.min(consumedF / targetF, 1)}
+                  progress={targetF > 0 ? Math.min(consumedF / targetF, 1) : 0}
                   color={OBSIDIAN_COLORS.voltLime}
                   trackColor={OBSIDIAN_COLORS.surfaceContainerHighest}
                   height={6}

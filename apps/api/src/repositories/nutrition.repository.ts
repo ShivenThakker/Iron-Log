@@ -64,14 +64,26 @@ export class NutritionRepository {
     const activeGoal = goal || defaultGoal;
 
     const totals = logs.reduce(
-      (acc, log) => ({
-        calories: acc.calories + (log.calories_kcal ?? 0),
-        protein: acc.protein + (log.protein_g ?? 0),
-        carbs: acc.carbs + (log.carbs_g ?? 0),
-        fat: acc.fat + (log.fats_g ?? 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      (acc, log) => {
+        const fats = acc.fat + (log.fats_g ?? 0);
+        return {
+          calories: acc.calories + (log.calories_kcal ?? 0),
+          protein: acc.protein + (log.protein_g ?? 0),
+          carbs: acc.carbs + (log.carbs_g ?? 0),
+          fat: fats,
+          fats,
+        };
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fats: 0 }
     );
+
+    const targets = {
+      calories: activeGoal.daily_calories ?? 2200,
+      protein: activeGoal.protein_g ?? 160,
+      carbs: activeGoal.carbs_g ?? 220,
+      fats: activeGoal.fats_g ?? 65,
+      water: activeGoal.water_ml ?? 2500,
+    };
 
     const remaining = {
       calories: Math.max((activeGoal.daily_calories ?? 2200) - totals.calories, 0),
@@ -94,6 +106,7 @@ export class NutritionRepository {
       meals,
       totals,
       goal: activeGoal,
+      targets,
       remaining,
     };
   }
