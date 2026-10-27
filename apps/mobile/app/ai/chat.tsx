@@ -27,6 +27,8 @@ interface ChatMessage {
   sender: 'ai' | 'user';
   text: string;
   timestamp: string;
+  isError?: boolean;
+  lastPrompt?: string;
 }
 
 const STARTER_PROMPTS = [
@@ -51,6 +53,11 @@ export default function AiChatScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Pre-warm the backend server on mount (prevents cold-boot delays on Render free tier)
+  useEffect(() => {
+    api.get('/health').catch(() => {});
+  }, []);
+
   const handleSend = async (messageToSend?: string) => {
     const text = (messageToSend || inputText).trim();
     if (!text || loading) return;
@@ -71,7 +78,7 @@ export default function AiChatScreen() {
     setLoading(true);
 
     const history = messages
-      .filter((m) => m.id !== 'welcome-1')
+      .filter((m) => m.id !== 'welcome-1' && !m.isError)
       .map((m) => ({
         role: m.sender === 'user' ? ('user' as const) : ('model' as const),
         parts: m.text,
@@ -96,12 +103,25 @@ export default function AiChatScreen() {
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
       console.warn('Coach AI error:', err?.response?.data || err?.message);
-      const errorDetail = err?.response?.data?.error || 'Unable to connect to IronLog Coach right now. Please check your connection and try again.';
+      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
+      const isNetworkError = !err?.response;
+      let errorDetail = err?.response?.data?.error;
+
+      if (!errorDetail) {
+        if (isTimeout || isNetworkError) {
+          errorDetail = 'Server is waking up from standby (Render cold start). Please wait a few seconds and tap Retry below.';
+        } else {
+          errorDetail = 'Unable to connect to IronLog Coach right now. Please check your connection and try again.';
+        }
+      }
+
       const fallbackMsg: ChatMessage = {
         id: `ai-err-${Date.now()}`,
         sender: 'ai',
         text: `⚠️ ${errorDetail}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isError: true,
+        lastPrompt: text,
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -167,11 +187,22 @@ export default function AiChatScreen() {
                   style={[
                     styles.bubble,
                     isAi ? styles.bubbleAi : styles.bubbleUser,
+                    msg.isError && styles.bubbleError,
                   ]}
                 >
                   <Text style={[styles.bubbleText, isAi ? styles.textAi : styles.textUser]}>
                     {msg.text}
                   </Text>
+                  {msg.isError && msg.lastPrompt && (
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={() => handleSend(msg.lastPrompt)}
+                      activeOpacity={0.8}
+                    >
+                      <Icon name="ArrowClockwise" size={13} color={OBSIDIAN_COLORS.voltLime} />
+                      <Text style={styles.retryButtonText}>Tap to Retry</Text>
+                    </TouchableOpacity>
+                  )}
                   <Text
                     style={[
                       styles.timestamp,
@@ -354,6 +385,28 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(204, 255, 0, 0.3)',
+  },
+  bubbleError: {
+    borderColor: 'rgba(255, 69, 58, 0.35)',
+    backgroundColor: 'rgba(255, 69, 58, 0.08)',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHigh,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
+  },
+  retryButtonText: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 11,
+    color: OBSIDIAN_COLORS.voltLime,
   },
   bubbleText: {
     ...OBSIDIAN_TYPOGRAPHY.bodyMd,

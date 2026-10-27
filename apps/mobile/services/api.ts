@@ -35,7 +35,7 @@ export const API_URL = resolveBaseUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 60000, // 60s default: prevents cold-start aborts on Render free tier
   headers: {
     'Content-Type': 'application/json',
   },
@@ -45,6 +45,10 @@ api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Allow extra time for LLM generation and server spin-up
+  if (config.url?.includes('/ai/')) {
+    config.timeout = 90000;
   }
   return config;
 });
