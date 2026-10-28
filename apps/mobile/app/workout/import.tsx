@@ -21,6 +21,7 @@ import {
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
 } from '@/constants/tokens';
+import { DatePickerCalendar } from '@/components/ui/DatePickerCalendar';
 import { api } from '@/services/api';
 
 type ImportMode = 'manual' | 'spreadsheet';
@@ -76,11 +77,10 @@ export default function HistoricalWorkoutImportScreen() {
   const [mode, setMode] = useState<ImportMode>('manual');
 
   // Manual Mode State
-  const [dateOption, setDateOption] = useState<'today' | 'yesterday' | '2days' | 'custom'>('yesterday');
-  const [customDateString, setCustomDateString] = useState(() => {
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
+    return yesterday;
   });
   const [workoutTitle, setWorkoutTitle] = useState('Upper Body Hypertrophy');
   const [durationMin, setDurationMin] = useState('60');
@@ -121,26 +121,7 @@ export default function HistoricalWorkoutImportScreen() {
     loadExercises();
   }, []);
 
-  // Compute resolved session date
-  const getSelectedDate = (): Date => {
-    const d = new Date();
-    if (dateOption === 'today') {
-      return d;
-    }
-    if (dateOption === 'yesterday') {
-      d.setDate(d.getDate() - 1);
-      return d;
-    }
-    if (dateOption === '2days') {
-      d.setDate(d.getDate() - 2);
-      return d;
-    }
-    // Custom
-    const parsed = new Date(customDateString);
-    return isNaN(parsed.getTime()) ? new Date() : parsed;
-  };
-
-  const formattedSelectedDate = getSelectedDate().toLocaleDateString('en-US', {
+  const formattedSelectedDate = selectedDate.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -249,7 +230,7 @@ export default function HistoricalWorkoutImportScreen() {
 
     setIsSavingManual(true);
     try {
-      const isoDate = getSelectedDate().toISOString();
+      const isoDate = selectedDate.toISOString();
       const payload = {
         date: isoDate,
         session_date: isoDate,
@@ -470,45 +451,12 @@ export default function HistoricalWorkoutImportScreen() {
                 </View>
               </View>
 
-              {/* Quick Date Chips */}
-              <View style={styles.quickChipsRow}>
-                {(['yesterday', '2days', 'today', 'custom'] as const).map((opt) => {
-                  const label =
-                    opt === 'today'
-                      ? 'Today'
-                      : opt === 'yesterday'
-                      ? 'Yesterday'
-                      : opt === '2days'
-                      ? '2 Days Ago'
-                      : 'Custom';
-                  const active = dateOption === opt;
-                  return (
-                    <TouchableOpacity
-                      key={opt}
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setDateOption(opt)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {dateOption === 'custom' && (
-                <View style={styles.customDateInputContainer}>
-                  <Text style={styles.inputLabel}>Date (YYYY-MM-DD):</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="2026-03-15"
-                    placeholderTextColor={OBSIDIAN_COLORS.textMuted}
-                    value={customDateString}
-                    onChangeText={setCustomDateString}
-                  />
-                </View>
-              )}
+              {/* Interactive Calendar Date Picker */}
+              <DatePickerCalendar
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                maxDate={new Date()}
+              />
             </View>
 
             {/* Session Meta Card (Name & Duration) */}
@@ -613,8 +561,8 @@ export default function HistoricalWorkoutImportScreen() {
                   <View style={styles.setsHeaderRow}>
                     <Text style={[styles.setColHeader, { width: 34 }]}>SET</Text>
                     <Text style={[styles.setColHeader, { width: 70 }]}>TYPE</Text>
-                    <Text style={[styles.setColHeader, { flex: 1 }]}>WEIGHT (KG)</Text>
-                    <Text style={[styles.setColHeader, { flex: 1 }]}>REPS</Text>
+                    <Text style={[styles.setColHeader, { flex: 1, textAlign: 'center' }]}>WEIGHT (KG)</Text>
+                    <Text style={[styles.setColHeader, { flex: 1, textAlign: 'center' }]}>REPS</Text>
                     <View style={{ width: 30 }} />
                   </View>
 
@@ -652,6 +600,10 @@ export default function HistoricalWorkoutImportScreen() {
                         keyboardType="decimal-pad"
                         value={set.weight_kg}
                         onChangeText={(v) => handleUpdateSet(exIdx, sIdx, 'weight_kg', v)}
+                        textAlignVertical="center"
+                        selectTextOnFocus
+                        placeholder="0"
+                        placeholderTextColor={OBSIDIAN_COLORS.textMuted}
                       />
 
                       {/* Reps Input */}
@@ -660,6 +612,10 @@ export default function HistoricalWorkoutImportScreen() {
                         keyboardType="number-pad"
                         value={set.reps}
                         onChangeText={(v) => handleUpdateSet(exIdx, sIdx, 'reps', v)}
+                        textAlignVertical="center"
+                        selectTextOnFocus
+                        placeholder="0"
+                        placeholderTextColor={OBSIDIAN_COLORS.textMuted}
                       />
 
                       {/* Delete Set */}
@@ -1339,21 +1295,21 @@ const styles = StyleSheet.create({
   },
   setNumberBadge: {
     width: 34,
-    height: 32,
-    borderRadius: 6,
+    height: 40,
+    borderRadius: 8,
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
   },
   setNumberText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 12,
+    fontSize: 13,
     color: OBSIDIAN_COLORS.onSurface,
   },
   setTypeChip: {
     width: 70,
-    height: 32,
-    borderRadius: 6,
+    height: 40,
+    borderRadius: 8,
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1371,7 +1327,7 @@ const styles = StyleSheet.create({
   },
   setTypeChipText: {
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 9,
+    fontSize: 10,
     color: OBSIDIAN_COLORS.onSurface,
   },
   setTypeChipTextFailure: {
@@ -1379,19 +1335,23 @@ const styles = StyleSheet.create({
   },
   setNumericInput: {
     flex: 1,
-    height: 32,
+    height: 40,
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
-    borderRadius: 6,
+    borderRadius: 8,
     color: OBSIDIAN_COLORS.textWhite,
     fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 13,
+    fontSize: 15,
     textAlign: 'center',
+    textAlignVertical: 'center',
+    paddingVertical: 0,
+    paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: OBSIDIAN_COLORS.surfaceContainerLow,
+    includeFontPadding: false,
   },
   setDeleteBtn: {
     width: 30,
-    height: 32,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
