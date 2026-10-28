@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ViewStyle, Pressable } from 'react-native';
 import {
   RADIUS,
   SPACING,
@@ -46,13 +46,17 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity
-        activeOpacity={activeOpacity}
+      <Pressable
+        unstable_pressDelay={0}
         onPress={onPress}
-        style={cardStyle}
+        android_ripple={{ color: 'rgba(255, 255, 255, 0.08)' }}
+        style={({ pressed }) => [
+          cardStyle,
+          pressed && { opacity: 0.82, transform: [{ scale: 0.99 }] },
+        ]}
       >
         {children}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 

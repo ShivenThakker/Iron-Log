@@ -4,6 +4,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   RefreshControl,
   Dimensions,
 } from 'react-native';
@@ -190,14 +191,18 @@ export default function HomeDashboard() {
               <Text style={styles.greeting}>Let's grind, {userName}</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.settingsButton}
-              activeOpacity={0.7}
+            <Pressable
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+              ]}
+              unstable_pressDelay={0}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.15)', borderless: true }}
               onPress={() => router.push('/settings')}
               accessibilityLabel="Account and Settings"
             >
               <Icon name="Gear" size={20} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Active Session Carousel */}
@@ -228,14 +233,17 @@ export default function HomeDashboard() {
                   <View style={styles.workoutBadge}>
                     <Text style={styles.workoutBadgeText}>TODAY'S WORKOUT</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.editSplitLink}
-                    activeOpacity={0.7}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.editSplitLink,
+                      pressed && { opacity: 0.6 },
+                    ]}
+                    unstable_pressDelay={0}
                     onPress={() => router.push('/program/builder')}
                   >
                     <Text style={styles.editSplitText}>EDIT SPLIT</Text>
                     <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
 
                 <Text style={styles.workoutTitle} numberOfLines={1}>
@@ -268,9 +276,13 @@ export default function HomeDashboard() {
                 </View>
 
                 {/* High-Energy Electric Volt Lime Start Button */}
-                <TouchableOpacity
-                  style={styles.startWorkoutBtn}
-                  activeOpacity={0.88}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.startWorkoutBtn,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                  ]}
+                  unstable_pressDelay={0}
+                  android_ripple={{ color: 'rgba(0, 0, 0, 0.2)' }}
                   onPress={() =>
                     router.push({
                       pathname: '/workout/active',
@@ -283,7 +295,7 @@ export default function HomeDashboard() {
                 >
                   <Icon name="Play" size={20} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
                   <Text style={styles.startWorkoutText}>Start Workout</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 
@@ -411,38 +423,50 @@ export default function HomeDashboard() {
 
           {/* Quick Action Matrix (Unified Obsidian & Volt 3-Column Grid) */}
           <View style={styles.quickMatrix}>
-            <TouchableOpacity
-              style={styles.quickActionBtn}
-              activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickActionBtn,
+                pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+              ]}
+              unstable_pressDelay={0}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.1)' }}
               onPress={() => router.push('/program/builder')}
             >
               <View style={styles.quickIconCircle}>
                 <Icon name="CalendarCheck" size={20} color={OBSIDIAN_COLORS.voltLime} />
               </View>
               <Text style={styles.quickActionText}>PLAN{'\n'}BUILDER</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.quickActionBtn}
-              activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickActionBtn,
+                pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+              ]}
+              unstable_pressDelay={0}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.1)' }}
               onPress={() => router.push('/workout/import')}
             >
               <View style={styles.quickIconCircle}>
                 <Icon name="Table" size={20} color={OBSIDIAN_COLORS.voltLime} />
               </View>
               <Text style={styles.quickActionText}>LOG PAST{'\n'}& IMPORT</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.quickActionBtn}
-              activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickActionBtn,
+                pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+              ]}
+              unstable_pressDelay={0}
+              android_ripple={{ color: 'rgba(255, 255, 255, 0.1)' }}
               onPress={() => router.push('/(tabs)/body')}
             >
               <View style={styles.quickIconCircle}>
                 <Icon name="Scales" size={20} color={OBSIDIAN_COLORS.voltLime} />
               </View>
               <Text style={styles.quickActionText}>LOG{'\n'}WEIGHT</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Recent Workouts Activity Hub */}
@@ -450,23 +474,29 @@ export default function HomeDashboard() {
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Recent Workouts</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity
-                  style={styles.logPastLink}
-                  activeOpacity={0.7}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.logPastLink,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                  unstable_pressDelay={0}
                   onPress={() => router.push('/workout/import')}
                 >
                   <Icon name="Plus" size={12} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
                   <Text style={styles.logPastLinkText}>LOG PAST</Text>
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
-                  style={styles.analyticsLink}
-                  activeOpacity={0.7}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.analyticsLink,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                  unstable_pressDelay={0}
                   onPress={() => router.push('/(tabs)/insights')}
                 >
                   <Text style={styles.analyticsLinkText}>ANALYTICS</Text>
                   <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 

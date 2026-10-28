@@ -106,3 +106,34 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+let exercisesCache: any[] | null = null;
+let exercisesPromise: Promise<any[]> | null = null;
+
+export async function getCachedExercises(): Promise<any[]> {
+  if (exercisesCache && exercisesCache.length > 0) {
+    return exercisesCache;
+  }
+  if (exercisesPromise) {
+    return exercisesPromise;
+  }
+  exercisesPromise = api
+    .get('/exercises')
+    .then((res) => {
+      exercisesCache = Array.isArray(res.data) ? res.data : [];
+      return exercisesCache;
+    })
+    .catch((err) => {
+      console.warn('Failed to load exercises:', err);
+      return exercisesCache || [];
+    })
+    .finally(() => {
+      exercisesPromise = null;
+    });
+
+  return exercisesPromise;
+}
+
+export function invalidateExercisesCache(): void {
+  exercisesCache = null;
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { Icon, IconName } from './Icon';
 import { OBSIDIAN_COLORS, OBSIDIAN_SPACING, OBSIDIAN_RADIUS } from '@/constants/tokens';
@@ -83,9 +83,14 @@ export const ListRow: React.FC<ListRowProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      <Pressable
+        unstable_pressDelay={0}
+        android_ripple={{ color: 'rgba(255, 255, 255, 0.08)' }}
+        onPress={onPress}
+        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+      >
         {content}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 

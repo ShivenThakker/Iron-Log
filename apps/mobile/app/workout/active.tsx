@@ -23,8 +23,31 @@ import {
   OBSIDIAN_SPACING,
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
-import { api } from '@/services/api';
+import { api, getCachedExercises } from '@/services/api';
 import { workoutSync } from '@/services/workoutSync';
+
+const formatStopwatch = (totalSec: number) => {
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
+const WorkoutStopwatch = React.memo(({ onTick }: { onTick: (seconds: number) => void }) => {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSeconds((prev) => {
+        const next = prev + 1;
+        onTick(next);
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [onTick]);
+
+  return <Text style={styles.timerText}>{formatStopwatch(seconds)}</Text>;
+});
 
 type SetType = 'normal' | 'warmup' | 'dropset' | 'failure';
 
@@ -98,7 +121,10 @@ export default function ActiveWorkoutScreen() {
   const [activeSetIndex, setActiveSetIndex] = useState(0);
 
   // Timer states
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const elapsedSecondsRef = React.useRef(0);
+  const handleStopwatchTick = React.useCallback((sec: number) => {
+    elapsedSecondsRef.current = sec;
+  }, []);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restDuration, setRestDuration] = useState(90);
 
@@ -120,22 +146,14 @@ export default function ActiveWorkoutScreen() {
     value: '',
   });
 
-  // Elapsed workout stopwatch
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Initialize session & fetch exercise list from active program or fallback
   useEffect(() => {
     const initSession = async () => {
       try {
-        const [activeProgRes, sessionRes, exRes] = await Promise.all([
+        const [activeProgRes, sessionRes, exData] = await Promise.all([
           api.get('/programs/active').catch(() => null),
           api.post('/sessions', { notes: params.workoutName || 'Workout Session' }),
-          api.get('/exercises').catch(() => ({ data: [] })),
+          getCachedExercises().catch(() => []),
         ]);
 
         if (sessionRes?.data?.id) {
@@ -188,12 +206,12 @@ export default function ActiveWorkoutScreen() {
         }
 
         // Fallback: map default exercises with real DB exercise IDs
-        if (Array.isArray(exRes.data) && exRes.data.length > 0) {
+        if (Array.isArray(exData) && exData.length > 0) {
           interface DbExerciseItem {
             id: string;
             name: string;
           }
-          const dbExercises = (exRes.data as DbExerciseItem[]).map((item) => ({ id: item.id, name: item.name }));
+          const dbExercises = (exData as DbExerciseItem[]).map((item) => ({ id: item.id, name: item.name }));
 
           setExercises((prev) =>
             prev.map((ex, idx) => {
@@ -252,12 +270,6 @@ export default function ActiveWorkoutScreen() {
 
   const currentExercise = exercises[currentExerciseIndex] || exercises[0];
   const currentSet = currentExercise?.sets[activeSetIndex] || currentExercise?.sets[0];
-
-  const formatStopwatch = (totalSec: number) => {
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
 
   const updateCurrentSet = <K extends 'weight' | 'reps' | 'setType'>(field: K, value: ActiveSet[K]) => {
     setExercises((prev) => {
@@ -456,7 +468,7 @@ export default function ActiveWorkoutScreen() {
         pathname: '/workout/summary',
         params: {
           workoutName: exercises[0]?.name ? `${exercises[0].name} Workout` : 'Workout Session',
-          durationSeconds: String(elapsedSeconds),
+          durationSeconds: String(elapsedSecondsRef.current),
           totalSets: String(totalSets),
           totalVolumeKg: String(totalVolume),
           xpEarned: String(50 + (prCelebration.visible ? 25 : 0)),
@@ -506,7 +518,7 @@ export default function ActiveWorkoutScreen() {
 
           <View style={styles.timerBadge}>
             <View style={styles.timerPulseDot} />
-            <Text style={styles.timerText}>{formatStopwatch(elapsedSeconds)}</Text>
+            <WorkoutStopwatch onTick={handleStopwatchTick} />
           </View>
 
           <TouchableOpacity
@@ -840,12 +852,14 @@ export default function ActiveWorkoutScreen() {
           </View>
 
           {/* Primary High-Affordance Set Completion CTA */}
-          <TouchableOpacity
-            style={[
+          <Pressable
+            style={({ pressed }) => [
               styles.completeSetBtn,
               currentSet?.completed && styles.completeSetBtnDone,
+              pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
             ]}
-            activeOpacity={0.88}
+            unstable_pressDelay={0}
+            android_ripple={{ color: 'rgba(0, 0, 0, 0.2)' }}
             onPress={toggleSetComplete}
           >
             <Icon
@@ -864,7 +878,7 @@ export default function ActiveWorkoutScreen() {
                 ? 'Set Completed! Tap to Undo'
                 : `Complete Set ${currentSet?.setNumber || 1}`}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Workout Volume Micro Stats Bar */}
           <View style={styles.microStatsRow}>

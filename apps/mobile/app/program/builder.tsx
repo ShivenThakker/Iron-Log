@@ -26,7 +26,7 @@ import {
   OBSIDIAN_SPACING,
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
-import { api } from '@/services/api';
+import { api, getCachedExercises } from '@/services/api';
 
 type BuilderMode = 'split' | 'ai_import';
 
@@ -291,9 +291,9 @@ interface ParsedPlanResult {
   useEffect(() => {
     const fetchExercises = async () => {
       try {
-        const res = await api.get('/exercises');
-        if (Array.isArray(res.data)) {
-          setExerciseDb(res.data);
+        const data = await getCachedExercises();
+        if (Array.isArray(data)) {
+          setExerciseDb(data);
         }
       } catch (err) {
         console.warn('Could not fetch exercise database:', err);

@@ -72,17 +72,25 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       {Platform.OS === 'android' ? <NavigationBar hidden={true} style="dark" /> : null}
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.dark.bgPrimary } }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: COLORS.dark.bgPrimary },
+          animation: 'slide_from_right',
+          animationDuration: 220,
+        }}
+      >
         <Stack.Screen name="index" />
-        <Stack.Screen name="login" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="register" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="login" options={{ presentation: 'modal', animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="register" options={{ presentation: 'modal', animation: 'fade_from_bottom' }} />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="workout/active" options={{ presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="workout/summary" options={{ presentation: 'card' }} />
-        <Stack.Screen name="program/builder" options={{ presentation: 'card' }} />
-        <Stack.Screen name="ai/chat" options={{ presentation: 'card' }} />
+        <Stack.Screen name="workout/active" options={{ presentation: 'card', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="workout/import" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+        <Stack.Screen name="workout/summary" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+        <Stack.Screen name="program/builder" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+        <Stack.Screen name="ai/chat" options={{ presentation: 'card', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="settings" options={{ presentation: 'card', animation: 'slide_from_right' }} />
       </Stack>
     </QueryClientProvider>
   );

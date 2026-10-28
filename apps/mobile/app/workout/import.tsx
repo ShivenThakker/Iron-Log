@@ -22,7 +22,7 @@ import {
   OBSIDIAN_SPACING,
 } from '@/constants/tokens';
 import { DatePickerCalendar } from '@/components/ui/DatePickerCalendar';
-import { api } from '@/services/api';
+import { api, getCachedExercises } from '@/services/api';
 
 type ImportMode = 'manual' | 'spreadsheet';
 type SetType = 'normal' | 'warmup' | 'dropset' | 'drop' | 'failure';
@@ -110,9 +110,9 @@ export default function HistoricalWorkoutImportScreen() {
   useEffect(() => {
     const loadExercises = async () => {
       try {
-        const res = await api.get('/exercises');
-        if (Array.isArray(res.data)) {
-          setExerciseDb(res.data);
+        const data = await getCachedExercises();
+        if (Array.isArray(data)) {
+          setExerciseDb(data);
         }
       } catch (err) {
         console.warn('Could not fetch exercises:', err);

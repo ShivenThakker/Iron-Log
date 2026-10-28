@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from './Text';
 import { Icon } from './Icon';
@@ -79,29 +79,33 @@ export const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({
     <View style={styles.container}>
       {/* Month Navigation Row */}
       <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.navBtn}
+        <Pressable
+          style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.7 }]}
           onPress={handlePrevMonth}
-          activeOpacity={0.7}
+          unstable_pressDelay={0}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Icon name="CaretLeft" size={18} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
-          style={styles.monthTitleBtn}
-          activeOpacity={0.8}
+        <Pressable
+          style={({ pressed }) => [styles.monthTitleBtn, pressed && { opacity: 0.7 }]}
+          unstable_pressDelay={0}
           onPress={handleToday}
         >
           <Text style={styles.monthTitleText}>{monthTitle}</Text>
           <Text style={styles.todayHint}>Tap for Today</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
-          style={[styles.navBtn, isCurrentOrFutureMonth && styles.navBtnDisabled]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.navBtn,
+            isCurrentOrFutureMonth && styles.navBtnDisabled,
+            pressed && !isCurrentOrFutureMonth && { opacity: 0.7 },
+          ]}
           onPress={handleNextMonth}
           disabled={isCurrentOrFutureMonth}
-          activeOpacity={0.7}
+          unstable_pressDelay={0}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Icon
@@ -110,7 +114,7 @@ export const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({
             color={isCurrentOrFutureMonth ? OBSIDIAN_COLORS.textMuted : OBSIDIAN_COLORS.textWhite}
             weight="bold"
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Day of Week Labels */}
@@ -143,15 +147,16 @@ export const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({
 
           return (
             <View key={`day-${dayNum}`} style={styles.dayCell}>
-              <TouchableOpacity
-                style={[
+              <Pressable
+                style={({ pressed }) => [
                   styles.dayBtn,
                   isSelected && styles.dayBtnSelected,
                   isToday && !isSelected && styles.dayBtnToday,
                   isDisabled && styles.dayBtnDisabled,
+                  pressed && !isDisabled && { opacity: 0.75, transform: [{ scale: 0.94 }] },
                 ]}
                 disabled={isDisabled}
-                activeOpacity={0.7}
+                unstable_pressDelay={0}
                 onPress={() => {
                   if (Platform.OS !== 'web') {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -169,7 +174,7 @@ export const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({
                 >
                   {dayNum}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           );
         })}

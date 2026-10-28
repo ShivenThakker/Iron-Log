@@ -11,12 +11,12 @@ export default function TabLayout() {
 
   return (
     <Tabs 
-      detachInactiveScreens={false}
+      detachInactiveScreens={true}
       screenOptions={{ 
         headerShown: false,
-        lazy: false,
+        lazy: true,
         animation: 'none',
-        freezeOnBlur: false,
+        freezeOnBlur: true,
         tabBarStyle: {
           backgroundColor: OBSIDIAN_COLORS.surfaceContainerLowest,
           borderTopColor: OBSIDIAN_COLORS.borderGhost,

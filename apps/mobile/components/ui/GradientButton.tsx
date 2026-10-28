@@ -1,10 +1,11 @@
 import React from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import {
@@ -51,12 +52,14 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
 }) => {
   const handlePress = () => {
     if (disabled || loading) return;
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // Ignore if haptics unavailable
-    }
     onPress();
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      } catch {
+        // Ignore if haptics unavailable
+      }
+    }
   };
 
   const buttonStyles = [
@@ -80,11 +83,18 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   const isVoltFamily = variant === 'volt' || variant === 'voltSecondary' || variant === 'voltGhost';
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
+    <Pressable
       onPress={handlePress}
       disabled={disabled || loading}
-      style={buttonStyles}
+      unstable_pressDelay={0}
+      android_ripple={{
+        color: variant === 'volt' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)',
+        borderless: false,
+      }}
+      style={({ pressed }) => [
+        buttonStyles,
+        pressed && !disabled && !loading && styles.pressed,
+      ]}
     >
       {loading ? (
         <ActivityIndicator color={getTextColor()} size="small" />
@@ -106,7 +116,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -117,6 +127,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: RADIUS.md,
     overflow: 'hidden',
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   primary: {
     backgroundColor: COLORS.dark.accentRed,
