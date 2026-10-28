@@ -718,14 +718,38 @@ export default function ActiveWorkoutScreen() {
                 return (
                   <TouchableOpacity
                     key={type}
-                    style={[styles.effortChip, isSelected && styles.effortChipSelected]}
+                    style={[
+                      styles.effortChip,
+                      isSelected && (
+                        type === 'normal'
+                          ? styles.effortChipSelectedNormal
+                          : type === 'warmup'
+                          ? styles.effortChipSelectedWarmup
+                          : type === 'dropset'
+                          ? styles.effortChipSelectedDropset
+                          : styles.effortChipSelectedFailure
+                      ),
+                    ]}
                     activeOpacity={0.8}
-                    onPress={() => updateCurrentSet('setType', type)}
+                    onPress={() => {
+                      updateCurrentSet('setType', type);
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      }
+                    }}
                   >
                     <Text
                       style={[
                         styles.effortChipText,
-                        isSelected && styles.effortChipTextSelected,
+                        isSelected && (
+                          type === 'normal'
+                            ? styles.effortChipTextSelectedNormal
+                            : type === 'warmup'
+                            ? styles.effortChipTextSelectedWarmup
+                            : type === 'dropset'
+                            ? styles.effortChipTextSelectedDropset
+                            : styles.effortChipTextSelectedFailure
+                        ),
                       ]}
                     >
                       {labels[type]}
@@ -1455,16 +1479,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  effortChipSelected: {
+  effortChipSelectedNormal: {
     backgroundColor: OBSIDIAN_COLORS.voltLime,
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  effortChipSelectedWarmup: {
+    backgroundColor: OBSIDIAN_COLORS.surfaceContainerHighest,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  effortChipSelectedDropset: {
+    backgroundColor: OBSIDIAN_COLORS.cyanAccent,
+    shadowColor: OBSIDIAN_COLORS.cyanAccent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  effortChipSelectedFailure: {
+    backgroundColor: OBSIDIAN_COLORS.coralAccent,
+    shadowColor: OBSIDIAN_COLORS.coralAccent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
   },
   effortChipText: {
     ...OBSIDIAN_TYPOGRAPHY.labelInteractive,
     color: OBSIDIAN_COLORS.textMuted,
     fontSize: 11,
   },
-  effortChipTextSelected: {
+  effortChipTextSelectedNormal: {
     color: OBSIDIAN_COLORS.onPrimary,
+    fontWeight: '700',
+  },
+  effortChipTextSelectedWarmup: {
+    color: OBSIDIAN_COLORS.textWhite,
+    fontWeight: '700',
+  },
+  effortChipTextSelectedDropset: {
+    color: '#00363D',
+    fontWeight: '700',
+  },
+  effortChipTextSelectedFailure: {
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   inputsContainer: {

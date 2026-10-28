@@ -184,25 +184,40 @@ export default function HomeDashboard() {
             />
           }
         >
-          {/* Top Greeting & Account Settings Row */}
+          {/* Top Greeting & Rank / Account Settings Row */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Text style={styles.dateLabel}>{todayDateFormatted.toUpperCase()}</Text>
               <Text style={styles.greeting}>Let's grind, {userName}</Text>
             </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.settingsButton,
-                pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
-              ]}
-              unstable_pressDelay={0}
-              android_ripple={{ color: 'rgba(255, 255, 255, 0.15)', borderless: true }}
-              onPress={() => router.push('/settings')}
-              accessibilityLabel="Account and Settings"
-            >
-              <Icon name="Gear" size={20} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.rankBadgeHeader,
+                  pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+                ]}
+                unstable_pressDelay={0}
+                onPress={() => router.push('/(tabs)/achievements')}
+                accessibilityLabel="View Rank and Achievements"
+              >
+                <Icon name="Lightning" size={13} color={OBSIDIAN_COLORS.voltLime} weight="fill" />
+                <Text style={styles.rankBadgeHeaderText}>{rank.toUpperCase()}</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.settingsButton,
+                  pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] },
+                ]}
+                unstable_pressDelay={0}
+                android_ripple={{ color: 'rgba(255, 255, 255, 0.15)', borderless: true }}
+                onPress={() => router.push('/settings')}
+                accessibilityLabel="Account and Settings"
+              >
+                <Icon name="Gear" size={18} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
+              </Pressable>
+            </View>
           </View>
 
           {/* Active Session Carousel */}
@@ -615,9 +630,31 @@ const styles = StyleSheet.create({
     ...OBSIDIAN_TYPOGRAPHY.headlineLg,
     color: OBSIDIAN_COLORS.textWhite,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rankBadgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: OBSIDIAN_RADIUS.full,
+  },
+  rankBadgeHeaderText: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.voltLime,
+    fontSize: 10,
+    letterSpacing: 0.6,
+  },
   settingsButton: {
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
     borderRadius: OBSIDIAN_RADIUS.full,
     backgroundColor: OBSIDIAN_COLORS.surfaceContainerLow,
     borderWidth: 1,
@@ -863,6 +900,11 @@ const styles = StyleSheet.create({
   carouselDotActive: {
     width: 20,
     backgroundColor: OBSIDIAN_COLORS.voltLime,
+    shadowColor: OBSIDIAN_COLORS.voltLime,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 3,
   },
   quickMatrix: {
     flexDirection: 'row',

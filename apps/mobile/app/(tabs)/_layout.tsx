@@ -23,14 +23,20 @@ export default function TabLayout() {
           borderTopWidth: 1,
           height: tabHeight,
           paddingBottom: bottomPadding,
-          paddingTop: 6,
+          paddingTop: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.35,
+          shadowRadius: 12,
+          elevation: 8,
         },
         tabBarActiveTintColor: OBSIDIAN_COLORS.voltLime,
         tabBarInactiveTintColor: OBSIDIAN_COLORS.textSlate,
         tabBarLabelStyle: {
           fontFamily: 'SpaceGrotesk_600SemiBold',
           fontSize: 10,
-          letterSpacing: 0.5,
+          letterSpacing: 0.6,
+          marginTop: 2,
         },
       }}
     >
@@ -39,7 +45,7 @@ export default function TabLayout() {
         options={{
           title: 'Workout',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="Barbell" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="Barbell" size={23} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -48,7 +54,7 @@ export default function TabLayout() {
         options={{
           title: 'Nutrition',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="ForkKnife" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="ForkKnife" size={23} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -57,7 +63,7 @@ export default function TabLayout() {
         options={{
           title: 'Rank',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="Trophy" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="Trophy" size={23} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -66,7 +72,7 @@ export default function TabLayout() {
         options={{
           title: 'Body',
           tabBarIcon: ({ color, focused }) => (
-            <Icon name="Scales" size={22} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
+            <Icon name="User" size={23} color={color ? String(color) : undefined} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
