@@ -1,224 +1,126 @@
+<div align="center">
+
+<img src="./apps/mobile/assets/images/logo.png" alt="IronLog Logo" width="130" style="border-radius: 24px;" />
+
 # IronLog
 
-IronLog is an offline-first mobile fitness tracking application (iOS and Android) with a Node.js TypeScript API. It provides workout planning, set logging, nutrition tracking, body metrics, strength progression, and AI coaching.
+### Precision Strength Tracking • Macro Nutrition • Biometric Analytics
+
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-black?style=for-the-badge&logo=android&logoColor=white)](https://expo.dev)
+[![Built with Expo](https://img.shields.io/badge/Built%20With-Expo%20%7C%20React%20Native-000000?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-CEFF00?style=for-the-badge&logoColor=black&labelColor=090B10)](#license)
+
+<p align="center">
+  IronLog is a high-performance strength training, nutrition, and biometric tracking platform built for dedicated lifters, athletes, and coaches. Engineered with an offline-first foundation and an Obsidian Kinetic design aesthetic, it provides friction-free workout execution, instant set logging, intelligent volume analytics, and periodization planning.
+</p>
+
+</div>
 
 ---
 
-## Features
+## Highlights
 
-### Workout planning and logging
-- Program builder with support for custom weekly splits and automated routine parsing from raw text notes or workout sheet images using the Google Gemini API.
-- Active workout runner with rest timer, set types (Normal, Warmup, Failure), and timed exercise countdown.
-- Retroactive workout logging for previous dates.
-- Workout completion summary with total volume, PR detection, and periodization suggestions.
-
-### Nutrition tracking
-- Daily nutrition targets with calorie and macro targets (protein, carbs, fats).
-- Food search backed by local database and USDA FoodData Central API.
-- Meal slot breakdown: Breakfast, Lunch, Dinner, Snacks.
-- Daily logging history and remaining macro calculations.
-
-### Body and strength tracking
-- Daily bodyweight log with 7-day moving averages and goal progress.
-- Circumference measurements (chest, waist, hips, arms, thighs, calves, neck) and body fat percentage tracking.
-- Personal record (PR) tracking with estimated 1RM calculations.
-- Strength standards reference comparisons across barbell lifts.
-
-### Insights and gamification
-- Muscle volume heatmap and radar balance visualizations.
-- XP and rank system with milestone trophies.
-- Weekly workout streaks with grace day tracking.
-
----
-
-## Tech stack
-
-| Layer | Technology |
-|---|---|
-| Mobile | React Native, Expo, Expo Router, TypeScript |
-| Local database | WatermelonDB (SQLite, offline-first) |
-| Backend API | Express 5, TypeScript |
-| Database | PostgreSQL (Supabase) |
-| ORM | Prisma |
-| Authentication | JWT with HS256 (access token and refresh token rotation) |
-| Cache | Upstash Redis |
-| AI | Google Gemini API (`@google/genai`) |
-| Food data | USDA FoodData Central API |
-
----
-
-## Project structure
-
-```
-Iron-Log/
-├── apps/
-│   ├── mobile/                  # React Native and Expo mobile client
-│   │   ├── app/                 # Expo Router typed screens
-│   │   │   ├── (tabs)/          # Workout (index), Nutrition, Achievements, Body, Insights
-│   │   │   ├── onboarding/      # Profile setup and goal onboarding
-│   │   │   ├── program/         # Workout plan builder
-│   │   │   ├── workout/         # Live workout runner
-│   │   │   ├── ai/              # Coach interactive chat
-│   │   │   └── settings/        # Account controls and units
-│   │   ├── components/          # GlassCard UI kit, rest timers, charts, heatmap
-│   │   ├── constants/           # Obsidian design tokens and theme
-│   │   ├── services/            # Axios API client and offline set sync queue
-│   │   └── store/               # Zustand auth store backed by expo-secure-store
-│   │
-│   └── api/                     # Express 5 and TypeScript REST API
-│       ├── prisma/              # Schema, migrations, and exercise seed data
-│       ├── src/
-│       │   ├── routes/          # Domain routers
-│       │   ├── controllers/     # Route handlers
-│       │   ├── services/        # Business logic, Gemini integration, USDA, event bus
-│       │   ├── repositories/    # Prisma data access layer with user ownership filters
-│       │   ├── middleware/      # Auth, rate-limiting, error handling
-│       │   ├── utils/           # Logger, error classes, prompt guard
-│       │   └── index.ts         # Server entry point
-│       └── tests/               # Vitest suite
-│
-└── packages/
-    └── shared/                  # Shared TypeScript types, rank definitions, XP rules
-```
+<table>
+  <tr>
+    <td width="50%">
+      <h3>⚡ Friction-Free Workout Logging</h3>
+      <ul>
+        <li><b>High-Affordance Live Runner:</b> Real-time set tracker with integrated rest countdown timers and warm-up, working, dropset, and failure tags.</li>
+        <li><b>Personal Record Engine:</b> Instant PR recognition and estimated 1RM calculations as lifts are completed.</li>
+        <li><b>Historical Calendar Selector:</b> Complete past workout logging with an interactive date navigator.</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🥗 Targeted Nutrition Tracking</h3>
+      <ul>
+        <li><b>Dynamic Macronutrient Targets:</b> Real-time tracking against daily caloric, protein, carbohydrate, and fat allocations.</li>
+        <li><b>Meal Breakdown:</b> Categorized logging across breakfast, lunch, dinner, and snacks with remaining budget projections.</li>
+        <li><b>Extensive Food Library:</b> Quick search backed by comprehensive nutritional composition databases.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>📈 Anthropometrics & Strength Progression</h3>
+      <ul>
+        <li><b>Weight Momentum:</b> Daily body mass tracking with 7-day smoothed moving averages and target trajectory indicators.</li>
+        <li><b>Circumference Analytics:</b> Complete tape measurement logging (chest, waist, arms, thighs, and neck).</li>
+        <li><b>Strength Standards:</b> Benchmarking against standardized lift classifications.</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🏆 Visual Insights & Progression Tiers</h3>
+      <ul>
+        <li><b>Musculoskeletal Heatmap:</b> Anatomical volume distribution mapping trained muscle groups across workout cycles.</li>
+        <li><b>Radar Balance Scores:</b> Push/pull and upper/lower symmetry analytics to prevent muscular imbalances.</li>
+        <li><b>Rank & Achievement Milestones:</b> Gamified XP progression system recognizing consistency, streak milestones, and lifetime volume.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ---
 
-## Getting started
+## Experience & Design
+
+* **Obsidian Kinetic Aesthetic:** Crafted from the ground up with a dark-mode palette, Volt Lime accents, and high-contrast typography optimized for dimly lit gym floors.
+* **Offline-Resilient Architecture:** Full local data persistence ensures every set, rep, and meal entry is saved instantly without waiting on network availability.
+* **Tactile Haptic Feedback:** Zero-latency physical touch confirmation with custom micro-interactions on every set completion and milestone.
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- Node.js v18+
-- npm v9+
-- Expo CLI (`npm install -g expo-cli`)
+* [Node.js](https://nodejs.org/) (v18 or higher)
+* [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+* [Expo Go](https://expo.dev/go) on your mobile device (iOS or Android) or a local emulator
 
-External accounts needed:
-- PostgreSQL instance (Supabase or local PostgreSQL)
-- Google AI Studio API key (for Gemini)
-- Upstash Redis instance (optional, falls back to in-memory store in development)
+### Quick Start
 
----
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/ShivenThakker/Iron-Log.git
+   cd Iron-Log
+   ```
 
-### 1. Clone the repository
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-```bash
-git clone https://github.com/ShivenThakker/Iron-Log.git
-cd Iron-Log
-```
+3. **Configure environment:**
+   Create an environment configuration file for the mobile application:
+   ```bash
+   cp apps/mobile/.env.example apps/mobile/.env
+   ```
 
----
+4. **Launch the development server:**
+   ```bash
+   npm run start --workspace=mobile
+   ```
 
-### 2. Install dependencies
-
-From the monorepo root:
-
-```bash
-npm install
-```
-
----
-
-### 3. Environment variables
-
-#### Backend (`apps/api/.env`)
-
-Create `apps/api/.env`:
-
-```bash
-DATABASE_URL=postgresql://user:password@host:port/dbname
-JWT_SECRET=your_jwt_access_secret_min_32_chars
-JWT_REFRESH_SECRET=your_jwt_refresh_secret_min_32_chars
-GEMINI_API_KEY=your_gemini_api_key
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-USDA_API_KEY=
-PORT=3000
-NODE_ENV=development
-```
-
-#### Mobile (`apps/mobile/.env`)
-
-```bash
-EXPO_PUBLIC_API_URL=http://localhost:3000
-```
-
-When testing on a physical mobile device, replace `localhost` with your machine's local network IP address.
+5. **Open on your device:**
+   Scan the displayed QR code with your camera (iOS) or the Expo Go app (Android), or press `a` for Android Emulator / `i` for iOS Simulator.
 
 ---
 
-### 4. Database setup
+## Quality Assurance
 
-Generate Prisma client and run migrations:
-
-```bash
-cd apps/api
-npx prisma migrate dev --name init
-npx prisma generate
-npx prisma db seed
-```
-
----
-
-### 5. Running locally
-
-**Start the API:**
+Validate code health and run test suites:
 
 ```bash
-npm run dev --workspace=api
-```
-
-Health check:
-```bash
-curl http://localhost:3000/health
-# {"status":"ok","timestamp":"..."}
-```
-
-**Start the mobile application:**
-
-```bash
-npm run start --workspace=mobile
-```
-
-Press `i` for iOS Simulator, `a` for Android Emulator, or scan the QR code with the Expo Go app.
-
----
-
-### 6. Testing and typechecking
-
-Run typecheck across all workspaces:
-
-```bash
+# Typecheck mobile and backend codebases
 npm run typecheck
-```
 
-Run backend unit and integration tests:
-
-```bash
+# Execute backend unit and integration test suites
 npm test --workspace=api
 ```
 
 ---
 
-## Security
-
-- All endpoints except `/auth/*` and `/health` require valid Bearer JWT authentication.
-- Access tokens expire in 15 minutes. Refresh tokens rotate every 30 days.
-- Refresh tokens are stored in `expo-secure-store` on native devices, never plain storage.
-- Every database query in repositories scopes to `user_id = req.user.id`.
-- Request payloads validate against Zod schemas before reaching business logic.
-- Gemini API key remains strictly server-side and is never exposed to mobile clients.
-
----
-
-## Contributing
-
-1. Fork the repository.
-2. Create a branch: `git checkout -b feature/your-feature`.
-3. Commit changes: `git commit -m "feat: add feature description"`.
-4. Run `npm run typecheck` and `npm test --workspace=api`.
-5. Open a Pull Request.
-
----
-
 ## License
 
-MIT
+This project is licensed under the MIT License.
