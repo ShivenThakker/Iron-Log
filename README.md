@@ -62,14 +62,6 @@
 
 ---
 
-## Experience & Design
-
-* **Obsidian Kinetic Aesthetic:** Crafted from the ground up with a dark-mode palette, Volt Lime accents, and high-contrast typography optimized for dimly lit gym floors.
-* **Offline-Resilient Architecture:** Full local data persistence ensures every set, rep, and meal entry is saved instantly without waiting on network availability.
-* **Tactile Haptic Feedback:** Zero-latency physical touch confirmation with custom micro-interactions on every set completion and milestone.
-
----
-
 ## Getting Started
 
 ### Prerequisites
