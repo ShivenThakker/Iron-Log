@@ -15,6 +15,15 @@ export const getUserPRs = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+export const getExerciseHistory = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const history = await sessionRepository.getExerciseHistory(req.user!.id);
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const startSession = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const session = await sessionRepository.createSession(req.user!.id, req.body);

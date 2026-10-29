@@ -24,4 +24,25 @@ describe('calculateEstimated1RM', () => {
     const result = calculateEstimated1RM(0, 10);
     expect(result).toBe(0);
   });
+
+  it('correctly compares whether a set exceeds existing PR', () => {
+    // Current PR: 45kg x 8 reps -> 45 * (1 + 8/30) = 57.0 kg
+    const existingPR = calculateEstimated1RM(45, 8);
+    // New set: 45kg x 10 reps -> 45 * (1 + 10/30) = 60.0 kg (Beat PR!)
+    const improvedSet = calculateEstimated1RM(45, 10);
+    // Equal or lower set: 45kg x 6 reps -> 54.0 kg (Did not beat PR)
+    const lowerSet = calculateEstimated1RM(45, 6);
+
+    expect(improvedSet).toBeGreaterThan(existingPR);
+    expect(lowerSet).toBeLessThan(existingPR);
+  });
+
+  it('correctly identifies heavier weight with fewer reps as higher 1RM', () => {
+    // 50kg x 6 reps -> 50 * (1 + 6/30) = 60.0 kg
+    const heavierLoad = calculateEstimated1RM(50, 6);
+    // 40kg x 12 reps -> 40 * (1 + 12/30) = 56.0 kg
+    const lighterLoad = calculateEstimated1RM(40, 12);
+
+    expect(heavierLoad).toBeGreaterThan(lighterLoad);
+  });
 });

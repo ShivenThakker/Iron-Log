@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { gamificationRepository } from './gamification.repository';
+import { prRepository } from './pr.repository';
 import { NotFoundError } from '../utils/errors';
 import { checkAndCreatePR } from '../services/prDetection';
 
@@ -282,6 +283,147 @@ export class SessionRepository {
       orderBy: { started_at: 'desc' },
       take: 20,
     });
+  }
+
+  async getExerciseHistory(userId: string) {
+    const finishedSessions = await prisma.workoutSession.findMany({
+      where: {
+        user_id: userId,
+        finished_at: { not: null },
+      },
+      include: {
+        exerciseSets: {
+          include: { exercise: true },
+          orderBy: { set_number: 'asc' },
+        },
+      },
+      orderBy: { started_at: 'desc' },
+      take: 100,
+    });
+
+    const prs = await prRepository.getAllPRs(userId);
+
+    const historyMap: Record<
+      string,
+      {
+        exerciseId?: string;
+        exerciseName: string;
+        lastSession?: {
+          date: Date;
+          weightKg: number;
+          reps: number;
+          estimated1RM: number;
+          setsCount: number;
+        };
+        pr?: {
+          weightKg: number;
+          reps: number;
+          estimated1RM: number;
+          achievedAt: Date;
+        };
+      }
+    > = {};
+
+    // 1. Map all PRs
+    for (const pr of prs) {
+      const exId = pr.exercise_id;
+      const exName = pr.exercise?.name?.toLowerCase().trim();
+      const estimated1RM =
+        pr.estimated_1rm_kg ?? (pr.weight_kg * (1 + pr.reps / 30));
+      const prData = {
+        weightKg: pr.weight_kg,
+        reps: pr.reps,
+        estimated1RM,
+        achievedAt: pr.achieved_at,
+      };
+
+      if (exId) {
+        if (!historyMap[exId]) {
+          historyMap[exId] = { exerciseId: exId, exerciseName: pr.exercise?.name || '', pr: prData };
+        } else if (!historyMap[exId].pr || estimated1RM > historyMap[exId].pr!.estimated1RM) {
+          historyMap[exId].pr = prData;
+        }
+      }
+
+      if (exName) {
+        if (!historyMap[exName]) {
+          historyMap[exName] = { exerciseId: exId, exerciseName: pr.exercise?.name || '', pr: prData };
+        } else if (!historyMap[exName].pr || estimated1RM > historyMap[exName].pr!.estimated1RM) {
+          historyMap[exName].pr = prData;
+        }
+      }
+    }
+
+    // 2. Map most recent session performance for each exercise
+    for (const session of finishedSessions) {
+      for (const set of session.exerciseSets) {
+        const exId = set.exercise_id;
+        const exName = set.exercise?.name?.toLowerCase().trim();
+        if (!exId && !exName) continue;
+
+        const alreadyHasLast =
+          (exId && historyMap[exId]?.lastSession) ||
+          (exName && historyMap[exName]?.lastSession);
+
+        if (alreadyHasLast) continue;
+
+        const sessionSetsForEx = session.exerciseSets.filter(
+          (s) => (exId && s.exercise_id === exId) || (exName && s.exercise?.name?.toLowerCase().trim() === exName)
+        );
+
+        let bestSet = sessionSetsForEx.find(
+          (s) => s.set_type !== 'warmup' && (s.weight_kg ?? 0) > 0
+        );
+        if (!bestSet && sessionSetsForEx.length > 0) {
+          bestSet = sessionSetsForEx[0];
+        }
+
+        if (bestSet) {
+          const weightKg = bestSet.weight_kg ?? 0;
+          const reps = bestSet.reps ?? 0;
+          const estimated1RM = weightKg * (1 + reps / 30);
+          const lastSessionData = {
+            date: session.started_at,
+            weightKg,
+            reps,
+            estimated1RM,
+            setsCount: sessionSetsForEx.length,
+          };
+
+          if (exId) {
+            historyMap[exId] = {
+              ...(historyMap[exId] || { exerciseId: exId, exerciseName: set.exercise?.name || '' }),
+              lastSession: lastSessionData,
+            };
+          }
+          if (exName) {
+            historyMap[exName] = {
+              ...(historyMap[exName] || { exerciseId: exId, exerciseName: set.exercise?.name || '' }),
+              lastSession: lastSessionData,
+            };
+          }
+
+          // If no PR entry exists for this exercise yet, infer from historical set
+          const target = exId ? historyMap[exId] : historyMap[exName!];
+          if (!target?.pr && weightKg > 0) {
+            const fallbackPr = {
+              weightKg,
+              reps,
+              estimated1RM,
+              achievedAt: session.started_at,
+            };
+            if (exId && !historyMap[exId]?.pr) {
+              historyMap[exId] = { ...historyMap[exId], pr: fallbackPr };
+            }
+            if (exName && !historyMap[exName]?.pr) {
+              historyMap[exName] = { ...historyMap[exName], pr: fallbackPr };
+            }
+          }
+        }
+      }
+    }
+
+    return historyMap;
   }
 
   async deleteSession(id: string, userId: string) {

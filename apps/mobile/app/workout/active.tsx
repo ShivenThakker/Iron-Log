@@ -66,9 +66,29 @@ interface ActiveExercise {
   exerciseId: string;
   name: string;
   targetMuscles: string;
+  equipment?: string;
+  targetReps?: string;
   instructions?: string;
   restSeconds?: number;
   sets: ActiveSet[];
+}
+
+interface ExerciseHistoryRecord {
+  exerciseId?: string;
+  exerciseName: string;
+  lastSession?: {
+    date: string | Date;
+    weightKg: number;
+    reps: number;
+    estimated1RM: number;
+    setsCount: number;
+  };
+  pr?: {
+    weightKg: number;
+    reps: number;
+    estimated1RM: number;
+    achievedAt: string | Date;
+  };
 }
 
 const DEFAULT_EXERCISES: ActiveExercise[] = [
@@ -77,12 +97,14 @@ const DEFAULT_EXERCISES: ActiveExercise[] = [
     exerciseId: 'bench-press-1',
     name: 'Barbell Bench Press',
     targetMuscles: 'Chest, Triceps, Anterior Deltoids',
+    equipment: 'barbell',
+    targetReps: '8-10',
     instructions:
       'Keep your shoulder blades retracted and feet flat on the floor. Lower the barbell with control to mid-chest, then drive forcefully back up.',
     sets: [
-      { id: 's-1-1', setNumber: 1, weight: '80', reps: '8', setType: 'normal', completed: false, synced: false },
-      { id: 's-1-2', setNumber: 2, weight: '80', reps: '8', setType: 'normal', completed: false, synced: false },
-      { id: 's-1-3', setNumber: 3, weight: '85', reps: '6', setType: 'normal', completed: false, synced: false },
+      { id: 's-1-1', setNumber: 1, weight: '60', reps: '8', setType: 'normal', completed: false, synced: false },
+      { id: 's-1-2', setNumber: 2, weight: '60', reps: '8', setType: 'normal', completed: false, synced: false },
+      { id: 's-1-3', setNumber: 3, weight: '60', reps: '6', setType: 'normal', completed: false, synced: false },
     ],
   },
   {
@@ -90,11 +112,13 @@ const DEFAULT_EXERCISES: ActiveExercise[] = [
     exerciseId: 'incline-db-press',
     name: 'Incline Dumbbell Press',
     targetMuscles: 'Upper Chest, Anterior Deltoids',
+    equipment: 'dumbbell',
+    targetReps: '10-12',
     instructions:
       'Set bench to 30 degrees. Press dumbbells up in a slight arc, squeezing the upper chest at peak contraction.',
     sets: [
-      { id: 's-2-1', setNumber: 1, weight: '30', reps: '10', setType: 'normal', completed: false, synced: false },
-      { id: 's-2-2', setNumber: 2, weight: '30', reps: '10', setType: 'normal', completed: false, synced: false },
+      { id: 's-2-1', setNumber: 1, weight: '20', reps: '10', setType: 'normal', completed: false, synced: false },
+      { id: 's-2-2', setNumber: 2, weight: '20', reps: '10', setType: 'normal', completed: false, synced: false },
     ],
   },
   {
@@ -102,11 +126,13 @@ const DEFAULT_EXERCISES: ActiveExercise[] = [
     exerciseId: 'cable-pushdowns',
     name: 'Tricep Cable Pushdown',
     targetMuscles: 'Triceps (Lateral & Medial heads)',
+    equipment: 'cable',
+    targetReps: '12-15',
     instructions:
       'Keep elbows pinned to your sides. Push straight down, lock out the triceps, and control the eccentric return.',
     sets: [
-      { id: 's-3-1', setNumber: 1, weight: '27.5', reps: '12', setType: 'normal', completed: false, synced: false },
-      { id: 's-3-2', setNumber: 2, weight: '27.5', reps: '12', setType: 'normal', completed: false, synced: false },
+      { id: 's-3-1', setNumber: 1, weight: '20', reps: '12', setType: 'normal', completed: false, synced: false },
+      { id: 's-3-2', setNumber: 2, weight: '20', reps: '12', setType: 'normal', completed: false, synced: false },
     ],
   },
 ];
@@ -151,19 +177,83 @@ export default function ActiveWorkoutScreen() {
     Record<string, { weightKg: number; reps: number; estimated1RM: number }>
   >({});
 
+  // Exercise history lookup for Last Session & PR stats
+  const [exerciseHistory, setExerciseHistory] = useState<Record<string, ExerciseHistoryRecord>>({});
+  const [sessionHitPRs, setSessionHitPRs] = useState<Array<{ exerciseName: string; value: string }>>([]);
+
+  const getWeightSubtitle = (exercise?: ActiveExercise, weightStr?: string) => {
+    const weightNum = parseFloat(weightStr || '0') || 0;
+    const name = exercise?.name?.toLowerCase() || '';
+    const equip = exercise?.equipment?.toLowerCase() || '';
+
+    const isBarbell = name.includes('barbell') || equip.includes('barbell');
+    const isDumbbell = name.includes('dumbbell') || name.includes('db') || equip.includes('dumbbell');
+    const isBodyweight =
+      name.includes('pull-up') ||
+      name.includes('chin-up') ||
+      name.includes('dip') ||
+      equip.includes('bodyweight');
+    const isMachineOrCable =
+      name.includes('cable') ||
+      name.includes('machine') ||
+      name.includes('pulldown') ||
+      name.includes('row') ||
+      name.includes('press') ||
+      equip.includes('cable') ||
+      equip.includes('machine');
+
+    if (isBarbell) {
+      if (weightNum > 20) {
+        const sideWeight = ((weightNum - 20) / 2).toFixed(1).replace(/\.0$/, '');
+        return `Bar + Plates (${sideWeight}kg/side)`;
+      } else if (weightNum === 20) {
+        return 'Standard 20kg Olympic Bar';
+      }
+      return 'Barbell load';
+    }
+
+    if (isDumbbell) {
+      return `${weightNum} kg each`;
+    }
+
+    if (isBodyweight) {
+      return weightNum > 0 ? `+${weightNum} kg added load` : 'Bodyweight movement';
+    }
+
+    if (isMachineOrCable) {
+      return 'Pin-loaded stack';
+    }
+
+    return 'Working load';
+  };
+
   // Initialize session & fetch exercise list from active program or fallback
   useEffect(() => {
     const initSession = async () => {
       try {
-        const [activeProgRes, sessionRes, exData, prsRes] = await Promise.all([
+        const [activeProgRes, sessionRes, exData, historyRes, prsRes] = await Promise.all([
           api.get('/programs/active').catch(() => null),
           api.post('/sessions', { notes: params.workoutName || 'Workout Session' }),
           getCachedExercises().catch(() => []),
+          api.get('/sessions/exercise-history').catch(() => ({ data: {} })),
           api.get('/sessions/prs').catch(() => ({ data: [] })),
         ]);
 
+        const historyData: Record<string, ExerciseHistoryRecord> =
+          historyRes?.data && typeof historyRes.data === 'object' ? historyRes.data : {};
+        setExerciseHistory(historyData);
+
+        const prMap: Record<string, { weightKg: number; reps: number; estimated1RM: number }> = {};
+        for (const [key, val] of Object.entries(historyData)) {
+          if (val?.pr) {
+            prMap[key] = {
+              weightKg: val.pr.weightKg,
+              reps: val.pr.reps,
+              estimated1RM: val.pr.estimated1RM,
+            };
+          }
+        }
         if (Array.isArray(prsRes?.data) && prsRes.data.length > 0) {
-          const prMap: Record<string, { weightKg: number; reps: number; estimated1RM: number }> = {};
           for (const item of prsRes.data) {
             const data = {
               weightKg: item.weight_kg ?? 0,
@@ -171,14 +261,19 @@ export default function ActiveWorkoutScreen() {
               estimated1RM: item.estimated_1rm_kg ?? ((item.weight_kg ?? 0) * (1 + (item.reps ?? 1) / 30)),
             };
             if (item.exercise_id) {
-              prMap[item.exercise_id] = data;
+              if (!prMap[item.exercise_id] || data.estimated1RM > prMap[item.exercise_id].estimated1RM) {
+                prMap[item.exercise_id] = data;
+              }
             }
             if (item.exercise?.name) {
-              prMap[item.exercise.name.toLowerCase().trim()] = data;
+              const normName = item.exercise.name.toLowerCase().trim();
+              if (!prMap[normName] || data.estimated1RM > prMap[normName].estimated1RM) {
+                prMap[normName] = data;
+              }
             }
           }
-          setKnownPRs((prev) => ({ ...prev, ...prMap }));
         }
+        setKnownPRs((prev) => ({ ...prev, ...prMap }));
 
         if (sessionRes?.data?.id) {
           setSessionId(sessionRes.data.id);
@@ -195,15 +290,25 @@ export default function ActiveWorkoutScreen() {
 
           if (matchedDay && Array.isArray(matchedDay.exercises) && matchedDay.exercises.length > 0) {
             const loadedExercises: ActiveExercise[] = matchedDay.exercises.map((dayEx: any, idx: number) => {
+              const exId = dayEx.exercise_id || dayEx.exercise?.id || `ex-${idx}`;
+              const exName = (dayEx.exercise?.name || dayEx.exercise_name || `Exercise ${idx + 1}`).toLowerCase().trim();
+              const hist = historyData[exId] || historyData[exName];
+
               const setsCount = dayEx.target_sets || 2;
               const targetReps = String(dayEx.target_reps || '10');
               const repMatch = targetReps.match(/\d+/);
               const repVal = repMatch ? repMatch[0] : '10';
 
+              const defaultWeight = dayEx.target_weight_kg
+                ? String(dayEx.target_weight_kg)
+                : hist?.lastSession?.weightKg
+                ? String(hist.lastSession.weightKg)
+                : '30';
+
               const sets: ActiveSet[] = Array.from({ length: setsCount }).map((_, sIdx) => ({
                 id: `s-${idx + 1}-${sIdx + 1}-${Date.now()}`,
                 setNumber: sIdx + 1,
-                weight: '30',
+                weight: defaultWeight,
                 reps: repVal,
                 setType: 'normal',
                 completed: false,
@@ -212,9 +317,11 @@ export default function ActiveWorkoutScreen() {
 
               return {
                 id: `ex-${idx + 1}`,
-                exerciseId: dayEx.exercise_id || dayEx.exercise?.id || `ex-${idx}`,
+                exerciseId: exId,
                 name: dayEx.exercise?.name || dayEx.exercise_name || `Exercise ${idx + 1}`,
                 targetMuscles: dayEx.exercise?.primary_muscle || 'Full Body',
+                equipment: dayEx.exercise?.equipment || '',
+                targetReps,
                 instructions: dayEx.exercise?.instructions || '',
                 restSeconds: dayEx.rest_seconds ?? 90,
                 sets,
@@ -234,18 +341,32 @@ export default function ActiveWorkoutScreen() {
           interface DbExerciseItem {
             id: string;
             name: string;
+            equipment?: string;
           }
-          const dbExercises = (exData as DbExerciseItem[]).map((item) => ({ id: item.id, name: item.name }));
+          const dbExercises = (exData as DbExerciseItem[]).map((item) => ({
+            id: item.id,
+            name: item.name,
+            equipment: item.equipment,
+          }));
 
           setExercises((prev) =>
-            prev.map((ex, idx) => {
+            prev.map((ex) => {
               const matched = dbExercises.find(
                 (db) =>
                   db.name.toLowerCase().includes(ex.name.toLowerCase()) ||
                   ex.name.toLowerCase().includes(db.name.toLowerCase())
               );
               const resolvedId = matched?.id || ex.exerciseId;
-              return { ...ex, exerciseId: resolvedId };
+              const hist = historyData[resolvedId] || historyData[ex.name.toLowerCase().trim()];
+              const initialWeight = hist?.lastSession?.weightKg ? String(hist.lastSession.weightKg) : undefined;
+              return {
+                ...ex,
+                exerciseId: resolvedId,
+                equipment: matched?.equipment || ex.equipment,
+                sets: initialWeight
+                  ? ex.sets.map((s) => ({ ...s, weight: s.completed ? s.weight : initialWeight }))
+                  : ex.sets,
+              };
             })
           );
         }
@@ -361,7 +482,7 @@ export default function ActiveWorkoutScreen() {
       const isWarmup = currentSet.setType === 'warmup';
       const exId = currentExercise.exerciseId;
       const exName = currentExercise.name?.toLowerCase().trim();
-      const existingPR = (exId && knownPRs[exId]) || (exName && knownPRs[exName]);
+      const existingPR = (exId ? knownPRs[exId] : undefined) || (exName ? knownPRs[exName] : undefined);
 
       const isLocalPR =
         !isWarmup &&
@@ -384,6 +505,10 @@ export default function ActiveWorkoutScreen() {
           prType: 'Personal Record',
           value: `${weightNum} kg × ${repsNum} reps`,
         });
+        setSessionHitPRs((prev) => [
+          ...prev,
+          { exerciseName: currentExercise.name, value: `${weightNum} kg × ${repsNum} reps` },
+        ]);
       } else {
         // Not a PR -> Start Rest Timer INSTANTLY (0ms latency!)
         setShowRestTimer(true);
@@ -423,6 +548,10 @@ export default function ActiveWorkoutScreen() {
                 prType: 'Personal Record',
                 value: `${weightNum} kg × ${repsNum} reps`,
               });
+              setSessionHitPRs((prev) => [
+                ...prev,
+                { exerciseName: currentExercise.name, value: `${weightNum} kg × ${repsNum} reps` },
+              ]);
             }
           })
           .catch(() => {
@@ -525,11 +654,11 @@ export default function ActiveWorkoutScreen() {
           durationSeconds: String(elapsedSecondsRef.current),
           totalSets: String(totalSets),
           totalVolumeKg: String(totalVolume),
-          xpEarned: String(50 + (prCelebration.visible ? 25 : 0)),
+          xpEarned: String(50 + (sessionHitPRs.length > 0 || prCelebration.visible ? 25 : 0)),
           sessionId: sessionId || '',
-          hasPr: prCelebration.visible ? 'true' : 'false',
-          prExercise: prCelebration.exerciseName,
-          prValue: prCelebration.value,
+          hasPr: sessionHitPRs.length > 0 || prCelebration.visible ? 'true' : 'false',
+          prExercise: sessionHitPRs[sessionHitPRs.length - 1]?.exerciseName || prCelebration.exerciseName,
+          prValue: sessionHitPRs[sessionHitPRs.length - 1]?.value || prCelebration.value,
           exerciseBreakdown: JSON.stringify(completedExercises),
         },
       });
@@ -683,20 +812,28 @@ export default function ActiveWorkoutScreen() {
             {(() => {
               const exId = currentExercise?.exerciseId;
               const exName = currentExercise?.name?.toLowerCase().trim();
-              const currentExercisePR = (exId && knownPRs[exId]) || (exName && knownPRs[exName]);
-              const prLabel = currentExercisePR
-                ? `${currentExercisePR.weightKg} kg × ${currentExercisePR.reps}`
-                : 'None logged yet';
+              const hist = (exId ? exerciseHistory[exId] : undefined) || (exName ? exerciseHistory[exName] : undefined);
+              const currentExercisePR = (exId ? knownPRs[exId] : undefined) || (exName ? knownPRs[exName] : undefined) || hist?.pr;
+              const lastSession = hist?.lastSession;
+
+              const lastSessionValue =
+                lastSession && (lastSession.weightKg > 0 || lastSession.reps > 0)
+                  ? `${lastSession.weightKg} kg × ${lastSession.reps} reps`
+                  : '—';
+
+              const prBadgeValue =
+                currentExercisePR && currentExercisePR.weightKg > 0
+                  ? `PR: ${currentExercisePR.weightKg} KG`
+                  : 'PR: —';
+
               return (
                 <View style={styles.baselineCallout}>
                   <View style={styles.baselineLeft}>
-                    <Icon name="Trophy" size={14} color={OBSIDIAN_COLORS.voltLime} />
-                    <Text style={styles.baselineLabel}>Best PR:</Text>
-                    <Text style={styles.baselineValue}>{prLabel}</Text>
+                    <Icon name="Clock" size={14} color={OBSIDIAN_COLORS.cyanAccent} />
+                    <Text style={styles.baselineLabel}>Last Session:</Text>
+                    <Text style={styles.baselineValue}>{lastSessionValue}</Text>
                   </View>
-                  <Text style={styles.prBadgeText}>
-                    {currentExercisePR ? `1RM ~${Math.round(currentExercisePR.estimated1RM)}kg` : 'PR CHALLENGE'}
-                  </Text>
+                  <Text style={styles.prBadgeText}>{prBadgeValue}</Text>
                 </View>
               );
             })()}
@@ -858,7 +995,9 @@ export default function ActiveWorkoutScreen() {
                     />
                     <Text style={styles.dialUnit}>kg</Text>
                   </View>
-                  <Text style={styles.dialSubtitle}>Bar + Plates (30kg/side)</Text>
+                  <Text style={styles.dialSubtitle}>
+                    {getWeightSubtitle(currentExercise, currentSet?.weight)}
+                  </Text>
                 </View>
 
                 <TouchableOpacity
@@ -891,7 +1030,9 @@ export default function ActiveWorkoutScreen() {
             <View style={styles.stepperCard}>
               <View style={styles.stepperHeader}>
                 <Text style={styles.stepperHeaderTitle}>TARGET REPETITIONS</Text>
-                <Text style={styles.repsTargetHint}>Target: 8-10</Text>
+                <Text style={styles.repsTargetHint}>
+                  Target: {currentExercise?.targetReps || '8-10'}
+                </Text>
               </View>
 
               <View style={styles.dialRow}>

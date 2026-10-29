@@ -4,6 +4,7 @@ import {
   getSession,
   getSessions,
   getUserPRs,
+  getExerciseHistory,
   addSet,
   finishSession,
   deleteSession,
@@ -18,6 +19,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/prs', getUserPRs);
+router.get('/exercise-history', getExerciseHistory);
 router.get('/', getSessions);
 router.post('/', validate(startSessionSchema), startSession);
 router.post('/retroactive', validate(retroactiveSessionSchema), createRetroactiveSession);
