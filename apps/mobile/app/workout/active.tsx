@@ -146,15 +146,39 @@ export default function ActiveWorkoutScreen() {
     value: '',
   });
 
+  // User Personal Records per exercise (for 0ms instant local PR detection)
+  const [knownPRs, setKnownPRs] = useState<
+    Record<string, { weightKg: number; reps: number; estimated1RM: number }>
+  >({});
+
   // Initialize session & fetch exercise list from active program or fallback
   useEffect(() => {
     const initSession = async () => {
       try {
-        const [activeProgRes, sessionRes, exData] = await Promise.all([
+        const [activeProgRes, sessionRes, exData, prsRes] = await Promise.all([
           api.get('/programs/active').catch(() => null),
           api.post('/sessions', { notes: params.workoutName || 'Workout Session' }),
           getCachedExercises().catch(() => []),
+          api.get('/sessions/prs').catch(() => ({ data: [] })),
         ]);
+
+        if (Array.isArray(prsRes?.data) && prsRes.data.length > 0) {
+          const prMap: Record<string, { weightKg: number; reps: number; estimated1RM: number }> = {};
+          for (const item of prsRes.data) {
+            const data = {
+              weightKg: item.weight_kg ?? 0,
+              reps: item.reps ?? 1,
+              estimated1RM: item.estimated_1rm_kg ?? ((item.weight_kg ?? 0) * (1 + (item.reps ?? 1) / 30)),
+            };
+            if (item.exercise_id) {
+              prMap[item.exercise_id] = data;
+            }
+            if (item.exercise?.name) {
+              prMap[item.exercise.name.toLowerCase().trim()] = data;
+            }
+          }
+          setKnownPRs((prev) => ({ ...prev, ...prMap }));
+        }
 
         if (sessionRes?.data?.id) {
           setSessionId(sessionRes.data.id);
@@ -332,7 +356,45 @@ export default function ActiveWorkoutScreen() {
       const restSec = currentExercise.restSeconds ?? 90;
       setRestDuration(restSec);
 
-      // 1. Sync to API if session is active and not already synced
+      // Local estimated 1RM calculation: Brzycki/Epley formula (weight * (1 + reps / 30))
+      const estimated1RM = weightNum * (1 + repsNum / 30);
+      const isWarmup = currentSet.setType === 'warmup';
+      const exId = currentExercise.exerciseId;
+      const exName = currentExercise.name?.toLowerCase().trim();
+      const existingPR = (exId && knownPRs[exId]) || (exName && knownPRs[exName]);
+
+      const isLocalPR =
+        !isWarmup &&
+        weightNum > 0 &&
+        (!existingPR || estimated1RM > (existingPR.estimated1RM ?? 0));
+
+      if (isLocalPR) {
+        // Record new PR locally so future sets in this session see the updated record
+        const newPrData = { weightKg: weightNum, reps: repsNum, estimated1RM };
+        setKnownPRs((prev) => ({
+          ...prev,
+          ...(exId ? { [exId]: newPrData } : {}),
+          ...(exName ? { [exName]: newPrData } : {}),
+        }));
+
+        // Trigger PR celebration INSTANTLY (0ms latency!)
+        setPrCelebration({
+          visible: true,
+          exerciseName: currentExercise.name,
+          prType: 'Personal Record',
+          value: `${weightNum} kg × ${repsNum} reps`,
+        });
+      } else {
+        // Not a PR -> Start Rest Timer INSTANTLY (0ms latency!)
+        setShowRestTimer(true);
+      }
+
+      // Auto advance to next set if available
+      if (activeSetIndex < currentExercise.sets.length - 1) {
+        setActiveSetIndex((prev) => prev + 1);
+      }
+
+      // Sync to API asynchronously in background without blocking UI
       if (sessionId && !currentSet.synced) {
         setExercises((prev) => {
           const copy = [...prev];
@@ -353,27 +415,19 @@ export default function ActiveWorkoutScreen() {
             weightKg: weightNum,
           })
           .then((res) => {
-            if (res.isNewPR) {
+            // Fallback: if server detected a historical PR that client didn't know about
+            if (res.isNewPR && !isLocalPR) {
               setPrCelebration({
                 visible: true,
                 exerciseName: currentExercise.name,
                 prType: 'Personal Record',
                 value: `${weightNum} kg × ${repsNum} reps`,
               });
-            } else {
-              setShowRestTimer(true);
             }
           })
           .catch(() => {
-            setShowRestTimer(true);
+            // Offline queue already handled in workoutSync
           });
-      } else {
-        setShowRestTimer(true);
-      }
-
-      // Auto advance to next set if available
-      if (activeSetIndex < currentExercise.sets.length - 1) {
-        setActiveSetIndex((prev) => prev + 1);
       }
     }
   };
@@ -626,14 +680,26 @@ export default function ActiveWorkoutScreen() {
             </ScrollView>
 
             {/* Performance Baseline Callout */}
-            <View style={styles.baselineCallout}>
-              <View style={styles.baselineLeft}>
-                <Icon name="Clock" size={14} color={OBSIDIAN_COLORS.cyanAccent} />
-                <Text style={styles.baselineLabel}>Last Session:</Text>
-                <Text style={styles.baselineValue}>80.0 kg × 8 reps</Text>
-              </View>
-              <Text style={styles.prBadgeText}>PR: 92.5 kg</Text>
-            </View>
+            {(() => {
+              const exId = currentExercise?.exerciseId;
+              const exName = currentExercise?.name?.toLowerCase().trim();
+              const currentExercisePR = (exId && knownPRs[exId]) || (exName && knownPRs[exName]);
+              const prLabel = currentExercisePR
+                ? `${currentExercisePR.weightKg} kg × ${currentExercisePR.reps}`
+                : 'None logged yet';
+              return (
+                <View style={styles.baselineCallout}>
+                  <View style={styles.baselineLeft}>
+                    <Icon name="Trophy" size={14} color={OBSIDIAN_COLORS.voltLime} />
+                    <Text style={styles.baselineLabel}>Best PR:</Text>
+                    <Text style={styles.baselineValue}>{prLabel}</Text>
+                  </View>
+                  <Text style={styles.prBadgeText}>
+                    {currentExercisePR ? `1RM ~${Math.round(currentExercisePR.estimated1RM)}kg` : 'PR CHALLENGE'}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
           {/* Set Intensity / Type Segmented Selector */}

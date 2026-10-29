@@ -3,6 +3,7 @@ import {
   startSession,
   getSession,
   getSessions,
+  getUserPRs,
   addSet,
   finishSession,
   deleteSession,
@@ -16,6 +17,7 @@ import { startSessionSchema, addSetSchema, finishSessionSchema, retroactiveSessi
 const router = Router();
 router.use(requireAuth);
 
+router.get('/prs', getUserPRs);
 router.get('/', getSessions);
 router.post('/', validate(startSessionSchema), startSession);
 router.post('/retroactive', validate(retroactiveSessionSchema), createRetroactiveSession);

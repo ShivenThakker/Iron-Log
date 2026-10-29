@@ -1,9 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { sessionRepository } from '../repositories/session.repository';
+import { prRepository } from '../repositories/pr.repository';
 import { checkAndCreatePR } from '../services/prDetection';
 import { NotFoundError } from '../utils/errors';
 import { eventBus } from '../services/eventBus';
 import { workoutImportService } from '../services/workoutImport.service';
+
+export const getUserPRs = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const prs = await prRepository.getAllPRs(req.user!.id);
+    res.json(prs);
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const startSession = async (req: Request, res: Response, next: NextFunction) => {
   try {
