@@ -300,7 +300,7 @@ export default function HomeDashboard() {
                   android_ripple={{ color: 'rgba(0, 0, 0, 0.2)' }}
                   onPress={() =>
                     router.push({
-                      pathname: '/workout/active',
+                      pathname: '/workout/preview',
                       params: {
                         dayId: todayWorkoutDay?.id || '',
                         workoutName: todayWorkoutTitle,

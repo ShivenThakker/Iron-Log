@@ -84,6 +84,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{ presentation: 'modal', animation: 'fade_from_bottom' }} />
         <Stack.Screen name="register" options={{ presentation: 'modal', animation: 'fade_from_bottom' }} />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="workout/preview" options={{ presentation: 'card', animation: 'slide_from_right' }} />
         <Stack.Screen name="workout/active" options={{ presentation: 'card', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="workout/import" options={{ presentation: 'card', animation: 'slide_from_right' }} />
         <Stack.Screen name="workout/summary" options={{ presentation: 'card', animation: 'slide_from_right' }} />
