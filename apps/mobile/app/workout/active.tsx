@@ -180,8 +180,28 @@ export default function ActiveWorkoutScreen() {
   const handleStopwatchTick = React.useCallback((sec: number) => {
     elapsedSecondsRef.current = sec;
   }, []);
-  const [showRestTimer, setShowRestTimer] = useState(false);
   const [restDuration, setRestDuration] = useState(90);
+  const [restTimerConfig, setRestTimerConfig] = useState<{
+    visible: boolean;
+    mode: 'set' | 'exercise';
+    exerciseIdx: number;
+    setIdx: number;
+    initialSeconds: number;
+    currentExerciseName: string;
+    nextExerciseName?: string;
+    nextExerciseMuscles?: string;
+    currentSetNumber: number;
+    totalSets: number;
+  }>({
+    visible: false,
+    mode: 'set',
+    exerciseIdx: 0,
+    setIdx: 0,
+    initialSeconds: 90,
+    currentExerciseName: '',
+    currentSetNumber: 1,
+    totalSets: 1,
+  });
 
   // Modals
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -482,6 +502,168 @@ export default function ActiveWorkoutScreen() {
     }
   };
 
+  const handleFinishWorkout = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+
+    let totalSets = 0;
+    let totalVolume = 0;
+    exercises.forEach((ex) => {
+      ex.sets.forEach((s) => {
+        if (s.completed) {
+          totalSets += 1;
+          totalVolume += (parseFloat(s.weight) || 0) * (parseInt(s.reps, 10) || 0);
+        }
+      });
+    });
+
+    const completedExercises = exercises
+      .map((ex) => {
+        const completedSets = ex.sets.filter((s) => s.completed);
+        if (completedSets.length === 0) return null;
+        const volumeStr = completedSets.map((s) => `${s.weight}kg × ${s.reps}`).join(' • ');
+        return {
+          name: ex.name,
+          sets: `${completedSets.length} SET${completedSets.length > 1 ? 'S' : ''}`,
+          volume: volumeStr,
+        };
+      })
+      .filter((ex): ex is { name: string; sets: string; volume: string } => ex !== null);
+
+    const finalDuration = Math.max(
+      elapsedSecondsRef.current,
+      Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)
+    );
+
+    try {
+      if (sessionId) {
+        await workoutSync.finishSession(sessionId).catch(() => null);
+      }
+    } finally {
+      router.replace({
+        pathname: '/workout/summary',
+        params: {
+          workoutName: exercises[0]?.name ? `${exercises[0].name} Workout` : 'Workout Session',
+          durationSeconds: String(finalDuration),
+          totalSets: String(totalSets),
+          totalVolumeKg: String(totalVolume),
+          xpEarned: String(50 + (sessionHitPRs.length > 0 || prCelebration.visible ? 25 : 0)),
+          sessionId: sessionId || '',
+          hasPr: sessionHitPRs.length > 0 || prCelebration.visible ? 'true' : 'false',
+          prExercise: sessionHitPRs[sessionHitPRs.length - 1]?.exerciseName || prCelebration.exerciseName,
+          prValue: sessionHitPRs[sessionHitPRs.length - 1]?.value || prCelebration.value,
+          exerciseBreakdown: JSON.stringify(completedExercises),
+        },
+      });
+    }
+  };
+
+  const triggerRestTimer = React.useCallback(
+    (exerciseIdx: number, setIdx: number) => {
+      const ex = exercises[exerciseIdx];
+      if (!ex) return;
+      const isLastSet = setIdx >= ex.sets.length - 1;
+      const hasNextEx = exerciseIdx < exercises.length - 1;
+      const nextEx = hasNextEx ? exercises[exerciseIdx + 1] : null;
+      const duration = ex.restSeconds ?? restDuration ?? 90;
+
+      if (isLastSet && hasNextEx && nextEx) {
+        // Inter-exercise rest timer showing upcoming exercise
+        setRestTimerConfig({
+          visible: true,
+          mode: 'exercise',
+          exerciseIdx,
+          setIdx,
+          initialSeconds: duration,
+          currentExerciseName: ex.name,
+          nextExerciseName: nextEx.name,
+          nextExerciseMuscles: nextEx.targetMuscles,
+          currentSetNumber: setIdx + 1,
+          totalSets: ex.sets.length,
+        });
+      } else if (isLastSet && !hasNextEx) {
+        // Final set of entire workout
+        setRestTimerConfig({
+          visible: true,
+          mode: 'exercise',
+          exerciseIdx,
+          setIdx,
+          initialSeconds: duration,
+          currentExerciseName: ex.name,
+          nextExerciseName: 'Workout Complete! 🏆',
+          nextExerciseMuscles: 'All scheduled exercises finished',
+          currentSetNumber: setIdx + 1,
+          totalSets: ex.sets.length,
+        });
+      } else {
+        // In-between sets rest timer
+        setRestTimerConfig({
+          visible: true,
+          mode: 'set',
+          exerciseIdx,
+          setIdx,
+          initialSeconds: duration,
+          currentExerciseName: ex.name,
+          currentSetNumber: setIdx + 1,
+          totalSets: ex.sets.length,
+        });
+      }
+    },
+    [exercises, restDuration]
+  );
+
+  const handleRestTimerComplete = React.useCallback(
+    (extraSetRequested: boolean) => {
+      const { mode, exerciseIdx, setIdx } = restTimerConfig;
+      setRestTimerConfig((prev) => ({ ...prev, visible: false }));
+
+      if (mode === 'set') {
+        const ex = exercises[exerciseIdx];
+        if (ex && setIdx < ex.sets.length - 1) {
+          setActiveSetIndex(setIdx + 1);
+        }
+      } else {
+        if (extraSetRequested) {
+          // Add extra set to the completed exercise and focus it
+          setExercises((prev) => {
+            const copy = [...prev];
+            const ex = { ...copy[exerciseIdx] };
+            const lastSet = ex.sets[ex.sets.length - 1];
+            const newSetNum = ex.sets.length + 1;
+            const newSet: ActiveSet = {
+              id: `s-${exerciseIdx + 1}-${newSetNum}-${Date.now()}`,
+              setNumber: newSetNum,
+              weight: lastSet ? lastSet.weight : '60',
+              reps: lastSet ? lastSet.reps : '10',
+              setType: 'normal',
+              completed: false,
+              synced: false,
+            };
+            ex.sets = [...ex.sets, newSet];
+            copy[exerciseIdx] = ex;
+            return copy;
+          });
+          setCurrentExerciseIndex(exerciseIdx);
+          const currentExSets = exercises[exerciseIdx]?.sets;
+          setActiveSetIndex(currentExSets ? currentExSets.length : 0);
+        } else {
+          if (exerciseIdx < exercises.length - 1) {
+            setCurrentExerciseIndex(exerciseIdx + 1);
+            setActiveSetIndex(0);
+          } else {
+            handleFinishWorkout();
+          }
+        }
+      }
+    },
+    [restTimerConfig, exercises, handleFinishWorkout]
+  );
+
+  const handleRestTimerClose = React.useCallback(() => {
+    handleRestTimerComplete(false);
+  }, [handleRestTimerComplete]);
+
   const toggleSetComplete = async () => {
     if (!currentSet) return;
     const willBeCompleted = !currentSet.completed;
@@ -540,12 +722,7 @@ export default function ActiveWorkoutScreen() {
         ]);
       } else {
         // Not a PR -> Start Rest Timer INSTANTLY (0ms latency!)
-        setShowRestTimer(true);
-      }
-
-      // Auto advance to next set if available
-      if (activeSetIndex < currentExercise.sets.length - 1) {
-        setActiveSetIndex((prev) => prev + 1);
+        triggerRestTimer(currentExerciseIndex, activeSetIndex);
       }
 
       // Sync to API asynchronously in background without blocking UI
@@ -639,63 +816,6 @@ export default function ActiveWorkoutScreen() {
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex((i) => i + 1);
       setActiveSetIndex(0);
-    }
-  };
-
-  const handleFinishWorkout = async () => {
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
-
-    let totalSets = 0;
-    let totalVolume = 0;
-    exercises.forEach((ex) => {
-      ex.sets.forEach((s) => {
-        if (s.completed) {
-          totalSets += 1;
-          totalVolume += (parseFloat(s.weight) || 0) * (parseInt(s.reps, 10) || 0);
-        }
-      });
-    });
-
-    const completedExercises = exercises
-      .map((ex) => {
-        const completedSets = ex.sets.filter((s) => s.completed);
-        if (completedSets.length === 0) return null;
-        const volumeStr = completedSets.map((s) => `${s.weight}kg × ${s.reps}`).join(' • ');
-        return {
-          name: ex.name,
-          sets: `${completedSets.length} SET${completedSets.length > 1 ? 'S' : ''}`,
-          volume: volumeStr,
-        };
-      })
-      .filter((ex): ex is { name: string; sets: string; volume: string } => ex !== null);
-
-    const finalDuration = Math.max(
-      elapsedSecondsRef.current,
-      Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)
-    );
-
-    try {
-      if (sessionId) {
-        await workoutSync.finishSession(sessionId).catch(() => null);
-      }
-    } finally {
-      router.replace({
-        pathname: '/workout/summary',
-        params: {
-          workoutName: exercises[0]?.name ? `${exercises[0].name} Workout` : 'Workout Session',
-          durationSeconds: String(finalDuration),
-          totalSets: String(totalSets),
-          totalVolumeKg: String(totalVolume),
-          xpEarned: String(50 + (sessionHitPRs.length > 0 || prCelebration.visible ? 25 : 0)),
-          sessionId: sessionId || '',
-          hasPr: sessionHitPRs.length > 0 || prCelebration.visible ? 'true' : 'false',
-          prExercise: sessionHitPRs[sessionHitPRs.length - 1]?.exerciseName || prCelebration.exerciseName,
-          prValue: sessionHitPRs[sessionHitPRs.length - 1]?.value || prCelebration.value,
-          exerciseBreakdown: JSON.stringify(completedExercises),
-        },
-      });
     }
   };
 
@@ -1208,7 +1328,7 @@ export default function ActiveWorkoutScreen() {
             <TouchableOpacity
               style={styles.restDisplayTrigger}
               activeOpacity={0.8}
-              onPress={() => setShowRestTimer(true)}
+              onPress={() => triggerRestTimer(currentExerciseIndex, activeSetIndex)}
             >
               <Icon name="Clock" size={16} color={OBSIDIAN_COLORS.voltLime} />
               <Text style={styles.restDisplayText}>{formatStopwatch(restDuration)}</Text>
@@ -1258,10 +1378,16 @@ export default function ActiveWorkoutScreen() {
 
         {/* Rest Timer Modal */}
         <RestTimerModal
-          visible={showRestTimer}
-          initialSeconds={restDuration}
-          exerciseName={currentExercise.name}
-          onClose={() => setShowRestTimer(false)}
+          visible={restTimerConfig.visible}
+          initialSeconds={restTimerConfig.initialSeconds}
+          mode={restTimerConfig.mode}
+          currentExerciseName={restTimerConfig.currentExerciseName}
+          nextExerciseName={restTimerConfig.nextExerciseName}
+          nextExerciseMuscles={restTimerConfig.nextExerciseMuscles}
+          currentSetNumber={restTimerConfig.currentSetNumber}
+          totalSets={restTimerConfig.totalSets}
+          onClose={handleRestTimerClose}
+          onComplete={handleRestTimerComplete}
         />
 
         {/* PR Celebration Modal */}
@@ -1272,7 +1398,7 @@ export default function ActiveWorkoutScreen() {
           value={prCelebration.value}
           onDismiss={() => {
             setPrCelebration((p) => ({ ...p, visible: false }));
-            setShowRestTimer(true);
+            triggerRestTimer(currentExerciseIndex, activeSetIndex);
           }}
         />
 

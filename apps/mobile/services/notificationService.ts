@@ -62,22 +62,28 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
 export async function scheduleRestTimerNotification(
   seconds: number,
-  exerciseName?: string
+  exerciseName?: string,
+  isNextExercise?: boolean
 ): Promise<string | null> {
   if (Platform.OS === 'web' || seconds <= 0) return null;
   try {
     await setupNotificationChannels();
     const triggerSeconds = Math.max(1, Math.round(seconds));
 
+    let bodyText = "Time for your next set! Let's get back to work! 💪";
+    if (exerciseName) {
+      bodyText = isNextExercise
+        ? `Up next: ${exerciseName}! Ready to crush it? 💪`
+        : `Time for your next set of ${exerciseName}! Let's crush it! 💪`;
+    }
+
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Rest Time Over! ⚡',
-        body: exerciseName
-          ? `Time for your next set of ${exerciseName}! Let's crush it! 💪`
-          : "Time for your next set! Let's get back to work! 💪",
+        body: bodyText,
         sound: 'default',
         vibrate: [0, 300, 200, 300],
-        data: { type: 'rest_timer_complete', exerciseName },
+        data: { type: 'rest_timer_complete', exerciseName, isNextExercise },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
