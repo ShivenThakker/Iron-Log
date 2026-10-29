@@ -1,20 +1,22 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Audio } from 'expo-av';
-import { TIMER_CHIME_BASE64_URI } from './timerChime';
 
 // Configure how notifications appear when app is in foreground/background
 if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-    }),
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+      }),
+    });
+  } catch (err) {
+    console.warn('[NotificationService] setNotificationHandler error:', err);
+  }
 }
 
 let channelInitialized = false;
@@ -110,25 +112,18 @@ export async function cancelRestTimerNotification(id?: string | null): Promise<v
 
 export async function playTimerAlertSound(): Promise<void> {
   try {
-    if (Platform.OS !== 'web') {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-      });
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: TIMER_CHIME_BASE64_URI },
-        { shouldPlay: true, volume: 1.0 }
-      );
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync().catch(() => {});
-        }
-      });
-    }
+    if (Platform.OS === 'web') return;
+    await setupNotificationChannels();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Rest Time Over! ⚡',
+        body: 'Ready to Lift! Time to crush your next set! 💪',
+        sound: 'default',
+        vibrate: [0, 300, 200, 300],
+      },
+      trigger: null,
+    });
   } catch (err) {
-    console.warn('[NotificationService] Audio playback error:', err);
+    console.warn('[NotificationService] Timer alert notification error:', err);
   }
 }
