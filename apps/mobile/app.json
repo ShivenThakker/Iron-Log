@@ -20,6 +20,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "NOTIFICATIONS",
+        "VIBRATE"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "androidNavigationBar": {
@@ -46,7 +50,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

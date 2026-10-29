@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, StyleSheet, Modal, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import {
-  COLORS,
-  RADIUS,
-  SPACING,
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
@@ -12,7 +9,12 @@ import {
 } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { ProgressRing } from '@/components/charts/ProgressRing';
-import { Icon } from '@/components/ui/Icon';
+import {
+  scheduleRestTimerNotification,
+  cancelRestTimerNotification,
+  playTimerAlertSound,
+  requestNotificationPermissions,
+} from '@/services/notificationService';
 
 interface RestTimerModalProps {
   visible: boolean;
@@ -30,30 +32,85 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const [totalSeconds, setTotalSeconds] = useState(initialSeconds);
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
 
+  // Wall-clock target timestamp (ms) to survive background pauses
+  const targetEndTimestampRef = useRef<number>(Date.now() + initialSeconds * 1000);
+  const scheduledNotificationIdRef = useRef<string | null>(null);
+  const alertFiredRef = useRef<boolean>(false);
+
+  const fireCompletionAlert = useCallback(() => {
+    if (alertFiredRef.current) return;
+    alertFiredRef.current = true;
+
+    // Trigger haptics
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+
+    // Play energetic gym chime sound
+    playTimerAlertSound().catch(() => {});
+  }, []);
+
+  const updateRemaining = useCallback(() => {
+    const diffMs = targetEndTimestampRef.current - Date.now();
+    const remaining = Math.max(0, Math.ceil(diffMs / 1000));
+    setSecondsLeft(remaining);
+
+    if (remaining <= 0) {
+      fireCompletionAlert();
+    }
+    return remaining;
+  }, [fireCompletionAlert]);
+
+  // Initialize or reset rest countdown when visible changes
   useEffect(() => {
     if (visible) {
+      const targetTime = Date.now() + initialSeconds * 1000;
+      targetEndTimestampRef.current = targetTime;
       setTotalSeconds(initialSeconds);
       setSecondsLeft(initialSeconds);
-    }
-  }, [visible, initialSeconds]);
+      alertFiredRef.current = false;
 
+      // Ask for notification permission & schedule background notification
+      requestNotificationPermissions().then((granted) => {
+        if (granted) {
+          scheduleRestTimerNotification(initialSeconds, exerciseName).then((id) => {
+            scheduledNotificationIdRef.current = id;
+          });
+        }
+      });
+    } else {
+      if (scheduledNotificationIdRef.current) {
+        cancelRestTimerNotification(scheduledNotificationIdRef.current);
+        scheduledNotificationIdRef.current = null;
+      }
+    }
+  }, [visible, initialSeconds, exerciseName]);
+
+  // Wall-clock interval & AppState listener to keep running even when backgrounded
   useEffect(() => {
     if (!visible) return;
 
-    if (secondsLeft <= 0) {
-      // Trigger haptic alert
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
-      return;
-    }
+    updateRemaining();
 
     const interval = setInterval(() => {
-      setSecondsLeft((s) => s - 1);
-    }, 1000);
+      const remaining = updateRemaining();
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 500);
 
-    return () => clearInterval(interval);
-  }, [visible, secondsLeft]);
+    // When user returns from Spotify/Instagram/YouTube into app recents
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        updateRemaining();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [visible, updateRemaining]);
 
   const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 1;
 
@@ -61,16 +118,43 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const seconds = Math.max(secondsLeft, 0) % 60;
   const timeFormatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
-  const addTime = (delta: number) => {
-    setSecondsLeft((s) => Math.max(s + delta, 0));
-    setTotalSeconds((t) => Math.max(t + delta, 1));
+  const addTime = async (delta: number) => {
+    const currentRemaining = Math.max(0, Math.ceil((targetEndTimestampRef.current - Date.now()) / 1000));
+    const newRemaining = Math.max(0, currentRemaining + delta);
+    targetEndTimestampRef.current = Date.now() + newRemaining * 1000;
+
+    setSecondsLeft(newRemaining);
+    setTotalSeconds((t) => Math.max(t + delta, Math.max(newRemaining, 1)));
+
+    if (newRemaining > 0) {
+      alertFiredRef.current = false;
+    }
+
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
+
+    // Cancel previous notification and reschedule for updated duration
+    if (scheduledNotificationIdRef.current) {
+      await cancelRestTimerNotification(scheduledNotificationIdRef.current);
+      scheduledNotificationIdRef.current = null;
+    }
+    if (newRemaining > 0) {
+      const newId = await scheduleRestTimerNotification(newRemaining, exerciseName);
+      scheduledNotificationIdRef.current = newId;
+    }
+  };
+
+  const handleClose = async () => {
+    if (scheduledNotificationIdRef.current) {
+      await cancelRestTimerNotification(scheduledNotificationIdRef.current);
+      scheduledNotificationIdRef.current = null;
+    }
+    onClose();
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           <Text variant="labelCaps" style={styles.kicker}>REST TIMER</Text>
@@ -114,7 +198,7 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
           {/* Dismiss / Skip Button */}
           <TouchableOpacity
             style={[styles.actionBtn, secondsLeft === 0 && styles.actionBtnDone]}
-            onPress={onClose}
+            onPress={handleClose}
           >
             <Text style={[styles.actionBtnText, secondsLeft === 0 && styles.actionBtnTextDone]}>
               {secondsLeft === 0 ? 'Next Set →' : 'Skip Rest'}

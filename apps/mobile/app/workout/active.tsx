@@ -9,6 +9,8 @@ import {
   Platform,
   Pressable,
   BackHandler,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -32,22 +34,48 @@ const formatStopwatch = (totalSec: number) => {
   return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
 };
 
-const WorkoutStopwatch = React.memo(({ onTick }: { onTick: (seconds: number) => void }) => {
-  const [seconds, setSeconds] = useState(0);
+const WorkoutStopwatch = React.memo(
+  ({
+    startTimestamp,
+    onTick,
+  }: {
+    startTimestamp?: number;
+    onTick: (seconds: number) => void;
+  }) => {
+    const startTimeRef = React.useRef(startTimestamp || Date.now());
+    const [seconds, setSeconds] = useState(() =>
+      Math.max(0, Math.floor((Date.now() - startTimeRef.current) / 1000))
+    );
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSeconds((prev) => {
-        const next = prev + 1;
-        onTick(next);
-        return next;
+    useEffect(() => {
+      const updateElapsed = () => {
+        const elapsed = Math.max(0, Math.floor((Date.now() - startTimeRef.current) / 1000));
+        setSeconds(elapsed);
+        onTick(elapsed);
+        return elapsed;
+      };
+
+      updateElapsed();
+
+      const timer = setInterval(() => {
+        updateElapsed();
+      }, 1000);
+
+      const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+        if (nextAppState === 'active') {
+          updateElapsed();
+        }
       });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [onTick]);
 
-  return <Text style={styles.timerText}>{formatStopwatch(seconds)}</Text>;
-});
+      return () => {
+        clearInterval(timer);
+        subscription.remove();
+      };
+    }, [onTick]);
+
+    return <Text style={styles.timerText}>{formatStopwatch(seconds)}</Text>;
+  }
+);
 
 type SetType = 'normal' | 'warmup' | 'dropset' | 'failure';
 
@@ -147,6 +175,7 @@ export default function ActiveWorkoutScreen() {
   const [activeSetIndex, setActiveSetIndex] = useState(0);
 
   // Timer states
+  const sessionStartTimeRef = React.useRef(Date.now());
   const elapsedSecondsRef = React.useRef(0);
   const handleStopwatchTick = React.useCallback((sec: number) => {
     elapsedSecondsRef.current = sec;
@@ -642,6 +671,11 @@ export default function ActiveWorkoutScreen() {
       })
       .filter((ex): ex is { name: string; sets: string; volume: string } => ex !== null);
 
+    const finalDuration = Math.max(
+      elapsedSecondsRef.current,
+      Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)
+    );
+
     try {
       if (sessionId) {
         await workoutSync.finishSession(sessionId).catch(() => null);
@@ -651,7 +685,7 @@ export default function ActiveWorkoutScreen() {
         pathname: '/workout/summary',
         params: {
           workoutName: exercises[0]?.name ? `${exercises[0].name} Workout` : 'Workout Session',
-          durationSeconds: String(elapsedSecondsRef.current),
+          durationSeconds: String(finalDuration),
           totalSets: String(totalSets),
           totalVolumeKg: String(totalVolume),
           xpEarned: String(50 + (sessionHitPRs.length > 0 || prCelebration.visible ? 25 : 0)),
@@ -701,7 +735,10 @@ export default function ActiveWorkoutScreen() {
 
           <View style={styles.timerBadge}>
             <View style={styles.timerPulseDot} />
-            <WorkoutStopwatch onTick={handleStopwatchTick} />
+            <WorkoutStopwatch
+              startTimestamp={sessionStartTimeRef.current}
+              onTick={handleStopwatchTick}
+            />
           </View>
 
           <TouchableOpacity
