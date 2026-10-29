@@ -19,6 +19,7 @@ import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
 import { RestTimerModal } from '@/components/workout/RestTimerModal';
 import { PRCelebrationModal } from '@/components/workout/PRCelebrationModal';
+import { ExerciseInfoModal } from '@/components/workout/ExerciseInfoModal';
 import {
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
@@ -897,7 +898,7 @@ export default function ActiveWorkoutScreen() {
                 activeOpacity={0.7}
                 onPress={() => setShowInfoModal(true)}
               >
-                <Icon name="DotsThreeVertical" size={20} color={OBSIDIAN_COLORS.textMuted} />
+                <Icon name="Info" size={18} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
               </TouchableOpacity>
             </View>
 
@@ -1402,40 +1403,14 @@ export default function ActiveWorkoutScreen() {
           }}
         />
 
-        {/* Exercise Information Sheet */}
-        <Modal
+        {/* Exercise Information Modal */}
+        <ExerciseInfoModal
           visible={showInfoModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowInfoModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{currentExercise.name}</Text>
-                <TouchableOpacity onPress={() => setShowInfoModal(false)}>
-                  <Icon name="X" size={22} color={OBSIDIAN_COLORS.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalKicker}>TARGET MUSCLES</Text>
-              <Text style={styles.modalBodyText}>{currentExercise.targetMuscles}</Text>
-
-              <Text style={[styles.modalKicker, { marginTop: OBSIDIAN_SPACING.md }]}>
-                FORM INSTRUCTIONS
-              </Text>
-              <Text style={styles.modalInstructions}>{currentExercise.instructions}</Text>
-
-              <TouchableOpacity
-                style={styles.modalActionBtn}
-                activeOpacity={0.85}
-                onPress={() => setShowInfoModal(false)}
-              >
-                <Text style={styles.modalActionBtnText}>Got It, Back to Lifting</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+          exerciseName={currentExercise?.name || ''}
+          targetMuscles={currentExercise?.targetMuscles}
+          instructions={currentExercise?.instructions}
+          onClose={() => setShowInfoModal(false)}
+        />
 
         {/* Discard Workout Confirmation Modal */}
         <Modal
@@ -1603,8 +1578,10 @@ const styles = StyleSheet.create({
   infoBtn: {
     width: 32,
     height: 32,
-    borderRadius: OBSIDIAN_RADIUS.md,
-    backgroundColor: OBSIDIAN_COLORS.surfaceContainer,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: 'rgba(204, 255, 0, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
   },

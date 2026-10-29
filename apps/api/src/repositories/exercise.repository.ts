@@ -87,6 +87,8 @@ function enrichExercise<
     common_mistakes: scraped.common_mistakes || null,
     full_description: scraped.full_description || null,
     thumbnail_url: scraped.youtube_thumbnail || null,
+    youtube_id: scraped.youtube_id || null,
+    youtube_thumbnail: scraped.youtube_thumbnail || null,
     source_url: scraped.url || null,
     primary_muscles_detailed: scraped.primary_muscles || [ex.primary_muscle || 'General'],
     secondary_muscles_detailed:
