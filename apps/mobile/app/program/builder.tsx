@@ -14,7 +14,7 @@ import {
   Animated,
   Pressable,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -91,6 +91,88 @@ interface SplitDay {
   focus_title: string;
   is_rest: boolean;
   exercises: ExerciseItem[];
+}
+
+const DAYS_OF_WEEK = [
+  { code: 'MON', name: 'Monday' },
+  { code: 'TUE', name: 'Tuesday' },
+  { code: 'WED', name: 'Wednesday' },
+  { code: 'THU', name: 'Thursday' },
+  { code: 'FRI', name: 'Friday' },
+  { code: 'SAT', name: 'Saturday' },
+  { code: 'SUN', name: 'Sunday' },
+];
+
+function mapWorkoutDaysToSplitDays(workoutDays: any[]): SplitDay[] {
+  const result: SplitDay[] = DAYS_OF_WEEK.map((template) => ({
+    day_code: template.code,
+    day_name: template.name,
+    focus_title: 'Rest & Recovery',
+    is_rest: true,
+    exercises: [],
+  }));
+
+  const mapExercises = (dbExercises: any[]): ExerciseItem[] => {
+    if (!Array.isArray(dbExercises)) return [];
+    return dbExercises.map((e, idx) => ({
+      id: e.id || `ex-${idx}-${Date.now()}`,
+      exercise_id: e.exercise_id || e.exercise?.id,
+      name: e.exercise?.name || e.exercise_name || `Exercise ${idx + 1}`,
+      target_sets: Number(e.target_sets) || 3,
+      target_reps: String(e.target_reps || '8 - 10'),
+      rest_seconds: Number(e.rest_seconds) || 90,
+      categoryTag: e.exercise?.primary_muscle ? 'HYPERTROPHY' : 'PRIMARY HEAVY',
+      muscleTarget: e.exercise?.primary_muscle || 'Full Body',
+      equipment: e.exercise?.equipment || '',
+    }));
+  };
+
+  const extractFocus = (dayName: string, weekdayName: string): string => {
+    if (!dayName) return 'Workout';
+    if (dayName.includes(' - ')) {
+      const parts = dayName.split(' - ');
+      return parts.slice(1).join(' - ').trim();
+    }
+    const stripped = dayName.replace(new RegExp(weekdayName, 'gi'), '').trim();
+    return stripped.replace(/^[:-]\s*/, '').trim() || 'Workout';
+  };
+
+  let matchedAny = false;
+  workoutDays.forEach((wd) => {
+    const rawName = (wd.day_name || '').toLowerCase();
+    const dayIndex = DAYS_OF_WEEK.findIndex((d) => rawName.includes(d.name.toLowerCase()));
+    if (dayIndex !== -1) {
+      matchedAny = true;
+      const exList = mapExercises(wd.exercises);
+      const isRest = exList.length === 0 || rawName.includes('rest');
+      result[dayIndex] = {
+        day_code: DAYS_OF_WEEK[dayIndex].code,
+        day_name: DAYS_OF_WEEK[dayIndex].name,
+        focus_title: isRest ? 'Rest & Recovery' : extractFocus(wd.day_name, DAYS_OF_WEEK[dayIndex].name),
+        is_rest: isRest,
+        exercises: exList,
+      };
+    }
+  });
+
+  if (!matchedAny) {
+    workoutDays.forEach((wd, idx) => {
+      const targetIdx = wd.sort_order !== undefined && wd.sort_order >= 0 && wd.sort_order < 7 ? wd.sort_order : idx < 7 ? idx : -1;
+      if (targetIdx >= 0 && targetIdx < 7) {
+        const exList = mapExercises(wd.exercises);
+        const isRest = exList.length === 0 || (wd.day_name || '').toLowerCase().includes('rest');
+        result[targetIdx] = {
+          day_code: DAYS_OF_WEEK[targetIdx].code,
+          day_name: DAYS_OF_WEEK[targetIdx].name,
+          focus_title: isRest ? 'Rest & Recovery' : wd.day_name || `Day ${targetIdx + 1}`,
+          is_rest: isRest,
+          exercises: exList,
+        };
+      }
+    });
+  }
+
+  return result;
 }
 
 const INITIAL_SPLIT_DAYS: SplitDay[] = [
@@ -232,13 +314,25 @@ const INITIAL_SPLIT_DAYS: SplitDay[] = [
 
 export default function WorkoutPlanBuilderScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ dayIndex?: string; dayName?: string }>();
   const [activeMode, setActiveMode] = useState<BuilderMode>('split');
   const [loading, setLoading] = useState(false);
+
+  // Initial day index based on params or today's weekday (Mon=0..Sun=6)
+  const getInitialDayIndex = (): number => {
+    if (params.dayIndex !== undefined) {
+      const idx = parseInt(params.dayIndex, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < 7) {
+        return idx;
+      }
+    }
+    return (new Date().getDay() + 6) % 7;
+  };
 
   // Program details
   const [programName, setProgramName] = useState('Hypertrophy 4-Day Split');
   const [splitDays, setSplitDays] = useState<SplitDay[]>(INITIAL_SPLIT_DAYS);
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(getInitialDayIndex);
 
   // Exercise Picker & Details State
   const [exerciseDb, setExerciseDb] = useState<EnrichedExercise[]>([]);
@@ -301,6 +395,48 @@ interface ParsedPlanResult {
     };
     fetchExercises();
   }, []);
+
+  // Fetch active workout program from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchActiveProgram = async () => {
+      try {
+        const res = await api.get('/programs/active').catch(() => null);
+        if (!isMounted || !res?.data) return;
+        const prog = res.data;
+        if (prog.name) {
+          setProgramName(prog.name);
+        }
+        if (Array.isArray(prog.workoutDays) && prog.workoutDays.length > 0) {
+          const mappedSplit = mapWorkoutDaysToSplitDays(prog.workoutDays);
+          setSplitDays(mappedSplit);
+
+          // Select requested day if passed, otherwise default to today
+          if (params.dayIndex !== undefined) {
+            const idx = parseInt(params.dayIndex, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < 7) {
+              setSelectedDayIndex(idx);
+            }
+          } else if (params.dayName) {
+            const matchIdx = mappedSplit.findIndex(
+              (d) =>
+                d.day_name.toLowerCase().includes(params.dayName!.toLowerCase()) ||
+                d.focus_title.toLowerCase().includes(params.dayName!.toLowerCase())
+            );
+            if (matchIdx !== -1) {
+              setSelectedDayIndex(matchIdx);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch active program in builder:', err);
+      }
+    };
+    fetchActiveProgram();
+    return () => {
+      isMounted = false;
+    };
+  }, [params.dayIndex, params.dayName]);
 
   // Pick Image for AI parsing
   const handlePickImage = async () => {
@@ -728,7 +864,7 @@ interface ParsedPlanResult {
     });
   };
 
-  const currentDay = splitDays[selectedDayIndex];
+  const currentDay = splitDays[selectedDayIndex] || splitDays[0];
 
   // Helper to count exercises in each muscle category
   const getMuscleExerciseCount = (catId: string, catName: string) => {
@@ -807,7 +943,7 @@ interface ParsedPlanResult {
             </TouchableOpacity>
             <View>
               <Text style={styles.headerTitle}>Plan Builder</Text>
-              <Text style={styles.headerSubtitle}>Hypertrophy Split</Text>
+              <Text style={styles.headerSubtitle}>{programName || 'Weekly Split'}</Text>
             </View>
           </View>
 

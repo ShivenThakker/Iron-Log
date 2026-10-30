@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
@@ -98,6 +98,13 @@ export default function HomeDashboard() {
       return res?.data ?? null;
     },
   });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchActiveProgram();
+      refetchSessions();
+    }, [refetchActiveProgram, refetchSessions])
+  );
 
   const onRefresh = async () => {
     await Promise.all([
@@ -254,7 +261,24 @@ export default function HomeDashboard() {
                       pressed && { opacity: 0.6 },
                     ]}
                     unstable_pressDelay={0}
-                    onPress={() => router.push('/program/builder')}
+                    onPress={() => {
+                      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                      const todayDayName = daysOfWeek[new Date().getDay()];
+                      const activeDays: WorkoutDayItem[] = activeProgramData?.workoutDays || [];
+                      const foundIdx = activeDays.findIndex((d) =>
+                        d.day_name?.toLowerCase().includes(todayDayName.toLowerCase())
+                      );
+                      const todayWeekdayMon0 = (new Date().getDay() + 6) % 7;
+                      const targetIdx = foundIdx !== -1 ? foundIdx : todayWeekdayMon0;
+
+                      router.push({
+                        pathname: '/program/builder',
+                        params: {
+                          dayIndex: String(targetIdx),
+                          dayName: todayDayName,
+                        },
+                      });
+                    }}
                   >
                     <Text style={styles.editSplitText}>EDIT SPLIT</Text>
                     <Icon name="CaretRight" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
@@ -445,7 +469,15 @@ export default function HomeDashboard() {
               ]}
               unstable_pressDelay={0}
               android_ripple={{ color: 'rgba(255, 255, 255, 0.1)' }}
-              onPress={() => router.push('/program/builder')}
+              onPress={() => {
+                const todayWeekdayMon0 = (new Date().getDay() + 6) % 7;
+                router.push({
+                  pathname: '/program/builder',
+                  params: {
+                    dayIndex: String(todayWeekdayMon0),
+                  },
+                });
+              }}
             >
               <View style={styles.quickIconCircle}>
                 <Icon name="CalendarCheck" size={20} color={OBSIDIAN_COLORS.voltLime} />
@@ -543,7 +575,13 @@ export default function HomeDashboard() {
                     onPress={() =>
                       router.push({
                         pathname: '/workout/summary',
-                        params: { sessionId: session.id },
+                        params: {
+                          sessionId: session.id,
+                          workoutName: title,
+                          durationSeconds: String(session.duration_seconds || 0),
+                          totalSets: String(setsCount),
+                          totalVolumeKg: String(Math.round(volume)),
+                        },
                       })
                     }
                   >

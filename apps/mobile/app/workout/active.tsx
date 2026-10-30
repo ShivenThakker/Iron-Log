@@ -539,7 +539,12 @@ export default function ActiveWorkoutScreen() {
 
     try {
       if (sessionId) {
-        await workoutSync.finishSession(sessionId).catch(() => null);
+        await workoutSync
+          .finishSession(sessionId, {
+            total_volume_kg: totalVolume,
+            duration_sec: finalDuration,
+          })
+          .catch(() => null);
       }
     } finally {
       router.replace({
@@ -828,7 +833,10 @@ export default function ActiveWorkoutScreen() {
     return (
       acc +
       ex.sets.reduce((setAcc, s) => {
-        return setAcc + (parseFloat(s.weight) || 0) * (parseInt(s.reps, 10) || 0);
+        if (!s.completed) return setAcc;
+        const w = parseFloat(s.weight) || 0;
+        const r = parseInt(s.reps, 10) || 0;
+        return setAcc + w * r;
       }, 0)
     );
   }, 0);

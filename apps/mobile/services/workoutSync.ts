@@ -128,11 +128,14 @@ class WorkoutSyncManager {
     this.isSyncing = false;
   }
 
-  async finishSession(sessionId: string): Promise<boolean> {
+  async finishSession(
+    sessionId: string,
+    finishData?: { total_volume_kg?: number; duration_sec?: number; notes?: string }
+  ): Promise<boolean> {
     await this.ensureHydrated();
     await this.flushPendingSets();
     try {
-      await api.put(`/sessions/${sessionId}/finish`);
+      await api.put(`/sessions/${sessionId}/finish`, finishData || {});
       return true;
     } catch {
       return false;

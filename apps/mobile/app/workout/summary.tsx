@@ -35,21 +35,76 @@ export default function PostWorkoutSummary() {
     volume: string;
   }
 
-  const breakdownList: BreakdownItem[] = React.useMemo(() => {
-    if (!params.exerciseBreakdown) return [];
-    try {
-      const parsed = JSON.parse(params.exerciseBreakdown);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }, [params.exerciseBreakdown]);
+  // Fetch session details if navigated with sessionId (e.g. from history card)
+  const { data: sessionData } = useQuery({
+    queryKey: ['sessionDetail', params.sessionId],
+    queryFn: async () => {
+      if (!params.sessionId) return null;
+      const res = await api.get(`/sessions/${params.sessionId}`).catch(() => null);
+      return res?.data ?? null;
+    },
+    enabled: Boolean(params.sessionId),
+  });
 
-  const workoutName = params.workoutName || 'Workout Session';
-  const durationSec = parseInt(params.durationSeconds || '0', 10);
-  const durationMins = Math.max(1, Math.round(durationSec / 60));
-  const totalSets = params.totalSets || '0';
-  const totalVolumeNum = params.totalVolumeKg ? Math.round(parseFloat(params.totalVolumeKg)) : 0;
+  const breakdownList: BreakdownItem[] = React.useMemo(() => {
+    if (params.exerciseBreakdown) {
+      try {
+        const parsed = JSON.parse(params.exerciseBreakdown);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    if (sessionData?.exerciseSets && Array.isArray(sessionData.exerciseSets)) {
+      const groups: Record<string, any[]> = {};
+      sessionData.exerciseSets.forEach((s: any) => {
+        const exName = s.exercise?.name || 'Exercise';
+        if (!groups[exName]) groups[exName] = [];
+        groups[exName].push(s);
+      });
+      return Object.entries(groups).map(([name, sets]) => ({
+        name,
+        sets: `${sets.length} SET${sets.length > 1 ? 'S' : ''}`,
+        volume: sets.map((s) => `${s.weight_kg ?? 0}kg × ${s.reps ?? 0}`).join(' • '),
+      }));
+    }
+    return [];
+  }, [params.exerciseBreakdown, sessionData]);
+
+  const workoutName =
+    params.workoutName ||
+    sessionData?.notes ||
+    (sessionData?.exerciseSets?.[0]?.exercise?.name ? `${sessionData.exerciseSets[0].exercise.name} Focus` : 'Workout Session');
+
+  const durationMins = React.useMemo(() => {
+    if (params.durationSeconds) {
+      const sec = parseInt(params.durationSeconds, 10);
+      return Math.max(1, Math.round(sec / 60));
+    }
+    if (sessionData?.duration_seconds) {
+      return Math.max(1, Math.round(sessionData.duration_seconds / 60));
+    }
+    return 1;
+  }, [params.durationSeconds, sessionData]);
+
+  const totalSets =
+    params.totalSets ||
+    (sessionData?.exerciseSets?.length ? String(sessionData.exerciseSets.length) : '0');
+
+  const totalVolumeNum = React.useMemo(() => {
+    if (params.totalVolumeKg) {
+      return Math.round(parseFloat(params.totalVolumeKg));
+    }
+    if (sessionData?.exerciseSets && Array.isArray(sessionData.exerciseSets)) {
+      return Math.round(
+        sessionData.exerciseSets.reduce((sum: number, s: any) => {
+          const w = parseFloat(s.weight_kg) || 0;
+          const r = parseInt(s.reps, 10) || 0;
+          return sum + w * r;
+        }, 0)
+      );
+    }
+    return 0;
+  }, [params.totalVolumeKg, sessionData]);
+
   const xpEarned = params.xpEarned || '50';
 
   // Gamification query to show real streak and rank progress

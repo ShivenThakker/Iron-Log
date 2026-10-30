@@ -39,6 +39,7 @@ export class AnalyticsRepository {
           JOIN "WorkoutSession" ws ON es.session_id = ws.id
           WHERE ws.user_id = ${userId}
             AND ws.started_at >= ${sinceDate}
+            AND ws.finished_at IS NOT NULL
             AND es.set_type != 'warmup'
             AND es.weight_kg IS NOT NULL
             AND es.reps IS NOT NULL
@@ -48,6 +49,7 @@ export class AnalyticsRepository {
           FROM "ExerciseSet" es
           JOIN "WorkoutSession" ws ON es.session_id = ws.id
           WHERE ws.user_id = ${userId}
+            AND ws.finished_at IS NOT NULL
             AND es.set_type != 'warmup'
             AND es.weight_kg IS NOT NULL
             AND es.reps IS NOT NULL
@@ -88,6 +90,8 @@ export class AnalyticsRepository {
           JOIN "WorkoutSession" ws ON es.session_id = ws.id
           WHERE ws.user_id = ${userId}
             AND ws.started_at >= ${sinceDate}
+            AND ws.finished_at IS NOT NULL
+            AND es.set_type != 'warmup'
             AND e.primary_muscle IS NOT NULL
           GROUP BY e.primary_muscle
         `
@@ -102,6 +106,8 @@ export class AnalyticsRepository {
           JOIN "Exercise" e ON es.exercise_id = e.id
           JOIN "WorkoutSession" ws ON es.session_id = ws.id
           WHERE ws.user_id = ${userId}
+            AND ws.finished_at IS NOT NULL
+            AND es.set_type != 'warmup'
             AND e.primary_muscle IS NOT NULL
           GROUP BY e.primary_muscle
         `;
@@ -223,6 +229,7 @@ export class AnalyticsRepository {
           select: {
             weight_kg: true,
             reps: true,
+            set_type: true,
           },
         },
       },
@@ -240,6 +247,7 @@ export class AnalyticsRepository {
       days[dateStr].duration_min += Math.round((s.duration_seconds || 0) / 60);
 
       const sessionVolume = s.exerciseSets.reduce((sum, set) => {
+        if (set.set_type === 'warmup') return sum;
         return sum + (set.weight_kg || 0) * (set.reps || 0);
       }, 0);
       days[dateStr].volume_kg += Math.round(sessionVolume);
