@@ -580,13 +580,16 @@ interface ParsedPlanResult {
           sort_order: dIdx,
           exercises: d.is_rest
             ? []
-            : d.exercises.map((ex, eIdx) => ({
-                exercise_name: ex.name,
-                target_sets: Math.max(1, parseInt(String(ex.target_sets), 10) || 1),
-                target_reps: String(ex.target_reps || '8-12').trim() || '8-12',
-                rest_seconds: Math.max(15, parseInt(String(ex.rest_seconds), 10) || 90),
-                sort_order: eIdx,
-              })),
+            : d.exercises
+                .filter((ex) => Boolean(ex.name && ex.name.trim()))
+                .map((ex, eIdx) => ({
+                  exercise_id: ex.exercise_id,
+                  exercise_name: ex.name.trim(),
+                  target_sets: Math.max(1, parseInt(String(ex.target_sets), 10) || 1),
+                  target_reps: String(ex.target_reps || '8-12').trim() || '8-12',
+                  rest_seconds: Math.max(15, parseInt(String(ex.rest_seconds), 10) || 90),
+                  sort_order: eIdx,
+                })),
         })),
       });
 

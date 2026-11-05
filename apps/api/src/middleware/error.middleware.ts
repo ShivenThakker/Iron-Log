@@ -43,6 +43,13 @@ export const errorHandler = (
     return;
   }
 
+  if (code === 'P2028') {
+    res.status(504).json({
+      error: 'Database operation timed out. Please try again.',
+    });
+    return;
+  }
+
   const resolvedStatus = status || statusCode || 500;
   res.status(resolvedStatus).json({
     error: process.env.NODE_ENV === 'production' ? 'Internal server error' : message,

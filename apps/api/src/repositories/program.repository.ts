@@ -203,64 +203,113 @@ export class ProgramRepository {
   async createFullProgram(userId: string, data: CreateFullProgramInput) {
     const shouldActivate = data.is_active !== false;
 
-    const program = await prisma.$transaction(async (tx) => {
-      if (shouldActivate) {
-        await tx.workoutProgram.updateMany({
-          where: { user_id: userId },
-          data: { is_active: false },
-        });
-      }
+    // Pre-resolve all exercise IDs before starting transaction to eliminate N+1 latency & timeout
+    const exerciseIdMap = new Map<string, string>(); // lowercase name -> exerciseId
+    const exerciseNamesToResolve = new Set<string>();
 
-      const prog = await tx.workoutProgram.create({
-        data: {
-          user_id: userId,
-          name: data.name || 'Custom Workout Plan',
-          difficulty: data.difficulty || 'intermediate',
-          goal: data.goal || 'hypertrophy',
-          schedule_days_per_week: data.schedule_days_per_week || (data.days?.length || 3),
-          is_active: shouldActivate,
-          is_ai_generated: Boolean(data.is_ai_generated),
-        },
-      });
-
-      if (data.days && data.days.length > 0) {
-        for (let dayIdx = 0; dayIdx < data.days.length; dayIdx++) {
-          const day = data.days[dayIdx];
-          const createdDay = await tx.workoutDay.create({
-            data: {
-              program_id: prog.id,
-              day_name: day.day_name || `Day ${dayIdx + 1}`,
-              sort_order: day.sort_order ?? dayIdx,
-            },
-          });
-
-          if (day.exercises && day.exercises.length > 0) {
-            for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
-              const ex = day.exercises[exIdx];
-              let exerciseId = ex.exercise_id;
-              if (!exerciseId && ex.exercise_name) {
-                exerciseId = await this.resolveOrCreateExercise(userId, ex.exercise_name, tx);
+    if (data.days) {
+      for (const day of data.days) {
+        if (day.exercises) {
+          for (const ex of day.exercises) {
+            if (ex.exercise_id) {
+              if (ex.exercise_name) {
+                exerciseIdMap.set(ex.exercise_name.trim().toLowerCase(), ex.exercise_id);
               }
+            } else if (ex.exercise_name?.trim()) {
+              exerciseNamesToResolve.add(ex.exercise_name.trim());
+            }
+          }
+        }
+      }
+    }
 
-              if (exerciseId) {
-                await tx.workoutDayExercise.create({
-                  data: {
+    for (const name of exerciseNamesToResolve) {
+      const lower = name.toLowerCase();
+      if (!exerciseIdMap.has(lower)) {
+        try {
+          const resolvedId = await this.resolveOrCreateExercise(userId, name);
+          exerciseIdMap.set(lower, resolvedId);
+        } catch {
+          // Will be handled in transaction if pre-resolution fails
+        }
+      }
+    }
+
+    const program = await prisma.$transaction(
+      async (tx) => {
+        if (shouldActivate) {
+          await tx.workoutProgram.updateMany({
+            where: { user_id: userId },
+            data: { is_active: false },
+          });
+        }
+
+        const prog = await tx.workoutProgram.create({
+          data: {
+            user_id: userId,
+            name: data.name || 'Custom Workout Plan',
+            difficulty: data.difficulty || 'intermediate',
+            goal: data.goal || 'hypertrophy',
+            schedule_days_per_week: data.schedule_days_per_week || (data.days?.length || 3),
+            is_active: shouldActivate,
+            is_ai_generated: Boolean(data.is_ai_generated),
+          },
+        });
+
+        if (data.days && data.days.length > 0) {
+          for (let dayIdx = 0; dayIdx < data.days.length; dayIdx++) {
+            const day = data.days[dayIdx];
+            const createdDay = await tx.workoutDay.create({
+              data: {
+                program_id: prog.id,
+                day_name: day.day_name || `Day ${dayIdx + 1}`,
+                sort_order: day.sort_order ?? dayIdx,
+              },
+            });
+
+            if (day.exercises && day.exercises.length > 0) {
+              const exercisesToInsert: Prisma.WorkoutDayExerciseCreateManyInput[] = [];
+
+              for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
+                const ex = day.exercises[exIdx];
+                const trimmedName = ex.exercise_name?.trim() || '';
+                let exerciseId =
+                  ex.exercise_id ||
+                  (trimmedName ? exerciseIdMap.get(trimmedName.toLowerCase()) : undefined);
+
+                if (!exerciseId && trimmedName) {
+                  exerciseId = await this.resolveOrCreateExercise(userId, trimmedName, tx);
+                  exerciseIdMap.set(trimmedName.toLowerCase(), exerciseId);
+                }
+
+                if (exerciseId) {
+                  exercisesToInsert.push({
                     workout_day_id: createdDay.id,
                     exercise_id: exerciseId,
                     target_sets: ex.target_sets ?? 3,
                     target_reps: String(ex.target_reps ?? '8-12'),
                     rest_seconds: ex.rest_seconds ?? 90,
                     sort_order: ex.sort_order ?? exIdx,
-                  },
+                  });
+                }
+              }
+
+              if (exercisesToInsert.length > 0) {
+                await tx.workoutDayExercise.createMany({
+                  data: exercisesToInsert,
                 });
               }
             }
           }
         }
-      }
 
-      return prog;
-    });
+        return prog;
+      },
+      {
+        maxWait: 10000,
+        timeout: 30000,
+      }
+    );
 
     return this.findById(program.id, userId);
   }
