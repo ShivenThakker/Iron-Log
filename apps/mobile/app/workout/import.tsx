@@ -23,6 +23,7 @@ import {
 } from '@/constants/tokens';
 import { DatePickerCalendar } from '@/components/ui/DatePickerCalendar';
 import { api, getCachedExercises } from '@/services/api';
+import { searchExercises } from '@/utils/exerciseSearch';
 
 type ImportMode = 'manual' | 'spreadsheet';
 type SetType = 'normal' | 'warmup' | 'dropset' | 'drop' | 'failure';
@@ -349,8 +350,16 @@ export default function HistoricalWorkoutImportScreen() {
     }
   };
 
-  // Filtered exercises for picker modal (with deduplication safeguard)
+  // Filtered exercises for picker modal (with relevance search and deduplication)
   const filteredExercises = React.useMemo(() => {
+    if (searchQuery.trim().length > 0) {
+      return searchExercises(
+        exerciseDb,
+        searchQuery,
+        selectedMuscleFilter === 'All' ? null : selectedMuscleFilter
+      );
+    }
+
     const seen = new Set<string>();
     return exerciseDb.filter((ex) => {
       const key = ex.name.trim().toLowerCase();
@@ -358,11 +367,7 @@ export default function HistoricalWorkoutImportScreen() {
       const matchesCategory =
         selectedMuscleFilter === 'All' ||
         ex.primary_muscle.toLowerCase() === selectedMuscleFilter.toLowerCase();
-      const matchesSearch =
-        !searchQuery.trim() ||
-        ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ex.primary_muscle.toLowerCase().includes(searchQuery.toLowerCase());
-      if (matchesCategory && matchesSearch) {
+      if (matchesCategory) {
         seen.add(key);
         return true;
       }

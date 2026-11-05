@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { searchExercises } from '../utils/exerciseSearch';
 import fs from 'fs';
 import path from 'path';
 
@@ -26,9 +27,14 @@ interface ScrapedExercise {
   youtube_thumbnail?: string;
   full_description?: string;
   equipment?: string;
+  standardized_primary_muscle?: string;
+  standardized_secondary_muscles?: string[];
+  exercise_type?: string;
+  default_duration_seconds?: number | null;
 }
 
 const scrapedExerciseMap = new Map<string, ScrapedExercise>();
+const scrapedExerciseList: ScrapedExercise[] = [];
 
 try {
   const possiblePaths = [
@@ -42,6 +48,7 @@ try {
     const raw = fs.readFileSync(foundPath, 'utf-8');
     const list: ScrapedExercise[] = JSON.parse(raw);
     for (const item of list) {
+      scrapedExerciseList.push(item);
       if (item.name) {
         scrapedExerciseMap.set(item.name.toLowerCase().trim(), item);
       }
@@ -105,72 +112,81 @@ async function getStandardExercises() {
   if (cachedStandardExercises && now - lastStandardExerciseFetch < EXERCISE_CACHE_TTL) {
     return cachedStandardExercises;
   }
-  const dbExercises = await prisma.exercise.findMany({
-    where: { is_custom: false },
-    orderBy: { name: 'asc' },
-  });
-  cachedStandardExercises = dbExercises.map((ex) => enrichExercise(ex));
+
+  let dbExercises: any[] = [];
+  try {
+    dbExercises = await prisma.exercise.findMany({
+      where: { is_custom: false },
+      orderBy: { name: 'asc' },
+    });
+  } catch (err) {
+    console.warn('Could not query prisma.exercise, falling back to scraped exercises:', err);
+  }
+
+  const enrichedDb = dbExercises.map((ex) => enrichExercise(ex));
+  const seen = new Set<string>();
+  const combined: any[] = [];
+
+  for (const ex of enrichedDb) {
+    const key = ex.name.trim().toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      combined.push(ex);
+    }
+  }
+
+  for (const scraped of scrapedExerciseList) {
+    if (!scraped.name) continue;
+    const key = scraped.name.trim().toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      combined.push({
+        ...scraped,
+        id: scraped.id || scraped.slug || `scraped-${scraped.name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: scraped.name,
+        primary_muscle: scraped.standardized_primary_muscle || scraped.primary_muscles?.[0] || 'Chest',
+        secondary_muscles: JSON.stringify(scraped.standardized_secondary_muscles || scraped.secondary_muscles || []),
+        equipment: scraped.equipment || 'Bodyweight',
+        exercise_type: scraped.exercise_type || 'reps',
+        is_custom: false,
+      });
+    }
+  }
+
+  cachedStandardExercises = combined;
   lastStandardExerciseFetch = now;
   return cachedStandardExercises;
 }
 
 export class ExerciseRepository {
   async findAll(userId?: string, query?: string) {
-    if (!query && !userId) {
-      return getStandardExercises();
-    }
+    const [standards, custom] = await Promise.all([
+      getStandardExercises(),
+      userId
+        ? prisma.exercise.findMany({
+            where: { is_custom: true, created_by_user_id: userId },
+            orderBy: { name: 'asc' },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    if (!query && userId) {
-      const [standards, custom] = await Promise.all([
-        getStandardExercises(),
-        prisma.exercise.findMany({
-          where: { is_custom: true, created_by_user_id: userId },
-          orderBy: { name: 'asc' },
-        }),
-      ]);
-      const enrichedCustom = custom.map((ex) => enrichExercise(ex));
+    const enrichedCustom = custom.map((ex) => enrichExercise(ex));
+    const combined = [...standards, ...enrichedCustom];
+
+    if (!query || !query.trim()) {
       const seen = new Set<string>();
-      const combined: any[] = [];
-      for (const ex of [...standards, ...enrichedCustom]) {
+      const deduplicated: any[] = [];
+      for (const ex of combined) {
         const key = ex.name.trim().toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
-          combined.push(ex);
+          deduplicated.push(ex);
         }
       }
-      return combined.sort((a, b) => a.name.localeCompare(b.name));
+      return deduplicated.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    const ownershipFilter: Prisma.ExerciseWhereInput = userId
-      ? {
-          OR: [
-            { is_custom: false },
-            { created_by_user_id: userId },
-          ],
-        }
-      : { is_custom: false };
-
-    const results = await prisma.exercise.findMany({
-      where: {
-        AND: [
-          { name: { contains: query, mode: 'insensitive' } },
-          ownershipFilter,
-        ],
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    const seen = new Set<string>();
-    const deduplicatedResults: any[] = [];
-    for (const ex of results) {
-      const key = ex.name.trim().toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduplicatedResults.push(enrichExercise(ex));
-      }
-    }
-
-    return deduplicatedResults;
+    return searchExercises(combined, query);
   }
 
   async findById(id: string, userId?: string) {

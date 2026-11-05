@@ -16297,5 +16297,101 @@
     "equipment": "Barbell",
     "exercise_type": "reps",
     "default_duration_seconds": null
+  },
+  {
+    "id": "cable-bench-press",
+    "slug": "cable-bench-press",
+    "name": "Cable Bench Press",
+    "url": "https://chunkitup.com/exercises/cable-bench-press",
+    "index_description": "Unrack the bar and position it over chest. Lower bar to chest with control, touching lightly at nipple line. Press bar back up to starting position, maintaining tight core and leg drive.",
+    "index_targets": [
+      "pectoralis major",
+      "deltoid anterior head"
+    ],
+    "index_tags": [
+      "Intermediate",
+      "Chest"
+    ],
+    "difficulty": "Intermediate",
+    "category": "Chest",
+    "mechanics": "Compound",
+    "movement_pattern": "Horizontal Push",
+    "force": "Push",
+    "primary_muscles": [
+      "Pectoralis Major",
+      "Deltoid Anterior Head",
+      "Triceps Brachii Lateral Long"
+    ],
+    "secondary_muscles": [
+      "Deltoid Head",
+      "Triceps Brachii Medial"
+    ],
+    "stabilizers": [
+      "Serratus Anterior",
+      "Trapezius",
+      "Rectus Abdominis"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "name": "Set up",
+        "text": "Lie flat on bench with eyes under the bar. Plant feet firmly on floor. Grip bar with hands slightly wider than shoulder-width. Retract shoulder blades and maintain arch in lower back."
+      },
+      {
+        "step": 2,
+        "name": "Create a stable start",
+        "text": "Set the bench and feet firmly, bring the dumbbell or dumbbells into position, and brace before pressing."
+      },
+      {
+        "step": 3,
+        "name": "Perform the movement",
+        "text": "Unrack the bar and position it over chest. Lower bar to chest with control, touching lightly at nipple line. Press bar back up to starting position, maintaining tight core and leg drive."
+      },
+      {
+        "step": 4,
+        "name": "Finish with control",
+        "text": "Stack the weight over the shoulder without forcefully clashing the dumbbells or losing rib position."
+      }
+    ],
+    "instructions": "1. Position a flat bench in the center of dual cable pulleys set to chest height.\n2. Grasp handles, lie back with feet firmly planted, and press handles outward and together with control.\n3. Slowly return under tension and repeat.",
+    "coaching_cues": [
+      "Feet heavy",
+      "Wrists stacked",
+      "Control the bottom",
+      "Press up and slightly inward"
+    ],
+    "common_mistakes": [
+      "Using an unstable foot position",
+      "Dropping too quickly into the bottom",
+      "Flaring the elbows beyond a comfortable path",
+      "Turning the press into a whole-body heave"
+    ],
+    "easier_variations": [
+      "Floor press",
+      "Lighter bilateral dumbbell press",
+      "Machine chest press"
+    ],
+    "harder_variations": [
+      "Longer pauses",
+      "Heavier dumbbells",
+      "Single-arm press",
+      "More demanding bench angle"
+    ],
+    "programming": {
+      "Strength": "Use 3-5 sets of controlled, challenging work and stop before technique changes.",
+      "Muscle and work capacity": "Use 2-4 sets in a repeatable range, adding reps before adding load or difficulty.",
+      "Skill and control": "Practice low-fatigue sets early in the session with full rest between attempts."
+    },
+    "youtube_id": "xUm0BiZCWlQ",
+    "youtube_thumbnail": "https://img.youtube.com/vi/xUm0BiZCWlQ/maxresdefault.jpg",
+    "full_description": "Cable Bench Press provides constant tension across the chest throughout the entire pressing range of motion using dual cable pulleys and a flat bench.",
+    "standardized_primary_muscle": "Chest",
+    "standardized_secondary_muscles": [
+      "Shoulders",
+      "Triceps"
+    ],
+    "equipment": "Cable",
+    "exercise_type": "reps",
+    "default_duration_seconds": null
   }
 ]

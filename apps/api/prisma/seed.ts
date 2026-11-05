@@ -6,6 +6,9 @@ const customExercises = [
   // Chest
   { name: 'Flat Dumbbell Press', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Dumbbell', exercise_type: 'reps' },
   { name: 'Bench Press', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Barbell', exercise_type: 'reps' },
+  { name: 'Cable Bench Press', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Cable', exercise_type: 'reps' },
+  { name: 'Cable Chest Press', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Cable', exercise_type: 'reps' },
+  { name: 'Push-Up', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Bodyweight', exercise_type: 'reps' },
   { name: 'Incline Chest Press Machine', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Machine', exercise_type: 'reps' },
   { name: 'Incline Bench Press', primary_muscle: 'Chest', secondary_muscles: ['Triceps', 'Shoulders'], equipment: 'Barbell', exercise_type: 'reps' },
   { name: 'Pec Deck Fly', primary_muscle: 'Chest', secondary_muscles: [], equipment: 'Machine', exercise_type: 'reps' },

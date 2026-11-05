@@ -27,6 +27,7 @@ import {
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { api, getCachedExercises } from '@/services/api';
+import { searchExercises } from '@/utils/exerciseSearch';
 
 type BuilderMode = 'split' | 'ai_import';
 
@@ -989,6 +990,11 @@ interface ParsedPlanResult {
 
   // Filtered exercises according to selected muscle category and search text
   const displayedExercises = React.useMemo(() => {
+    if (searchQuery.trim().length > 0) {
+      // Global relevance-based search across all exercises
+      return searchExercises(exerciseDb, searchQuery, selectedMuscleCategory);
+    }
+
     let list = exerciseDb;
     if (selectedMuscleCategory && selectedMuscleCategory !== 'All Exercises') {
       const target = selectedMuscleCategory.toLowerCase();
@@ -1007,16 +1013,6 @@ interface ParsedPlanResult {
         if (target.includes('calf') || target.includes('calve')) return pm.includes('calv') || pm.includes('calf');
         return pm.includes(target);
       });
-    }
-
-    if (searchQuery.trim().length > 0) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          (e.equipment && e.equipment.toLowerCase().includes(q)) ||
-          (e.primary_muscle && e.primary_muscle.toLowerCase().includes(q))
-      );
     }
 
     const seen = new Set<string>();
@@ -1683,7 +1679,7 @@ interface ParsedPlanResult {
                     </TouchableOpacity>
 
                     <Text style={styles.modalTitle} numberOfLines={1}>
-                      {selectedMuscleCategory}
+                      {searchQuery.trim().length > 0 ? 'Search Results' : (selectedMuscleCategory || 'All Exercises')}
                     </Text>
 
                     <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)}>
@@ -1693,7 +1689,7 @@ interface ParsedPlanResult {
 
                   <TextInput
                     style={styles.modalSearchInput}
-                    placeholder={`Search in ${selectedMuscleCategory}...`}
+                    placeholder="Search across all exercises (e.g. pushup, bench)..."
                     placeholderTextColor={OBSIDIAN_COLORS.textMuted}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
