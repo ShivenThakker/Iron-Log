@@ -708,61 +708,10 @@ interface ParsedPlanResult {
     }
   };
 
-  const openReorderMenu = (index: number) => {
-    const day = splitDays[selectedDayIndex];
-    if (!day || day.exercises.length <= 1) return;
-    const total = day.exercises.length;
-    const exName = day.exercises[index]?.name || 'Exercise';
-
-    Alert.alert(
-      'Reorder Exercise',
-      `Rearrange "${exName}"`,
-      [
-        ...(index > 0
-          ? [
-              {
-                text: 'Move Up (▲)',
-                onPress: () => handleMoveExercise(index, index - 1),
-              },
-            ]
-          : []),
-        ...(index < total - 1
-          ? [
-              {
-                text: 'Move Down (▼)',
-                onPress: () => handleMoveExercise(index, index + 1),
-              },
-            ]
-          : []),
-        ...(index > 0
-          ? [
-              {
-                text: 'Move to Top',
-                onPress: () => handleMoveExercise(index, 0),
-              },
-            ]
-          : []),
-        ...(index < total - 1
-          ? [
-              {
-                text: 'Move to Bottom',
-                onPress: () => handleMoveExercise(index, total - 1),
-              },
-            ]
-          : []),
-        {
-          text: 'Cancel',
-          style: 'cancel' as const,
-        },
-      ]
-    );
-  };
-
   const latestStateRef = useRef({
     splitDays,
     selectedDayIndex,
     handleMoveExercise,
-    openReorderMenu,
   });
 
   useEffect(() => {
@@ -770,7 +719,6 @@ interface ParsedPlanResult {
       splitDays,
       selectedDayIndex,
       handleMoveExercise,
-      openReorderMenu,
     };
   });
 
@@ -821,9 +769,9 @@ interface ParsedPlanResult {
           const isTap = Math.abs(g.dy) < 5 && Math.abs(g.dx) < 5;
 
           if (isTap) {
+            panY.setValue(0);
             setDraggingIndex(null);
             setDragOverIndex(null);
-            latestStateRef.current.openReorderMenu(start);
             return;
           }
 
@@ -1210,56 +1158,8 @@ interface ParsedPlanResult {
                             </View>
                           </View>
 
-                          {/* Exercise Actions: Reorder Arrows, 6-Dot Drag Handle & Delete */}
+                          {/* Exercise Actions: 6-Dot Drag Handle & Delete */}
                           <View style={styles.exerciseActionCluster}>
-                            {currentDay.exercises.length > 1 && (
-                              <View style={styles.reorderArrowsCol}>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.miniArrowBtn,
-                                    exIdx === 0 && styles.miniArrowDisabled,
-                                  ]}
-                                  disabled={exIdx === 0}
-                                  onPress={() => handleMoveExercise(exIdx, exIdx - 1)}
-                                  activeOpacity={0.6}
-                                  hitSlop={{ top: 6, bottom: 3, left: 6, right: 6 }}
-                                  accessibilityLabel="Move exercise up"
-                                >
-                                  <Icon
-                                    name="CaretUp"
-                                    size={12}
-                                    color={
-                                      exIdx === 0
-                                        ? 'rgba(255, 255, 255, 0.15)'
-                                        : OBSIDIAN_COLORS.textMuted
-                                    }
-                                  />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.miniArrowBtn,
-                                    exIdx === currentDay.exercises.length - 1 &&
-                                      styles.miniArrowDisabled,
-                                  ]}
-                                  disabled={exIdx === currentDay.exercises.length - 1}
-                                  onPress={() => handleMoveExercise(exIdx, exIdx + 1)}
-                                  activeOpacity={0.6}
-                                  hitSlop={{ top: 3, bottom: 6, left: 6, right: 6 }}
-                                  accessibilityLabel="Move exercise down"
-                                >
-                                  <Icon
-                                    name="CaretDown"
-                                    size={12}
-                                    color={
-                                      exIdx === currentDay.exercises.length - 1
-                                        ? 'rgba(255, 255, 255, 0.15)'
-                                        : OBSIDIAN_COLORS.textMuted
-                                    }
-                                  />
-                                </TouchableOpacity>
-                              </View>
-                            )}
-
                             {/* 6-Dot Drag Handle */}
                             <View
                               {...getPanResponder(exIdx).panHandlers}
@@ -1271,7 +1171,7 @@ interface ParsedPlanResult {
                                     cursor: isBeingDragged ? 'grabbing' : 'grab',
                                   } as any),
                               ]}
-                              accessibilityLabel="Drag to reorder exercise or tap for options"
+                              accessibilityLabel="Hold and drag to reorder exercise"
                               accessibilityRole="button"
                             >
                               <Icon
@@ -2277,20 +2177,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  reorderArrowsCol: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    paddingVertical: 1,
-  },
-  miniArrowBtn: {
-    padding: 2,
-    borderRadius: 3,
-  },
-  miniArrowDisabled: {
-    opacity: 0.35,
   },
   dragHandleBtn: {
     paddingHorizontal: 5,
