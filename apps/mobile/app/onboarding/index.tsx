@@ -21,6 +21,7 @@ import {
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { SplitInfoModal } from '@/components/onboarding/SplitInfoModal';
 
 const TOTAL_STEPS = 4;
 
@@ -133,6 +134,9 @@ export default function OnboardingWizard() {
   // Step 4: Smart Progression
   const [smartProgression, setSmartProgression] = useState(true);
 
+  // Split Information Guide Modal
+  const [showSplitModal, setShowSplitModal] = useState(false);
+
   const toggleEquipment = (item: string) => {
     setSelectedEquipment((prev) =>
       prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
@@ -225,16 +229,21 @@ export default function OnboardingWizard() {
           .catch(() => null);
       }
 
-      // 4. Request initial AI workout plan generation in background
-      api
+      // 4. Generate and save initial personalized workout plan
+      await api
         .post('/ai/generate-plan', {
           fitness_goal: primaryGoal,
           experience_level: experience,
           days_per_week: frequency,
           equipment: selectedEquipment,
           split_preference: splitPref,
+          focus_areas: focusMuscles,
+          injuries: selectedJointCaution !== 'None' ? selectedJointCaution : undefined,
         })
-        .catch(() => null);
+        .catch((err) => {
+          console.warn('Initial plan generation warning:', err);
+          return null;
+        });
 
       router.replace('/(tabs)');
     } catch {
@@ -736,7 +745,24 @@ export default function OnboardingWizard() {
               {/* Preferred Split */}
               <View style={styles.fieldCard}>
                 <View style={styles.sectionHeaderLine}>
-                  <Text style={styles.fieldLabel}>PREFERRED SPLIT</Text>
+                  <View style={styles.splitHeaderTitleWrap}>
+                    <Text style={styles.fieldLabel}>PREFERRED SPLIT</Text>
+                    <TouchableOpacity
+                      style={styles.splitInfoIconBtn}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        if (Platform.OS !== 'web') {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        }
+                        setShowSplitModal(true);
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Open training splits guide"
+                      accessibilityRole="button"
+                    >
+                      <Icon name="Info" size={15} color={OBSIDIAN_COLORS.cyanAccent} weight="bold" />
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.sectionExtraHint}>RECOMMENDED</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
@@ -1044,6 +1070,14 @@ export default function OnboardingWizard() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Training Splits Info Guide Modal */}
+        <SplitInfoModal
+          visible={showSplitModal}
+          selectedSplit={splitPref}
+          onSelectSplit={(split) => setSplitPref(split)}
+          onClose={() => setShowSplitModal(false)}
+        />
       </View>
     </ScreenContainer>
   );
@@ -1505,6 +1539,18 @@ const styles = StyleSheet.create({
   chipsScroll: {
     gap: 6,
     paddingVertical: 2,
+  },
+  splitHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  splitInfoIconBtn: {
+    padding: 3,
+    borderRadius: OBSIDIAN_RADIUS.full,
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
   },
   splitPill: {
     flexDirection: 'row',

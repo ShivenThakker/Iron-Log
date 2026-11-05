@@ -3,6 +3,7 @@ import { geminiService } from '../services/gemini.service';
 import { prisma } from '../lib/prisma';
 import { getEffectiveStreak } from '../repositories/session.repository';
 import { sanitizeUserText } from '../utils/promptGuard';
+import { programRepository } from '../repositories/program.repository';
 
 export const chatCompletion = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -106,8 +107,13 @@ export const analyzeWorkout = async (req: Request, res: Response, next: NextFunc
 export const generatePlan = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
-    const plan = await geminiService.generatePlan({ userId, ...req.body }, req.body);
-    res.json({ plan });
+    const planInput = await geminiService.generateStructuredPlan({ userId, ...req.body }, req.body);
+    const program = await programRepository.createFullProgram(userId, {
+      ...planInput,
+      is_active: true,
+      is_ai_generated: true,
+    });
+    res.status(201).json({ program, plan: JSON.stringify(program) });
   } catch (err) {
     next(err);
   }
