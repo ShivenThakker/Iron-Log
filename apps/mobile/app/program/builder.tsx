@@ -62,9 +62,9 @@ interface ExerciseItem {
   id: string;
   exercise_id?: string;
   name: string;
-  target_sets: number;
+  target_sets: number | string;
   target_reps: string;
-  rest_seconds: number;
+  rest_seconds: number | string;
   categoryTag?: string;
   muscleTarget?: string;
   equipment?: string;
@@ -552,6 +552,20 @@ interface ParsedPlanResult {
       return;
     }
 
+    // Validate that no exercise has 0 or empty sets
+    for (const day of activeDays) {
+      for (const ex of day.exercises) {
+        const setsNum = parseInt(String(ex.target_sets), 10);
+        if (!setsNum || setsNum < 1) {
+          Alert.alert(
+            'Invalid Volume',
+            `"${ex.name}" on ${day.day_name} has 0 sets. Every exercise must have at least 1 set.`
+          );
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
       if (Platform.OS !== 'web') {
@@ -568,9 +582,9 @@ interface ParsedPlanResult {
             ? []
             : d.exercises.map((ex, eIdx) => ({
                 exercise_name: ex.name,
-                target_sets: Number(ex.target_sets) || 3,
-                target_reps: String(ex.target_reps || '8-12'),
-                rest_seconds: Number(ex.rest_seconds) || 90,
+                target_sets: Math.max(1, parseInt(String(ex.target_sets), 10) || 1),
+                target_reps: String(ex.target_reps || '8-12').trim() || '8-12',
+                rest_seconds: Math.max(15, parseInt(String(ex.rest_seconds), 10) || 90),
                 sort_order: eIdx,
               })),
         })),
@@ -1288,10 +1302,22 @@ interface ParsedPlanResult {
                               <TextInput
                                 style={styles.metricTextInput}
                                 keyboardType="numeric"
-                                value={String(ex.target_sets)}
-                                onChangeText={(val) =>
-                                  handleUpdateExerciseParam(exIdx, 'target_sets', Number(val) || 1)
-                                }
+                                value={ex.target_sets !== undefined && ex.target_sets !== null ? String(ex.target_sets) : ''}
+                                placeholder="1"
+                                placeholderTextColor={OBSIDIAN_COLORS.textSlate}
+                                onChangeText={(val) => {
+                                  const digits = val.replace(/[^0-9]/g, '');
+                                  const normalized = digits.length > 1 && digits.startsWith('0') ? digits.replace(/^0+/, '') : digits;
+                                  handleUpdateExerciseParam(exIdx, 'target_sets', normalized);
+                                }}
+                                onBlur={() => {
+                                  const num = parseInt(String(ex.target_sets), 10);
+                                  if (!num || num < 1) {
+                                    handleUpdateExerciseParam(exIdx, 'target_sets', 1);
+                                  } else {
+                                    handleUpdateExerciseParam(exIdx, 'target_sets', num);
+                                  }
+                                }}
                               />
                               <Text style={styles.metricUnit}>Sets</Text>
                             </View>
@@ -1302,9 +1328,16 @@ interface ParsedPlanResult {
                             <TextInput
                               style={styles.metricTextInput}
                               value={ex.target_reps}
+                              placeholder="8-12"
+                              placeholderTextColor={OBSIDIAN_COLORS.textSlate}
                               onChangeText={(val) =>
                                 handleUpdateExerciseParam(exIdx, 'target_reps', val)
                               }
+                              onBlur={() => {
+                                if (!ex.target_reps || !ex.target_reps.trim()) {
+                                  handleUpdateExerciseParam(exIdx, 'target_reps', '8-12');
+                                }
+                              }}
                             />
                           </View>
 
@@ -1314,10 +1347,22 @@ interface ParsedPlanResult {
                               <TextInput
                                 style={[styles.metricTextInput, { color: OBSIDIAN_COLORS.voltLime }]}
                                 keyboardType="numeric"
-                                value={String(ex.rest_seconds)}
-                                onChangeText={(val) =>
-                                  handleUpdateExerciseParam(exIdx, 'rest_seconds', Number(val) || 60)
-                                }
+                                value={ex.rest_seconds !== undefined && ex.rest_seconds !== null ? String(ex.rest_seconds) : ''}
+                                placeholder="90"
+                                placeholderTextColor={OBSIDIAN_COLORS.textSlate}
+                                onChangeText={(val) => {
+                                  const digits = val.replace(/[^0-9]/g, '');
+                                  const normalized = digits.length > 1 && digits.startsWith('0') ? digits.replace(/^0+/, '') : digits;
+                                  handleUpdateExerciseParam(exIdx, 'rest_seconds', normalized);
+                                }}
+                                onBlur={() => {
+                                  const num = parseInt(String(ex.rest_seconds), 10);
+                                  if (!num || num < 5) {
+                                    handleUpdateExerciseParam(exIdx, 'rest_seconds', 60);
+                                  } else {
+                                    handleUpdateExerciseParam(exIdx, 'rest_seconds', num);
+                                  }
+                                }}
                               />
                               <Text style={[styles.metricUnit, { color: OBSIDIAN_COLORS.voltLime }]}>
                                 s
