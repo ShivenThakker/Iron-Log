@@ -6,6 +6,7 @@ import {
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
   OBSIDIAN_SHADOWS,
+  OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
@@ -276,13 +277,13 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
 
   // Compute action button label based on mode and countdown state
   const getActionLabel = () => {
-    if (isExerciseMode) {
-      if (extraSetRequested) {
-        return secondsLeft === 0 ? 'Start Extra Set →' : 'Skip Rest → Extra Set';
+    if (secondsLeft === 0) {
+      if (isExerciseMode) {
+        return extraSetRequested ? 'Start Extra Set' : 'Next Exercise';
       }
-      return secondsLeft === 0 ? 'Next Exercise →' : 'Skip Rest → Next Exercise';
+      return 'Next Set';
     }
-    return secondsLeft === 0 ? 'Next Set →' : 'Skip Rest';
+    return 'Skip Rest';
   };
 
   return (
@@ -291,35 +292,37 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
         <View style={styles.card}>
           {/* Header kicker */}
           <Text variant="labelCaps" style={[styles.kicker, isExerciseMode && styles.kickerExercise]}>
-            {isExerciseMode ? 'REST • UP NEXT' : 'REST TIMER'}
+            REST
           </Text>
+
+          {/* Up Next sub-header */}
+          {isExerciseMode && (
+            <Text style={styles.upNextKicker}>
+              {extraSetRequested ? 'EXTRA SET' : 'UP NEXT'}
+            </Text>
+          )}
 
           {/* Title */}
           <Text variant="headlineSm" style={styles.title} numberOfLines={1}>
-            {extraSetRequested ? `Extra Set: ${activeCurrentName}` : displayTitle}
+            {extraSetRequested ? activeCurrentName : displayTitle}
           </Text>
 
-          {/* Subtitle / context description */}
-          {isExerciseMode ? (
-            extraSetRequested ? (
-              <View style={styles.extraSetHighlight}>
-                <Icon name="CheckCircle" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
-                <Text style={styles.extraSetHighlightText}>
-                  Extra set added! Returning to {activeCurrentName}
-                </Text>
-              </View>
-            ) : (
-              <Text variant="bodySm" style={styles.subtext} numberOfLines={1}>
-                {nextExerciseMuscles ? `Upcoming: ${nextExerciseMuscles}` : `Completed ${activeCurrentName}`}
+          {/* Set mode progress */}
+          {!isExerciseMode && currentSetNumber && totalSets ? (
+            <Text variant="bodySm" style={styles.subtext}>
+              Set {currentSetNumber} of {totalSets} Completed
+            </Text>
+          ) : null}
+
+          {/* Extra set note if toggled */}
+          {isExerciseMode && extraSetRequested ? (
+            <View style={styles.extraSetHighlight}>
+              <Icon name="CheckCircle" size={14} color={OBSIDIAN_COLORS.voltLime} weight="bold" />
+              <Text style={styles.extraSetHighlightText}>
+                Extra set added! Returning to {activeCurrentName}
               </Text>
-            )
-          ) : (
-            currentSetNumber && totalSets ? (
-              <Text variant="bodySm" style={styles.subtext}>
-                Set {currentSetNumber} of {totalSets} Completed
-              </Text>
-            ) : null
-          )}
+            </View>
+          ) : null}
 
           {/* Countdown Ring */}
           <View style={styles.ringWrapper}>
@@ -337,9 +340,6 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
             >
               <View style={styles.innerContent}>
                 <Text style={styles.timerText}>{timeFormatted}</Text>
-                <Text variant="bodySm" style={styles.timerSub}>
-                  {secondsLeft === 0 ? 'Ready to Lift!' : 'Resting'}
-                </Text>
               </View>
             </ProgressRing>
           </View>
@@ -425,6 +425,14 @@ const styles = StyleSheet.create({
   },
   kickerExercise: {
     color: OBSIDIAN_COLORS.cyanAccent,
+  },
+  upNextKicker: {
+    ...OBSIDIAN_TYPOGRAPHY.labelCaps,
+    color: OBSIDIAN_COLORS.textMuted,
+    fontSize: 12,
+    letterSpacing: 2,
+    marginBottom: OBSIDIAN_SPACING.xs,
+    textAlign: 'center',
   },
   title: {
     color: OBSIDIAN_COLORS.textWhite,
