@@ -22,6 +22,7 @@ import {
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { DashboardSkeleton } from '@/components/ui/Skeleton';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -55,7 +56,7 @@ export default function HomeDashboard() {
   const [activeCardIndex, setActiveCardIndex] = useState(0);
 
   // Queries for dynamic dashboard data
-  const { data: profileData, refetch: refetchProfile, isRefetching: refetchingProfile } = useQuery({
+  const { data: profileData, isLoading: loadingProfile, refetch: refetchProfile, isRefetching: refetchingProfile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: async () => {
       const res = await api.get('/users/profile').catch(() => null);
@@ -63,7 +64,7 @@ export default function HomeDashboard() {
     },
   });
 
-  const { data: gamificationData, refetch: refetchGamification } = useQuery({
+  const { data: gamificationData, isLoading: loadingGamification, refetch: refetchGamification } = useQuery({
     queryKey: ['gamificationDashboard'],
     queryFn: async () => {
       const res = await api.get('/gamification').catch(() => null);
@@ -71,7 +72,7 @@ export default function HomeDashboard() {
     },
   });
 
-  const { data: nutritionData, refetch: refetchNutrition } = useQuery({
+  const { data: nutritionData, isLoading: loadingNutrition, refetch: refetchNutrition } = useQuery({
     queryKey: ['nutritionDashboard'],
     queryFn: async () => {
       const d = new Date();
@@ -83,7 +84,7 @@ export default function HomeDashboard() {
   });
 
   // Realigned query: replace /sessions/history (404) with real GET /sessions endpoint
-  const { data: recentSessions, refetch: refetchSessions } = useQuery({
+  const { data: recentSessions, isLoading: loadingSessions, refetch: refetchSessions } = useQuery({
     queryKey: ['recentSessions'],
     queryFn: async () => {
       const res = await api.get('/sessions').catch(() => null);
@@ -91,7 +92,7 @@ export default function HomeDashboard() {
     },
   });
 
-  const { data: activeProgramData, refetch: refetchActiveProgram } = useQuery({
+  const { data: activeProgramData, isLoading: loadingProgram, refetch: refetchActiveProgram } = useQuery({
     queryKey: ['activeProgram'],
     queryFn: async () => {
       const res = await api.get('/programs/active').catch(() => null);
@@ -115,6 +116,13 @@ export default function HomeDashboard() {
       refetchActiveProgram(),
     ]);
   };
+
+  const isInitialLoading =
+    (loadingProfile || loadingProgram) && !profileData && !activeProgramData;
+
+  if (isInitialLoading) {
+    return <DashboardSkeleton />;
+  }
 
   const user = profileData?.user;
   const userName = useMemo(() => (user?.name ? user.name.split(' ')[0] : 'Lifter'), [user?.name]);
@@ -144,15 +152,15 @@ export default function HomeDashboard() {
     const foundDay =
       activeDays.find((d) => d.day_name?.toLowerCase().includes(todayDayName.toLowerCase())) || activeDays[0];
 
-    const title = foundDay?.day_name || (activeProgramData ? activeProgramData.name : 'Upper Body Hypertrophy A');
+    const title = foundDay?.day_name || (activeProgramData ? activeProgramData.name : 'Daily Workout');
     const exercises = foundDay?.exercises || [];
-    const count = exercises.length > 0 ? exercises.length : 5;
+    const count = exercises.length;
     return {
       todayWorkoutDay: foundDay,
       todayWorkoutTitle: title,
       todayExercises: exercises,
       exerciseCount: count,
-      estimatedMin: count * 10,
+      estimatedMin: count > 0 ? count * 10 : 30,
     };
   }, [activeProgramData]);
 

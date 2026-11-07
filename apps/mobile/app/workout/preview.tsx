@@ -21,6 +21,7 @@ import {
   OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { api, getCachedExercises } from '@/services/api';
+import { WorkoutPreviewSkeleton } from '@/components/ui/Skeleton';
 
 interface PreviewExercise {
   id: string;
@@ -91,7 +92,7 @@ export default function WorkoutPreviewScreen() {
   const params = useLocalSearchParams<{ dayId?: string; workoutName?: string }>();
 
   const [loading, setLoading] = useState(true);
-  const [exercises, setExercises] = useState<PreviewExercise[]>(DEFAULT_PREVIEW_EXERCISES);
+  const [exercises, setExercises] = useState<PreviewExercise[]>([]);
   const [dayTitle, setDayTitle] = useState(params.workoutName || "Today's Workout");
   const [daySubtitle, setDaySubtitle] = useState('Scheduled Session');
   const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<PreviewExercise | null>(null);
@@ -238,6 +239,10 @@ export default function WorkoutPreviewScreen() {
     });
   };
 
+  if (loading) {
+    return <WorkoutPreviewSkeleton />;
+  }
+
   return (
     <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
       <View style={styles.container}>
@@ -259,14 +264,7 @@ export default function WorkoutPreviewScreen() {
           </View>
         </View>
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={OBSIDIAN_COLORS.voltLime} />
-            <Text style={styles.loadingText}>Loading today's exercises...</Text>
-          </View>
-        ) : (
-          <>
-            {/* Scrollable Exercise Plan List */}
+        {/* Scrollable Exercise Plan List */}
             <ScrollView
               style={styles.scrollArea}
               contentContainerStyle={styles.scrollContent}
@@ -399,8 +397,6 @@ export default function WorkoutPreviewScreen() {
                 <Text style={styles.startWorkoutText}>Start Workout • {totalSets} Sets</Text>
               </Pressable>
             </View>
-          </>
-        )}
 
         {/* Exercise Details & Instructions Modal */}
         <Modal

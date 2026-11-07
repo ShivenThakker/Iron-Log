@@ -22,15 +22,9 @@ import {
   OBSIDIAN_SPACING,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { BodySkeleton } from '@/components/ui/Skeleton';
 
-const DEFAULT_WEIGHT_HISTORY: WeightPoint[] = [
-  { date: 'Oct 01', weight: 80.5, movingAvg: 80.5 },
-  { date: 'Oct 04', weight: 80.1, movingAvg: 80.3 },
-  { date: 'Oct 07', weight: 79.8, movingAvg: 80.0 },
-  { date: 'Oct 10', weight: 79.4, movingAvg: 79.7 },
-  { date: 'Oct 13', weight: 79.0, movingAvg: 79.4 },
-  { date: 'Oct 16', weight: 78.5, movingAvg: 79.0 },
-];
+const DEFAULT_WEIGHT_HISTORY: WeightPoint[] = [];
 
 export default function BodyTab() {
   const queryClient = useQueryClient();
@@ -48,7 +42,7 @@ export default function BodyTab() {
   const [thighsInput, setThighsInput] = useState('');
 
   // User profile query (height & profile info)
-  const { data: profileData, refetch: refetchProfile } = useQuery({
+  const { data: profileData, isLoading: loadingProfile, refetch: refetchProfile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: async () => {
       const res = await api.get('/users/profile').catch(() => null);
@@ -57,7 +51,7 @@ export default function BodyTab() {
   });
 
   // Realigned to real backend endpoint: GET /body/weight?period=30|90|all
-  const { data: weightData, refetch: refetchWeight, isRefetching } = useQuery({
+  const { data: weightData, isLoading: loadingWeight, refetch: refetchWeight, isRefetching } = useQuery({
     queryKey: ['weightHistory', timeRange],
     queryFn: async () => {
       const res = await api.get(`/body/weight?period=${timeRange}`).catch(() => null);
@@ -66,7 +60,7 @@ export default function BodyTab() {
   });
 
   // Realigned to real backend endpoint: GET /body/measurement
-  const { data: measurementData, refetch: refetchMeasurements } = useQuery({
+  const { data: measurementData, isLoading: loadingMeasurements, refetch: refetchMeasurements } = useQuery({
     queryKey: ['bodyMeasurements'],
     queryFn: async () => {
       const res = await api.get('/body/measurement').catch(() => null);
@@ -143,21 +137,28 @@ export default function BodyTab() {
     }));
   }, [historyList]);
 
+  const isInitialLoading =
+    (loadingWeight || loadingMeasurements) && !weightData && !measurementData;
+
+  if (isInitialLoading) {
+    return <BodySkeleton />;
+  }
+
   const currentWeight = weightData?.currentWeight ??
-    (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].weight : 78.5);
+    (chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].weight : null);
   const startWeight = weightData?.startingWeight ??
-    (chartPoints.length > 0 ? chartPoints[0].weight : currentWeight);
-  const deltaWeight = (currentWeight - startWeight).toFixed(1);
+    (chartPoints.length > 0 ? chartPoints[0].weight : (currentWeight ?? 0));
+  const deltaWeight = currentWeight !== null ? (currentWeight - startWeight).toFixed(1) : '0.0';
   const isLoss = Number(deltaWeight) <= 0;
   const goalWeight = weightData?.goal?.goal_weight_kg ??
     weightData?.history?.goal?.goal_weight_kg ?? 75.0;
 
   const latestMsmt = measurementData?.latest;
   const measurements = {
-    chest: latestMsmt?.chest_cm ?? 104,
-    arms: latestMsmt?.left_arm_cm ?? latestMsmt?.right_arm_cm ?? 39.5,
-    waist: latestMsmt?.waist_cm ?? 83,
-    thighs: latestMsmt?.left_thigh_cm ?? latestMsmt?.right_thigh_cm ?? 60,
+    chest: latestMsmt?.chest_cm ?? null,
+    arms: latestMsmt?.left_arm_cm ?? latestMsmt?.right_arm_cm ?? null,
+    waist: latestMsmt?.waist_cm ?? null,
+    thighs: latestMsmt?.left_thigh_cm ?? latestMsmt?.right_thigh_cm ?? null,
   };
 
   // BMI Calculations based on height and latest logged weight
@@ -260,7 +261,7 @@ export default function BodyTab() {
                 <Text variant="labelCaps" style={styles.heroLabel}>CURRENT WEIGHT</Text>
                 <View style={styles.weightNumRow}>
                   <Text style={styles.weightMainNum}>
-                    {currentWeight}
+                    {currentWeight !== null ? currentWeight : '--'}
                   </Text>
                   <Text style={styles.weightUnit}>
                     kg
@@ -338,15 +339,15 @@ export default function BodyTab() {
                     </View>
                     <View>
                       <Text variant="labelInteractive" style={styles.measureLabel}>{row.label}</Text>
-                      <Text variant="bodySm" style={styles.measureSub}>Last updated 3 days ago</Text>
+                      <Text variant="bodySm" style={styles.measureSub}>{row.value !== null ? 'Logged' : 'No logs yet'}</Text>
                     </View>
                   </View>
                   <View style={styles.measureRight}>
                     <View style={styles.measureValRow}>
-                      <Text style={styles.measureValue}>{row.value}</Text>
+                      <Text style={styles.measureValue}>{row.value !== null ? row.value : '--'}</Text>
                       <Text style={styles.measureUnit}>{row.unit}</Text>
                     </View>
-                    <Badge label={row.change} variant="volt" size="sm" />
+                    {row.value !== null && <Badge label={row.change} variant="volt" size="sm" />}
                   </View>
                 </GlassCard>
               ))}

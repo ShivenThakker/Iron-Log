@@ -28,6 +28,7 @@ import {
 } from '@/constants/tokens';
 import { api, getCachedExercises } from '@/services/api';
 import { searchExercises } from '@/utils/exerciseSearch';
+import { PlanBuilderSkeleton } from '@/components/ui/Skeleton';
 
 type BuilderMode = 'split' | 'ai_import';
 
@@ -466,6 +467,7 @@ export default function WorkoutPlanBuilderScreen() {
   };
 
   // Program details
+  const [initialLoading, setInitialLoading] = useState(true);
   const [programName, setProgramName] = useState('Hypertrophy 4-Day Split');
   const [splitDays, setSplitDays] = useState<SplitDay[]>(INITIAL_SPLIT_DAYS);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(getInitialDayIndex);
@@ -566,6 +568,10 @@ interface ParsedPlanResult {
         }
       } catch (err) {
         console.warn('Could not fetch active program in builder:', err);
+      } finally {
+        if (isMounted) {
+          setInitialLoading(false);
+        }
       }
     };
     fetchActiveProgram();
@@ -1023,6 +1029,10 @@ interface ParsedPlanResult {
       return true;
     });
   }, [exerciseDb, selectedMuscleCategory, searchQuery]);
+
+  if (initialLoading) {
+    return <PlanBuilderSkeleton />;
+  }
 
   return (
     <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>

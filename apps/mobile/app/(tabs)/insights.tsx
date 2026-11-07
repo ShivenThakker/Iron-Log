@@ -22,19 +22,11 @@ import {
   OBSIDIAN_SPACING,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { InsightsSkeleton } from '@/components/ui/Skeleton';
 
 const DEFAULT_HEATMAP_DATA: MuscleHeatmapData = {};
 
-const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {
-  chest: 85,
-  back: 65,
-  shoulders: 50,
-  biceps: 75,
-  triceps: 80,
-  forearms: 45,
-  legs: 45,
-  core: 30,
-};
+const DEFAULT_RADAR_SCORES: MuscleBalanceScores = {};
 
 const DEFAULT_EQUIPMENT_DATA: { name: string; percentage: number; color: string }[] = [];
 
@@ -44,7 +36,7 @@ export default function InsightsTab() {
   const periodDays = timeRange === 'all' ? 365 : parseInt(timeRange, 10);
 
   // Realigned endpoint 1: GET /analytics/stats?period=...
-  const { data: statsData, refetch: refetchStats, isRefetching } = useQuery({
+  const { data: statsData, isLoading: loadingStats, refetch: refetchStats, isRefetching } = useQuery({
     queryKey: ['analyticsStats', timeRange],
     queryFn: async () => {
       const param = timeRange === 'all' ? 'all' : periodDays;
@@ -54,7 +46,7 @@ export default function InsightsTab() {
   });
 
   // Realigned endpoint 2: GET /analytics/heatmap?period=...
-  const { data: heatmapApiData, refetch: refetchHeatmap } = useQuery({
+  const { data: heatmapApiData, isLoading: loadingHeatmap, refetch: refetchHeatmap } = useQuery({
     queryKey: ['muscleHeatmap', timeRange],
     queryFn: async () => {
       const param = timeRange === 'all' ? 'all' : periodDays;
@@ -64,7 +56,7 @@ export default function InsightsTab() {
   });
 
   // Realigned endpoint 3: GET /analytics/radar?period=...
-  const { data: radarApiData, refetch: refetchRadar } = useQuery({
+  const { data: radarApiData, isLoading: loadingRadar, refetch: refetchRadar } = useQuery({
     queryKey: ['muscleRadar', timeRange],
     queryFn: async () => {
       const param = timeRange === 'all' ? 'all' : periodDays;
@@ -74,7 +66,7 @@ export default function InsightsTab() {
   });
 
   // Realigned endpoint 4: GET /analytics/equipment?period=...
-  const { data: equipmentApiData, refetch: refetchEquipment } = useQuery({
+  const { data: equipmentApiData, isLoading: loadingEquipment, refetch: refetchEquipment } = useQuery({
     queryKey: ['equipmentUsage', timeRange],
     queryFn: async () => {
       const param = timeRange === 'all' ? 'all' : periodDays;
@@ -84,7 +76,7 @@ export default function InsightsTab() {
   });
 
   // Realigned endpoint 5: GET /analytics/activity
-  const { data: activityApiData, refetch: refetchActivity } = useQuery({
+  const { data: activityApiData, isLoading: loadingActivity, refetch: refetchActivity } = useQuery({
     queryKey: ['workoutActivityYear'],
     queryFn: async () => {
       const res = await api.get('/analytics/activity').catch(() => null);
@@ -101,6 +93,16 @@ export default function InsightsTab() {
       refetchActivity(),
     ]);
   };
+
+  const isInitialLoading =
+    (loadingStats || loadingHeatmap || loadingRadar) &&
+    !statsData &&
+    !heatmapApiData &&
+    !radarApiData;
+
+  if (isInitialLoading) {
+    return <InsightsSkeleton />;
+  }
 
   // Process Heatmap Data: API returns { muscles: { Chest: { intensity }, ... } }
   const heatmapData: MuscleHeatmapData = React.useMemo(() => {

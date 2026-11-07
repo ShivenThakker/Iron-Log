@@ -24,6 +24,7 @@ import {
   OBSIDIAN_SPACING,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { NutritionSkeleton } from '@/components/ui/Skeleton';
 
 type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -101,7 +102,7 @@ export default function NutritionScreen() {
   const [portionMultiplier, setPortionMultiplier] = useState<number>(1);
 
   // Daily Nutrition Query
-  const { data: dailyData, refetch, isRefetching } = useQuery({
+  const { data: dailyData, isLoading: loadingDaily, refetch, isRefetching } = useQuery({
     queryKey: ['dailyNutrition', todayStr],
     queryFn: async () => {
       const tzOffset = new Date().getTimezoneOffset();
@@ -109,6 +110,10 @@ export default function NutritionScreen() {
       return res?.data ?? null;
     },
   });
+
+  if (loadingDaily && !dailyData) {
+    return <NutritionSkeleton />;
+  }
 
   // Food Search Query (USDA Engine)
   const { data: searchResults, isFetching: searching } = useQuery({

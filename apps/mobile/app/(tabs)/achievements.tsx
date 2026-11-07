@@ -22,6 +22,7 @@ import {
   OBSIDIAN_SHADOWS,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
+import { AchievementsSkeleton } from '@/components/ui/Skeleton';
 
 interface TrophyItem {
   id: string;
@@ -60,7 +61,7 @@ export default function AchievementsTab() {
   const [selectedTrophy, setSelectedTrophy] = useState<TrophyItem | null>(null);
 
   // Read gamification data from GET /gamification
-  const { data: gamificationData, refetch, isRefetching } = useQuery({
+  const { data: gamificationData, isLoading: loadingGamification, refetch, isRefetching } = useQuery({
     queryKey: ['gamificationData'],
     queryFn: async () => {
       const res = await api.get('/gamification').catch(() => null);
@@ -68,8 +69,12 @@ export default function AchievementsTab() {
     },
   });
 
+  if (loadingGamification && !gamificationData) {
+    return <AchievementsSkeleton />;
+  }
+
   const currentRank = gamificationData?.currentRank?.name || 'Rookie';
-  const totalXp = gamificationData?.xpRecord?.total_xp ?? 155;
+  const totalXp = gamificationData?.xpRecord?.total_xp ?? 0;
   const nextRank = gamificationData?.nextRank?.name || 'Grinder';
   const nextRankMinXp = gamificationData?.nextRank?.minXp || 251;
   const currentRankMinXp = gamificationData?.currentRank?.minXp || 0;

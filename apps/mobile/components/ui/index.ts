@@ -10,4 +10,5 @@ export * from './Chip';
 export * from './EmptyState';
 export * from './Header';
 export * from './ListRow';
+export * from './Skeleton';
 
