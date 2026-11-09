@@ -440,6 +440,8 @@ export default function HistoricalWorkoutImportScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
       >
         {mode === 'manual' ? (
           /* MANUAL ENTRY TAB */

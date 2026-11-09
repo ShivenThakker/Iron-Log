@@ -11,6 +11,7 @@ import {
   BackHandler,
   AppState,
   AppStateStatus,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -230,6 +231,22 @@ export default function ActiveWorkoutScreen() {
   // Exercise history lookup for Last Session & PR stats
   const [exerciseHistory, setExerciseHistory] = useState<Record<string, ExerciseHistoryRecord>>({});
   const [sessionHitPRs, setSessionHitPRs] = useState<Array<{ exerciseName: string; value: string }>>([]);
+
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const getWeightSubtitle = (exercise?: ActiveExercise, weightStr?: string) => {
     const weightNum = parseFloat(weightStr || '0') || 0;
@@ -885,6 +902,8 @@ export default function ActiveWorkoutScreen() {
           style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
         >
           {/* Exercise Context Header Card */}
           <View style={styles.exerciseCard}>
@@ -1156,6 +1175,7 @@ export default function ActiveWorkoutScreen() {
                     <TextInput
                       style={styles.dialNumericInput}
                       keyboardType="numeric"
+                      selectTextOnFocus
                       value={currentSet?.weight || ''}
                       onChangeText={(val) => updateCurrentSet('weight', val)}
                     />
@@ -1215,6 +1235,7 @@ export default function ActiveWorkoutScreen() {
                     <TextInput
                       style={styles.dialNumericInput}
                       keyboardType="numeric"
+                      selectTextOnFocus
                       value={currentSet?.reps || ''}
                       onChangeText={(val) => updateCurrentSet('reps', val)}
                     />
@@ -1298,92 +1319,94 @@ export default function ActiveWorkoutScreen() {
           </View>
         </ScrollView>
 
-        {/* Bottom Navigation & Rest Toolbar */}
-        <View style={styles.footerToolbar}>
-          <TouchableOpacity
-            style={[
-              styles.navFooterBtn,
-              currentExerciseIndex === 0 && styles.navFooterBtnDisabled,
-            ]}
-            disabled={currentExerciseIndex === 0}
-            activeOpacity={0.7}
-            onPress={handlePrevExercise}
-          >
-            <Icon
-              name="CaretLeft"
-              size={20}
-              color={currentExerciseIndex === 0 ? '#4A4D60' : OBSIDIAN_COLORS.textWhite}
-              weight="bold"
-            />
-            <Text
+        {/* Bottom Navigation & Rest Toolbar - hidden when keyboard is open */}
+        {!isKeyboardVisible && (
+          <View style={styles.footerToolbar}>
+            <TouchableOpacity
               style={[
-                styles.navFooterText,
-                currentExerciseIndex === 0 && { color: '#4A4D60' },
+                styles.navFooterBtn,
+                currentExerciseIndex === 0 && styles.navFooterBtnDisabled,
               ]}
-            >
-              PREV
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.restToolbarCenter}>
-            <TouchableOpacity
-              style={styles.restAdjBtn}
+              disabled={currentExerciseIndex === 0}
               activeOpacity={0.7}
-              onPress={() => setRestDuration((d) => Math.max(15, d - 15))}
+              onPress={handlePrevExercise}
             >
-              <Text style={styles.restAdjText}>-15s</Text>
+              <Icon
+                name="CaretLeft"
+                size={20}
+                color={currentExerciseIndex === 0 ? '#4A4D60' : OBSIDIAN_COLORS.textWhite}
+                weight="bold"
+              />
+              <Text
+                style={[
+                  styles.navFooterText,
+                  currentExerciseIndex === 0 && { color: '#4A4D60' },
+                ]}
+              >
+                PREV
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.restDisplayTrigger}
-              activeOpacity={0.8}
-              onPress={() => triggerRestTimer(currentExerciseIndex, activeSetIndex)}
-            >
-              <Icon name="Clock" size={16} color={OBSIDIAN_COLORS.voltLime} />
-              <Text style={styles.restDisplayText}>{formatStopwatch(restDuration)}</Text>
-            </TouchableOpacity>
+            <View style={styles.restToolbarCenter}>
+              <TouchableOpacity
+                style={styles.restAdjBtn}
+                activeOpacity={0.7}
+                onPress={() => setRestDuration((d) => Math.max(15, d - 15))}
+              >
+                <Text style={styles.restAdjText}>-15s</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.restDisplayTrigger}
+                activeOpacity={0.8}
+                onPress={() => triggerRestTimer(currentExerciseIndex, activeSetIndex)}
+              >
+                <Icon name="Clock" size={16} color={OBSIDIAN_COLORS.voltLime} />
+                <Text style={styles.restDisplayText}>{formatStopwatch(restDuration)}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.restAdjBtn}
+                activeOpacity={0.7}
+                onPress={() => setRestDuration((d) => d + 15)}
+              >
+                <Text style={styles.restAdjText}>+15s</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
-              style={styles.restAdjBtn}
+              style={[
+                styles.navFooterBtn,
+                styles.navFooterBtnNext,
+                currentExerciseIndex === exercises.length - 1 && styles.navFooterBtnDisabled,
+              ]}
+              disabled={currentExerciseIndex === exercises.length - 1}
               activeOpacity={0.7}
-              onPress={() => setRestDuration((d) => d + 15)}
+              onPress={handleNextExercise}
             >
-              <Text style={styles.restAdjText}>+15s</Text>
+              <Text
+                style={[
+                  styles.navFooterText,
+                  currentExerciseIndex === exercises.length - 1
+                    ? { color: '#4A4D60' }
+                    : { color: OBSIDIAN_COLORS.onPrimary },
+                ]}
+              >
+                NEXT
+              </Text>
+              <Icon
+                name="CaretRight"
+                size={20}
+                color={
+                  currentExerciseIndex === exercises.length - 1
+                    ? '#4A4D60'
+                    : OBSIDIAN_COLORS.onPrimary
+                }
+                weight="bold"
+              />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[
-              styles.navFooterBtn,
-              styles.navFooterBtnNext,
-              currentExerciseIndex === exercises.length - 1 && styles.navFooterBtnDisabled,
-            ]}
-            disabled={currentExerciseIndex === exercises.length - 1}
-            activeOpacity={0.7}
-            onPress={handleNextExercise}
-          >
-            <Text
-              style={[
-                styles.navFooterText,
-                currentExerciseIndex === exercises.length - 1
-                  ? { color: '#4A4D60' }
-                  : { color: OBSIDIAN_COLORS.onPrimary },
-              ]}
-            >
-              NEXT
-            </Text>
-            <Icon
-              name="CaretRight"
-              size={20}
-              color={
-                currentExerciseIndex === exercises.length - 1
-                  ? '#4A4D60'
-                  : OBSIDIAN_COLORS.onPrimary
-              }
-              weight="bold"
-            />
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* Rest Timer Modal */}
         <RestTimerModal

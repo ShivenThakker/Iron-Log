@@ -5,6 +5,8 @@ import {
   StyleSheet,
   ViewStyle,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +21,8 @@ interface ScreenContainerProps {
   contentContainerStyle?: ViewStyle;
   headerComponent?: React.ReactNode;
   theme?: 'default' | 'obsidian';
+  keyboardAvoiding?: boolean;
+  keyboardVerticalOffset?: number;
 }
 
 export const ScreenContainer: React.FC<ScreenContainerProps> = ({
@@ -30,6 +34,8 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   contentContainerStyle,
   headerComponent,
   theme = 'default',
+  keyboardAvoiding = true,
+  keyboardVerticalOffset,
 }) => {
   const insets = useSafeAreaInsets();
   const isObsidian = theme === 'obsidian';
@@ -44,30 +50,44 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   const bgColor = isObsidian ? OBSIDIAN_COLORS.canvas : COLORS.dark.bgPrimary;
   const refreshColor = isObsidian ? OBSIDIAN_COLORS.voltLime : COLORS.dark.accentRed;
 
+  const innerContent = scrollable ? (
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={true}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={refreshColor}
+            colors={[refreshColor]}
+          />
+        ) : undefined
+      }
+    >
+      {children}
+    </ScrollView>
+  ) : (
+    <View style={[styles.content, contentContainerStyle]}>{children}</View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: bgColor }, containerPadding, style]}>
       <StatusBar style="light" />
       {headerComponent}
-      {scrollable ? (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={refreshColor}
-                colors={[refreshColor]}
-              />
-            ) : undefined
-          }
+      {keyboardAvoiding ? (
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoid}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={keyboardVerticalOffset ?? (Platform.OS === 'ios' ? insets.top : 0)}
         >
-          {children}
-        </ScrollView>
+          {innerContent}
+        </KeyboardAvoidingView>
       ) : (
-        <View style={[styles.content, contentContainerStyle]}>{children}</View>
+        innerContent
       )}
     </View>
   );
@@ -77,6 +97,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.dark.bgPrimary,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,

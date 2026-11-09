@@ -23,6 +23,7 @@
         "NOTIFICATIONS",
         "VIBRATE"
       ],
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
     },
     "androidNavigationBar": {

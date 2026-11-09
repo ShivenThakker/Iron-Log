@@ -130,7 +130,13 @@ export default function SettingsScreen() {
       <View style={styles.container}>
         <Header title="Settings" showBack={true} />
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
+        >
           {/* User Profile Card */}
           <GlassCard variant="obsidianLevel2" style={styles.profileCard}>
             <View style={styles.avatarCircle}>

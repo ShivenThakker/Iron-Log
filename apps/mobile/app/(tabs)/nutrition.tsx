@@ -8,6 +8,8 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -222,6 +224,8 @@ export default function NutritionScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -467,7 +471,10 @@ export default function NutritionScreen() {
           transparent
           onRequestClose={() => setShowSearchModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View>
@@ -521,7 +528,11 @@ export default function NutritionScreen() {
                   </View>
 
                   {/* Search Results List */}
-                  <ScrollView style={styles.resultsList} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={styles.resultsList}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {searchResults && searchResults.length > 0 ? (
                       (searchResults as MealFoodEntry[]).map((item, idx: number) => (
                         <TouchableOpacity
@@ -565,7 +576,12 @@ export default function NutritionScreen() {
                 </>
               ) : (
                 /* Manual Custom Entry Form */
-                <ScrollView style={styles.manualForm} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  style={styles.manualForm}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  automaticallyAdjustKeyboardInsets={true}
+                >
                   <Text variant="labelCaps" style={styles.fieldLabel}>FOOD NAME</Text>
                   <TextInput
                     style={styles.manualInput}
@@ -635,7 +651,7 @@ export default function NutritionScreen() {
                 </ScrollView>
               )}
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* ================= PORTION & SERVING SELECTOR MODAL ================= */}

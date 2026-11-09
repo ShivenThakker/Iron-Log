@@ -13,8 +13,11 @@ import {
   PanResponder,
   Animated,
   Pressable,
+  Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -492,6 +495,20 @@ export default function WorkoutPlanBuilderScreen() {
   });
   const panRespondersRef = useRef<Map<number, ReturnType<typeof PanResponder.create>>>(new Map());
 
+  const insets = useSafeAreaInsets();
+  const mainScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const scrollYRef = useRef<number>(0);
+  const initialScrollYRef = useRef<number>(0);
+  const scrollViewLayoutRef = useRef<{ y: number; height: number }>({ y: 0, height: 600 });
+  const scrollContentHeightRef = useRef<number>(0);
+
+  // Auto-scroll refs during drag-reordering
+  const autoScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollDirectionRef = useRef<'up' | 'down' | null>(null);
+  const activeHoldDirectionRef = useRef<'up' | 'down' | null>(null);
+  const lastGestureRef = useRef<{ dy: number; moveY: number } | null>(null);
+
 interface ParsedPlanExercise {
   name: string;
   target_sets?: number;
@@ -864,6 +881,97 @@ interface ParsedPlanResult {
     };
   });
 
+  const stopAutoScroll = () => {
+    if (autoScrollHoldTimerRef.current) {
+      clearTimeout(autoScrollHoldTimerRef.current);
+      autoScrollHoldTimerRef.current = null;
+    }
+    if (autoScrollTimerRef.current) {
+      clearInterval(autoScrollTimerRef.current);
+      autoScrollTimerRef.current = null;
+    }
+    autoScrollDirectionRef.current = null;
+    activeHoldDirectionRef.current = null;
+  };
+
+  const updateDragTarget = (g: { dy: number; moveY: number } | null) => {
+    if (!g || !dragRef.current.isDragging) return;
+    const start = dragRef.current.startIndex;
+    const { splitDays: curSplit, selectedDayIndex: curIdx } = latestStateRef.current;
+    const count = curSplit[curIdx]?.exercises.length || 0;
+    if (count <= 1) return;
+
+    const scrollDelta = scrollYRef.current - initialScrollYRef.current;
+    const totalDy = g.dy + scrollDelta;
+
+    // Keep dragged card positioned under the user's touch even while scrolling
+    panY.setValue(totalDy);
+
+    const cardH = (cardHeights.current[start] || 140) + 12;
+    const offset = Math.round(totalDy / cardH);
+    const target = Math.max(0, Math.min(count - 1, start + offset));
+
+    if (target !== dragRef.current.targetIndex) {
+      dragRef.current.targetIndex = target;
+      setDragOverIndex(target);
+      if (Platform.OS !== 'web') {
+        Haptics.selectionAsync().catch(() => {});
+      }
+    }
+  };
+
+  const startAutoScroll = (direction: 'up' | 'down') => {
+    if (autoScrollDirectionRef.current === direction && autoScrollTimerRef.current) {
+      return;
+    }
+    if (autoScrollTimerRef.current) {
+      clearInterval(autoScrollTimerRef.current);
+    }
+    autoScrollDirectionRef.current = direction;
+
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+
+    const startTimestamp = Date.now();
+
+    autoScrollTimerRef.current = setInterval(() => {
+      if (!dragRef.current.isDragging) {
+        stopAutoScroll();
+        return;
+      }
+
+      // Smooth scrolling: starts at 7px/tick (~420px/s), gradually accelerates up to 12px/tick after 1.2s
+      const elapsed = Date.now() - startTimestamp;
+      const step = elapsed > 1200 ? 12 : elapsed > 600 ? 9 : 7;
+
+      if (direction === 'up') {
+        const nextY = Math.max(0, scrollYRef.current - step);
+        if (nextY === scrollYRef.current) {
+          return;
+        }
+        scrollYRef.current = nextY;
+        mainScrollRef.current?.scrollTo({ y: nextY, animated: false });
+        updateDragTarget(lastGestureRef.current);
+      } else {
+        const maxScroll = Math.max(0, scrollContentHeightRef.current - scrollViewLayoutRef.current.height);
+        const nextY = Math.min(maxScroll, scrollYRef.current + step);
+        if (nextY === scrollYRef.current) {
+          return;
+        }
+        scrollYRef.current = nextY;
+        mainScrollRef.current?.scrollTo({ y: nextY, animated: false });
+        updateDragTarget(lastGestureRef.current);
+      }
+    }, 16);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAutoScroll();
+    };
+  }, []);
+
   const getPanResponder = (index: number) => {
     let pr = panRespondersRef.current.get(index);
     if (!pr) {
@@ -874,6 +982,8 @@ interface ParsedPlanResult {
         onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dy) > 4,
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
+          stopAutoScroll();
+          initialScrollYRef.current = scrollYRef.current;
           dragRef.current = {
             startIndex: index,
             targetIndex: index,
@@ -887,28 +997,53 @@ interface ParsedPlanResult {
           }
         },
         onPanResponderMove: (_, g) => {
-          panY.setValue(g.dy);
-          const start = dragRef.current.startIndex;
-          const { splitDays: curSplit, selectedDayIndex: curIdx } = latestStateRef.current;
-          const count = curSplit[curIdx]?.exercises.length || 0;
-          const cardH = (cardHeights.current[start] || 130) + 10;
-          const offset = Math.round(g.dy / cardH);
-          const target = Math.max(0, Math.min(count - 1, start + offset));
+          lastGestureRef.current = { dy: g.dy, moveY: g.moveY };
+          updateDragTarget({ dy: g.dy, moveY: g.moveY });
 
-          if (target !== dragRef.current.targetIndex) {
-            dragRef.current.targetIndex = target;
-            setDragOverIndex(target);
-            if (Platform.OS !== 'web') {
-              Haptics.selectionAsync().catch(() => {});
+          const screenHeight = Dimensions.get('window').height;
+          const topThreshold = Math.max(180, insets.top + 140);
+          const bottomThreshold = screenHeight - Math.max(120, insets.bottom + 90);
+
+          let detectedDirection: 'up' | 'down' | null = null;
+          if (g.moveY <= topThreshold) {
+            detectedDirection = 'up';
+          } else if (g.moveY >= bottomThreshold) {
+            detectedDirection = 'down';
+          }
+
+          if (!detectedDirection) {
+            stopAutoScroll();
+            return;
+          }
+
+          if (activeHoldDirectionRef.current !== detectedDirection) {
+            if (autoScrollHoldTimerRef.current) {
+              clearTimeout(autoScrollHoldTimerRef.current);
+              autoScrollHoldTimerRef.current = null;
             }
+            if (autoScrollTimerRef.current) {
+              clearInterval(autoScrollTimerRef.current);
+              autoScrollTimerRef.current = null;
+              autoScrollDirectionRef.current = null;
+            }
+            activeHoldDirectionRef.current = detectedDirection;
+
+            // Trigger auto-scroll when user holds card near top or bottom
+            autoScrollHoldTimerRef.current = setTimeout(() => {
+              if (dragRef.current.isDragging && activeHoldDirectionRef.current === detectedDirection) {
+                startAutoScroll(detectedDirection);
+              }
+            }, 350);
           }
         },
         onPanResponderRelease: (_, g) => {
+          stopAutoScroll();
           const start = dragRef.current.startIndex;
           const target = dragRef.current.targetIndex;
           dragRef.current.isDragging = false;
 
-          const isTap = Math.abs(g.dy) < 5 && Math.abs(g.dx) < 5;
+          const scrollDelta = scrollYRef.current - initialScrollYRef.current;
+          const isTap = Math.abs(g.dy) < 5 && Math.abs(g.dx) < 5 && Math.abs(scrollDelta) < 5;
 
           if (isTap) {
             panY.setValue(0);
@@ -938,6 +1073,7 @@ interface ParsedPlanResult {
           });
         },
         onPanResponderTerminate: () => {
+          stopAutoScroll();
           dragRef.current.isDragging = false;
           Animated.spring(panY, {
             toValue: 0,
@@ -1086,10 +1222,26 @@ interface ParsedPlanResult {
 
         {/* Scrollable Main Area */}
         <ScrollView
+          ref={mainScrollRef}
           style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           scrollEnabled={draggingIndex === null}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          onLayout={(e) => {
+            scrollViewLayoutRef.current = {
+              y: e.nativeEvent.layout.y,
+              height: e.nativeEvent.layout.height,
+            };
+          }}
+          onContentSizeChange={(_, h) => {
+            scrollContentHeightRef.current = h;
+          }}
         >
           {activeMode === 'split' ? (
             <>
@@ -1601,7 +1753,10 @@ interface ParsedPlanResult {
 
         {/* ================= 2-STEP EXERCISE PICKER MODAL ================= */}
         <Modal visible={isExercisePickerOpen} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalContent}>
               {pickerStep === 'categories' ? (
                 <>
@@ -1632,7 +1787,11 @@ interface ParsedPlanResult {
                     }}
                   />
 
-                  <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={{ maxHeight: 420 }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     <View style={styles.muscleCategoriesGrid}>
                       {MUSCLE_CATEGORIES.map((cat) => {
                         const count = getMuscleExerciseCount(cat.id, cat.name);
@@ -1725,7 +1884,11 @@ interface ParsedPlanResult {
                       </TouchableOpacity>
                     )}
 
-                  <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={{ maxHeight: 400 }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {displayedExercises.length === 0 ? (
                       <View style={styles.pickerEmptyState}>
                         <Icon name="MagnifyingGlass" size={28} color={OBSIDIAN_COLORS.textSlate} />
@@ -1780,7 +1943,7 @@ interface ParsedPlanResult {
                 </>
               )}
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* ================= EXERCISE INFO HOVERING DIALOG ================= */}

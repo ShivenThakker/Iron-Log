@@ -7,6 +7,8 @@ import {
   TextInput,
   Modal,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -224,6 +226,8 @@ export default function BodyTab() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -440,7 +444,10 @@ export default function BodyTab() {
           animationType="fade"
           onRequestClose={() => setShowWeightModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text variant="headlineSm" style={styles.modalTitle}>Log Today's Weight</Text>
@@ -483,7 +490,7 @@ export default function BodyTab() {
                 style={{ marginTop: OBSIDIAN_SPACING.md }}
               />
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Log Measurements Modal */}
@@ -493,7 +500,10 @@ export default function BodyTab() {
           animationType="slide"
           onRequestClose={() => setShowMeasureModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text variant="headlineSm" style={styles.modalTitle}>Log Measurements</Text>
@@ -560,7 +570,7 @@ export default function BodyTab() {
                 style={{ marginTop: OBSIDIAN_SPACING.lg }}
               />
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Height Update Modal */}
@@ -570,7 +580,10 @@ export default function BodyTab() {
           animationType="fade"
           onRequestClose={() => setShowHeightModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}
+          >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text variant="headlineSm" style={styles.modalTitle}>Set Height</Text>
@@ -603,7 +616,7 @@ export default function BodyTab() {
                 style={{ marginTop: OBSIDIAN_SPACING.md }}
               />
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
     </ScreenContainer>

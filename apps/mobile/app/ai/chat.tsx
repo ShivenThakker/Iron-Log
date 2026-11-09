@@ -134,7 +134,11 @@ export default function AiChatScreen() {
   }, [messages, loading]);
 
   return (
-    <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
+    <ScreenContainer
+      scrollable={false}
+      keyboardAvoiding={false}
+      style={{ backgroundColor: OBSIDIAN_COLORS.surface }}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}

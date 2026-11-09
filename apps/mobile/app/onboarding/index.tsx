@@ -295,6 +295,8 @@ export default function OnboardingWizard() {
           style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
         >
           {/* ================= STEP 1: BASELINE BIOMETRICS ================= */}
           {step === 1 && (
