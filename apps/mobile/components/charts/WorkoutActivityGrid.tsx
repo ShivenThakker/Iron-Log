@@ -61,16 +61,16 @@ export const WorkoutActivityGrid: React.FC<WorkoutActivityGridProps> = ({
     const dayOfWeek = (startDate.getDay() + 6) % 7; // Monday = 0
     const cursor = new Date(year, 0, 1 - dayOfWeek);
 
-    const generatedWeeks: Array<
-      Array<{
-        dateStr: string;
-        date: Date;
-        inYear: boolean;
-        isToday: boolean;
-        isFuture: boolean;
-        activity?: DayActivity;
-      }>
-    > = [];
+    interface ActivityCell {
+      dateStr: string;
+      date: Date;
+      inYear: boolean;
+      isToday: boolean;
+      isFuture: boolean;
+      activity?: DayActivity;
+    }
+
+    const generatedWeeks: ActivityCell[][] = [];
 
     const mPositions: { name: string; weekIndex: number }[] = [];
     let lastRecordedMonth = -1;

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
+  Animated,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
@@ -14,7 +15,8 @@ import {
   SPACING,
   OBSIDIAN_COLORS,
   OBSIDIAN_SHADOWS,
-  OBSIDIAN_RADIUS,
+  SPRINGS,
+  MOTION_TOKENS,
 } from '@/constants/tokens';
 import { Text } from './Text';
 
@@ -37,6 +39,7 @@ interface GradientButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  debounceMs?: number;
 }
 
 export const GradientButton: React.FC<GradientButtonProps> = ({
@@ -49,24 +52,46 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   style,
   textStyle,
   icon,
+  debounceMs = 500,
 }) => {
-  const handlePress = () => {
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const lastPressRef = React.useRef(0);
+
+  const handlePressIn = () => {
     if (disabled || loading) return;
-    onPress();
     if (Platform.OS !== 'web') {
       try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      } catch {
-        // Ignore if haptics unavailable
-      }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
     }
+    Animated.spring(scaleAnim, {
+      toValue: MOTION_TOKENS.scale.press,
+      ...SPRINGS.snappy,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      ...SPRINGS.snappy,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    if (disabled || loading) return;
+    const now = Date.now();
+    if (now - lastPressRef.current < debounceMs) return;
+    lastPressRef.current = now;
+    onPress();
   };
 
   const buttonStyles = [
     styles.base,
     styles[variant],
     styles[`size_${size}`],
-    disabled && styles.disabled,
+    (disabled || loading) && styles.disabled,
     style,
   ];
 
@@ -83,40 +108,57 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   const isVoltFamily = variant === 'volt' || variant === 'voltSecondary' || variant === 'voltGhost';
 
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={disabled || loading}
-      unstable_pressDelay={0}
-      android_ripple={{
-        color: variant === 'volt' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)',
-        borderless: false,
-      }}
-      style={({ pressed }) => [
-        buttonStyles,
-        pressed && !disabled && !loading && styles.pressed,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={getTextColor()} size="small" />
-      ) : (
-        <>
-          {icon}
-          <Text
-            variant={size === 'sm' ? 'bodySmall' : 'body'}
-            weight="semibold"
-            color={getTextColor()}
-            style={[
-              styles.text,
-              isVoltFamily && styles.voltText,
-              icon ? { marginLeft: SPACING.sm } : undefined,
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-        </>
-      )}
-    </Pressable>
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, (disabled || loading) && { opacity: 0.5 }]}>
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        unstable_pressDelay={0}
+        hitSlop={size === 'sm' ? { top: 8, bottom: 8, left: 8, right: 8 } : undefined}
+        android_ripple={{
+          color: variant === 'volt' ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)',
+          borderless: false,
+        }}
+        style={buttonStyles}
+      >
+        {loading ? (
+          <Animated.View style={styles.loadingRow}>
+            <ActivityIndicator color={getTextColor()} size="small" style={{ marginRight: SPACING.xs }} />
+            <Text
+              variant={size === 'sm' ? 'bodySmall' : 'body'}
+              weight="semibold"
+              color={getTextColor()}
+              style={[
+                styles.text,
+                isVoltFamily && styles.voltText,
+                textStyle,
+                { opacity: 0.85 },
+              ]}
+            >
+              {title}
+            </Text>
+          </Animated.View>
+        ) : (
+          <>
+            {icon}
+            <Text
+              variant={size === 'sm' ? 'bodySmall' : 'body'}
+              weight="semibold"
+              color={getTextColor()}
+              style={[
+                styles.text,
+                isVoltFamily && styles.voltText,
+                icon ? { marginLeft: SPACING.sm } : undefined,
+                textStyle,
+              ]}
+            >
+              {title}
+            </Text>
+          </>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -192,5 +234,10 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

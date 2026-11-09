@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ViewStyle,
+  Animated,
 } from 'react-native';
 import {
   COLORS,
@@ -39,6 +40,44 @@ export const Input: React.FC<InputProps> = ({
   const [showPassword, setShowPassword] = useState(!isPassword);
   const [isFocused, setIsFocused] = useState(false);
   const isObsidian = variant === 'obsidian';
+  const [focusAnim] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(focusAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: 180,
+      useNativeDriver: false,
+    }).start();
+  }, [isFocused, focusAnim]);
+
+  const defaultBorder = isObsidian
+    ? OBSIDIAN_COLORS.borderGhost
+    : 'rgba(255, 255, 255, 0.08)';
+  const activeBorder = isObsidian
+    ? OBSIDIAN_COLORS.voltLime
+    : COLORS.dark.accentRed;
+
+  const defaultBg = isObsidian
+    ? OBSIDIAN_COLORS.surfaceContainerLow
+    : COLORS.dark.bgInput;
+  const activeBg = isObsidian
+    ? OBSIDIAN_COLORS.surfaceContainer
+    : 'rgba(42, 45, 80, 0.9)';
+
+  const animatedBorderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [defaultBorder, activeBorder],
+  });
+
+  const animatedBgColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [defaultBg, activeBg],
+  });
+
+  const isNumeric =
+    rest.keyboardType === 'numeric' ||
+    rest.keyboardType === 'decimal-pad' ||
+    rest.keyboardType === 'number-pad';
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -52,12 +91,18 @@ export const Input: React.FC<InputProps> = ({
         </Text>
       ) : null}
 
-      <View
+      <Animated.View
         style={[
           styles.inputContainer,
           isObsidian && styles.inputContainerObsidian,
-          isFocused && (isObsidian ? styles.inputFocusedObsidian : styles.inputFocused),
-          !!error && (isObsidian ? styles.inputErrorObsidian : styles.inputError),
+          {
+            borderColor: error
+              ? isObsidian
+                ? OBSIDIAN_COLORS.coralAccent
+                : COLORS.dark.destructive
+              : animatedBorderColor,
+            backgroundColor: animatedBgColor,
+          },
         ]}
       >
         {leftIcon ? <View style={styles.leftIconContainer}>{leftIcon}</View> : null}
@@ -66,6 +111,7 @@ export const Input: React.FC<InputProps> = ({
           style={[
             styles.input,
             isObsidian && styles.inputObsidian,
+            isNumeric && { fontVariant: ['tabular-nums'] },
             style,
           ]}
           placeholderTextColor={isObsidian ? OBSIDIAN_COLORS.textSlate : '#64748B'}
@@ -90,7 +136,7 @@ export const Input: React.FC<InputProps> = ({
             />
           </TouchableOpacity>
         ) : null}
-      </View>
+      </Animated.View>
 
       {error ? (
         <Text

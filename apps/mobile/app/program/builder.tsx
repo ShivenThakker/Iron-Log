@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -8,7 +8,6 @@ import {
   Modal,
   Alert,
   Image,
-  Switch,
   Platform,
   PanResponder,
   Animated,
@@ -23,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
+import { Toggle } from '@/components/ui/Toggle';
 import {
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
@@ -486,14 +486,13 @@ export default function WorkoutPlanBuilderScreen() {
   // Exercise Reorder State & Gesture Handling
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const panY = useRef(new Animated.Value(0)).current;
+  const [panY] = useState(() => new Animated.Value(0));
   const cardHeights = useRef<{ [key: number]: number }>({});
   const dragRef = useRef({
     startIndex: 0,
     targetIndex: 0,
     isDragging: false,
   });
-  const panRespondersRef = useRef<Map<number, ReturnType<typeof PanResponder.create>>>(new Map());
 
   const insets = useSafeAreaInsets();
   const mainScrollRef = useRef<React.ElementRef<typeof ScrollView>>(null);
@@ -705,6 +704,7 @@ interface ParsedPlanResult {
 
   // Save Split Plan
   const handleSavePlan = async () => {
+    if (loading) return;
     const activeDays = splitDays.filter((d) => !d.is_rest);
     if (activeDays.length === 0) {
       Alert.alert('Empty Split', 'Please configure at least one active workout day in your split.');
@@ -881,7 +881,7 @@ interface ParsedPlanResult {
     };
   });
 
-  const stopAutoScroll = () => {
+  const stopAutoScroll = useCallback(() => {
     if (autoScrollHoldTimerRef.current) {
       clearTimeout(autoScrollHoldTimerRef.current);
       autoScrollHoldTimerRef.current = null;
@@ -892,9 +892,9 @@ interface ParsedPlanResult {
     }
     autoScrollDirectionRef.current = null;
     activeHoldDirectionRef.current = null;
-  };
+  }, []);
 
-  const updateDragTarget = (g: { dy: number; moveY: number } | null) => {
+  const updateDragTarget = useCallback((g: { dy: number; moveY: number } | null) => {
     if (!g || !dragRef.current.isDragging) return;
     const start = dragRef.current.startIndex;
     const { splitDays: curSplit, selectedDayIndex: curIdx } = latestStateRef.current;
@@ -918,9 +918,9 @@ interface ParsedPlanResult {
         Haptics.selectionAsync().catch(() => {});
       }
     }
-  };
+  }, [panY]);
 
-  const startAutoScroll = (direction: 'up' | 'down') => {
+  const startAutoScroll = useCallback((direction: 'up' | 'down') => {
     if (autoScrollDirectionRef.current === direction && autoScrollTimerRef.current) {
       return;
     }
@@ -964,18 +964,17 @@ interface ParsedPlanResult {
         updateDragTarget(lastGestureRef.current);
       }
     }, 16);
-  };
+  }, [stopAutoScroll, updateDragTarget]);
 
   useEffect(() => {
     return () => {
       stopAutoScroll();
     };
-  }, []);
+  }, [stopAutoScroll]);
 
-  const getPanResponder = (index: number) => {
-    let pr = panRespondersRef.current.get(index);
-    if (!pr) {
-      pr = PanResponder.create({
+  const createPanResponder = useCallback(
+    (index: number) => {
+      return PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
@@ -1086,10 +1085,13 @@ interface ParsedPlanResult {
           });
         },
       });
-      panRespondersRef.current.set(index, pr);
-    }
-    return pr;
-  };
+    },
+    [insets.bottom, insets.top, panY, startAutoScroll, stopAutoScroll, updateDragTarget]
+  );
+
+  const panResponders = useMemo(() => {
+    return Array.from({ length: 30 }, (_, i) => createPanResponder(i));
+  }, [createPanResponder]);
 
   const handleUpdateExerciseParam = (
     exIdx: number,
@@ -1332,7 +1334,7 @@ interface ParsedPlanResult {
 
                 <View style={styles.restToggleContainer}>
                   <Text style={styles.restToggleLabel}>Rest Day</Text>
-                  <Switch
+                  <Toggle
                     value={currentDay.is_rest}
                     onValueChange={(val) => {
                       setSplitDays((prev) => {
@@ -1341,8 +1343,7 @@ interface ParsedPlanResult {
                         return copy;
                       });
                     }}
-                    trackColor={{ false: '#272A35', true: OBSIDIAN_COLORS.voltLime }}
-                    thumbColor={OBSIDIAN_COLORS.textWhite}
+                    accessibilityLabel="Toggle Rest Day"
                   />
                 </View>
               </View>
@@ -1455,14 +1456,12 @@ interface ParsedPlanResult {
                           <View style={styles.exerciseActionCluster}>
                             {/* 6-Dot Drag Handle */}
                             <View
-                              {...getPanResponder(exIdx).panHandlers}
+                              {...(panResponders[exIdx] || panResponders[0]).panHandlers}
                               style={[
                                 styles.dragHandleBtn,
                                 isBeingDragged && styles.dragHandleBtnActive,
                                 Platform.OS === 'web' &&
-                                  ({
-                                    cursor: isBeingDragged ? 'grabbing' : 'grab',
-                                  } as any),
+                                  (isBeingDragged ? styles.cursorGrabbing : styles.cursorGrab),
                               ]}
                               accessibilityLabel="Hold and drag to reorder exercise"
                               accessibilityRole="button"
@@ -1596,7 +1595,7 @@ interface ParsedPlanResult {
               </TouchableOpacity>
             </>
           ) : (
-            /* ================= AI IMPORT INGESTION MODE ================= */
+            /* AI Plan Ingestion Mode */
             <View style={styles.aiSection}>
               <View style={styles.aiCard}>
                 <View style={styles.aiHeaderPill}>
@@ -1751,7 +1750,7 @@ interface ParsedPlanResult {
           )}
         </ScrollView>
 
-        {/* ================= 2-STEP EXERCISE PICKER MODAL ================= */}
+        {/* Exercise picker modal */}
         <Modal visible={isExercisePickerOpen} animationType="slide" transparent>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1879,7 +1878,7 @@ interface ParsedPlanResult {
                       >
                         <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.voltLime} />
                         <Text style={styles.customExerciseText}>
-                          Create custom: "{searchQuery.trim()}"
+                          {`Create custom: "${searchQuery.trim()}"`}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -1946,7 +1945,7 @@ interface ParsedPlanResult {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* ================= EXERCISE INFO HOVERING DIALOG ================= */}
+        {/* Exercise info dialog */}
         <Modal
           visible={selectedInfoExercise !== null}
           transparent
@@ -2495,6 +2494,12 @@ const styles = StyleSheet.create({
   dragHandleBtnActive: {
     backgroundColor: 'rgba(204, 255, 0, 0.18)',
     borderColor: OBSIDIAN_COLORS.voltLime,
+  },
+  cursorGrab: {
+    cursor: 'grab',
+  },
+  cursorGrabbing: {
+    cursor: 'grabbing',
   },
   dropIndicatorLine: {
     position: 'absolute',

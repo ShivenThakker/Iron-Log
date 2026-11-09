@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Modal, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Modal, Platform, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import {
-  COLORS,
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
   OBSIDIAN_SHADOWS,
+  SPRINGS,
 } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { GradientButton } from '@/components/ui/GradientButton';
@@ -27,38 +27,74 @@ export const PRCelebrationModal: React.FC<PRCelebrationModalProps> = ({
   value,
   onDismiss,
 }) => {
-  const [secondsRemaining, setSecondsRemaining] = React.useState(4);
+  const [secondsRemaining, setSecondsRemaining] = useState(4);
+  const [scaleAnim] = useState(() => new Animated.Value(0.92));
+  const [opacityAnim] = useState(() => new Animated.Value(0));
+  const [trophyScale] = useState(() => new Animated.Value(0.7));
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      scaleAnim.setValue(0.92);
+      opacityAnim.setValue(0);
+      trophyScale.setValue(0.7);
+      return;
+    }
 
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
 
-    setSecondsRemaining(4);
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        ...SPRINGS.bouncy,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(100),
+        Animated.spring(trophyScale, {
+          toValue: 1.18,
+          ...SPRINGS.bouncy,
+          useNativeDriver: true,
+        }),
+        Animated.spring(trophyScale, {
+          toValue: 1.0,
+          ...SPRINGS.snappy,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
     const interval = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
           onDismiss();
-          return 0;
+          return 4;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [visible, onDismiss]);
+    return () => {
+      clearInterval(interval);
+      setSecondsRemaining(4);
+    };
+  }, [visible, onDismiss, scaleAnim, opacityAnim, trophyScale]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onDismiss}>
+      <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
+        <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
           {/* Trophy Header */}
-          <View style={styles.iconCircle}>
+          <Animated.View style={[styles.iconCircle, { transform: [{ scale: trophyScale }] }]}>
             <Text style={styles.trophyEmoji}>🏆</Text>
-          </View>
+          </Animated.View>
 
           <Badge label="PERSONAL RECORD" variant="volt" style={styles.badge} />
 
@@ -93,8 +129,8 @@ export const PRCelebrationModal: React.FC<PRCelebrationModalProps> = ({
               onPress={onDismiss}
             />
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };

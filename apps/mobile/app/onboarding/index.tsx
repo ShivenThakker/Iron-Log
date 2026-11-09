@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,18 +7,21 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
-  Switch,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
 import { Icon, IconName } from '@/components/ui/Icon';
+import { Toggle } from '@/components/ui/Toggle';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import {
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
   OBSIDIAN_TYPOGRAPHY,
+  SPRINGS,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
 import { SplitInfoModal } from '@/components/onboarding/SplitInfoModal';
@@ -155,12 +158,45 @@ export default function OnboardingWizard() {
     }
   };
 
+  const [stepAnim] = useState(() => new Animated.Value(1));
+  const [slideAnim] = useState(() => new Animated.Value(0));
+
+  const goToStep = (nextStep: number, dir: 'forward' | 'backward') => {
+    Animated.parallel([
+      Animated.timing(stepAnim, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: dir === 'forward' ? -25 : 25,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setStep(nextStep);
+      slideAnim.setValue(dir === 'forward' ? 25 : -25);
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          ...SPRINGS.snappy,
+          useNativeDriver: true,
+        }),
+        Animated.timing(stepAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
   const handleNext = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
     if (step < TOTAL_STEPS) {
-      setStep((s) => s + 1);
+      goToStep(step + 1, 'forward');
     } else {
       handleFinish();
     }
@@ -168,16 +204,20 @@ export default function OnboardingWizard() {
 
   const handleBack = () => {
     if (step > 1) {
-      setStep((s) => s - 1);
       if (Platform.OS !== 'web') {
         Haptics.selectionAsync().catch(() => {});
       }
+      goToStep(step - 1, 'backward');
     } else {
       router.back();
     }
   };
 
+  const isFinishingRef = useRef(false);
+
   const handleFinish = async () => {
+    if (isFinishingRef.current || loading) return;
+    isFinishingRef.current = true;
     setLoading(true);
     try {
       if (Platform.OS !== 'web') {
@@ -276,15 +316,19 @@ export default function OnboardingWizard() {
 
           <View style={styles.progressCenter}>
             <Text style={styles.stepIndicatorText}>Step {step} of 4</Text>
-            <View style={styles.progressBarTrack}>
-              <View style={[styles.progressBarFill, { width: `${(step / 4) * 100}%` }]} />
-            </View>
+            <ProgressBar
+              progress={step / 4}
+              color={OBSIDIAN_COLORS.voltLime}
+              trackColor={OBSIDIAN_COLORS.surfaceContainerHigh}
+              height={4}
+              style={{ width: 130 }}
+            />
           </View>
 
           <TouchableOpacity
             style={styles.skipBtn}
             activeOpacity={0.7}
-            onPress={() => (step < 4 ? setStep(step + 1) : handleFinish())}
+            onPress={() => (step < 4 ? goToStep(step + 1, 'forward') : handleFinish())}
           >
             <Text style={styles.skipBtnText}>{step === 4 ? '' : 'Skip'}</Text>
           </TouchableOpacity>
@@ -298,7 +342,8 @@ export default function OnboardingWizard() {
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
         >
-          {/* ================= STEP 1: BASELINE BIOMETRICS ================= */}
+          <Animated.View style={{ opacity: stepAnim, transform: [{ translateX: slideAnim }] }}>
+            {/* Step 1: Baseline Biometrics */}
           {step === 1 && (
             <View style={styles.stepContainer}>
               <View style={styles.stepTitleBlock}>
@@ -509,14 +554,14 @@ export default function OnboardingWizard() {
             </View>
           )}
 
-          {/* ================= STEP 2: GOALS & EXPERIENCE ================= */}
+          {/* Step 2: Goals & Experience */}
           {step === 2 && (
             <View style={styles.stepContainer}>
               <View style={styles.stepTitleBlock}>
                 <View style={styles.kickerBadge}>
                   <Text style={styles.kickerBadgeText}>GOALS & EXPERIENCE</Text>
                 </View>
-                <Text style={styles.stepTitle}>What's your goal?</Text>
+                <Text style={styles.stepTitle}>{"What's your goal?"}</Text>
                 <Text style={styles.stepSubtitle}>
                   Select your primary fitness objective to calibrate your training and nutrition targets.
                 </Text>
@@ -682,7 +727,7 @@ export default function OnboardingWizard() {
             </View>
           )}
 
-          {/* ================= STEP 3: TRAINING CONFIGURATION ================= */}
+          {/* Step 3: Training Configuration */}
           {step === 3 && (
             <View style={styles.stepContainer}>
               <View style={styles.stepTitleBlock}>
@@ -916,7 +961,7 @@ export default function OnboardingWizard() {
             </View>
           )}
 
-          {/* ================= STEP 4: FINAL CONFIRMATION ================= */}
+          {/* Step 4: Final Confirmation */}
           {step === 4 && (
             <View style={styles.stepContainer}>
               <View style={styles.stepTitleBlock}>
@@ -1036,15 +1081,15 @@ export default function OnboardingWizard() {
                     </Text>
                   </View>
                 </View>
-                <Switch
+                <Toggle
                   value={smartProgression}
                   onValueChange={setSmartProgression}
-                  trackColor={{ false: '#272A35', true: OBSIDIAN_COLORS.voltLime }}
-                  thumbColor={OBSIDIAN_COLORS.textWhite}
+                  accessibilityLabel="Toggle Smart Progression"
                 />
               </View>
             </View>
           )}
+          </Animated.View>
         </ScrollView>
 
         {/* Bottom Floating CTA Bar */}

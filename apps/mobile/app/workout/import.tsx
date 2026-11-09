@@ -900,7 +900,7 @@ export default function HistoricalWorkoutImportScreen() {
 
             {filteredExercises.length === 0 && (
               <View style={styles.noExercisesContainer}>
-                <Text style={styles.noExercisesText}>No library exercises matched "{searchQuery}"</Text>
+                <Text style={styles.noExercisesText}>{`No library exercises matched "${searchQuery}"`}</Text>
                 <View style={styles.customExerciseBox}>
                   <Text style={styles.customExerciseHeading}>Add Custom Lift:</Text>
                   <TextInput
@@ -916,7 +916,7 @@ export default function HistoricalWorkoutImportScreen() {
                     onPress={handleAddCustomExercise}
                   >
                     <Icon name="Plus" size={16} color={OBSIDIAN_COLORS.onPrimary} weight="bold" />
-                    <Text style={styles.addCustomBtnText}>Add "{customExerciseName || 'Exercise'}"</Text>
+                    <Text style={styles.addCustomBtnText}>{`Add "${customExerciseName || 'Exercise'}"`}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

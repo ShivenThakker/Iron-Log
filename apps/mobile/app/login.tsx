@@ -258,7 +258,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <View style={styles.registerPrompt}>
-              <Text style={styles.promptText}>Don't have an account yet? </Text>
+              <Text style={styles.promptText}>{"Don't have an account yet? "}</Text>
               <TouchableOpacity onPress={() => router.replace('/register')}>
                 <Text style={styles.promptLink}>Get Started</Text>
               </TouchableOpacity>
@@ -316,7 +316,7 @@ export default function LoginScreen() {
             {forgotStep === 'request' ? (
               <View style={styles.modalForm}>
                 <Text style={styles.modalSubtitle}>
-                  Enter your registered account email and we'll help you reset your password.
+                  {"Enter your registered account email and we'll help you reset your password."}
                 </Text>
 
                 <View style={styles.fieldGroup}>

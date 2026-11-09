@@ -75,6 +75,21 @@ function mapMuscleNameToHeatmapKey(muscleStr: string): string[] {
   return keys;
 }
 
+export interface ScrapedExerciseEntry {
+  name?: string;
+  category?: string;
+  difficulty?: string;
+  equipment?: string;
+  youtube_id?: string | null;
+  youtube_thumbnail?: string | null;
+  instructions?: string;
+  steps?: ExerciseStep[];
+  primary_muscles?: string[];
+  secondary_muscles?: string[];
+  coaching_cues?: string[];
+  common_mistakes?: string[];
+}
+
 export function getDetailedExerciseInfo(
   exerciseName: string,
   fallbackTargetMuscles?: string,
@@ -83,7 +98,8 @@ export function getDetailedExerciseInfo(
   const normName = exerciseName.toLowerCase().trim();
 
   // Try finding exact or fuzzy match in scraped database
-  const entry = (scrapedExercises as any[]).find((e: any) => {
+  const dataset = scrapedExercises as unknown as ScrapedExerciseEntry[];
+  const entry = dataset.find((e) => {
     if (!e?.name) return false;
     const itemNorm = e.name.toLowerCase().trim();
     if (itemNorm === normName) return true;

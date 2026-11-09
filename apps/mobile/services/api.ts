@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
@@ -72,7 +72,7 @@ async function getRefreshedToken(): Promise<string | null> {
       await useAuthStore.getState().login(accessToken, newRefreshToken, userId);
       return accessToken as string;
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.status === 429) {
+      if (isAxiosError(err) && err.response?.status === 429) {
         // Do not log out user on temporary rate limit
         return null;
       }

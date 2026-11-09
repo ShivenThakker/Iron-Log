@@ -65,9 +65,7 @@ export const RADIUS = {
   full: 9999,
 };
 
-// ============================================================================
-// OBSIDIAN KINETIC DESIGN TOKENS (Stitch Redesign System)
-// ============================================================================
+// Obsidian Kinetic Design Tokens
 
 export const OBSIDIAN_COLORS = {
   // 60% Carbon Grounding Foundations
@@ -286,5 +284,62 @@ export const OBSIDIAN_SHADOWS = {
     shadowOpacity: 0.7,
     shadowRadius: 32,
     elevation: 8,
+  },
+};
+
+// Motion Foundations & Springs
+
+export const MOTION_TOKENS = {
+  duration: {
+    instant: 80,
+    fast: 180,
+    normal: 350,
+    slow: 600,
+    crawl: 1000,
+  },
+  distance: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 48,
+  },
+  scale: {
+    subtle: 0.985,
+    press: 0.96,
+    pop: 1.04,
+  },
+};
+
+export const SPRINGS = {
+  // Snappy: Default UI controls — buttons, toggles, chips, tabs
+  snappy: {
+    stiffness: 300,
+    damping: 25,
+    mass: 1,
+  },
+  // Gentle: Floating panels, cards, sheets, smooth landings
+  gentle: {
+    stiffness: 140,
+    damping: 18,
+    mass: 1,
+  },
+  // Bouncy: Milestones, celebration badges, trophy pops
+  bouncy: {
+    stiffness: 380,
+    damping: 12,
+    mass: 0.8,
+  },
+  // Instant: Rapid toggles, tooltips, micro feedback
+  instant: {
+    stiffness: 600,
+    damping: 35,
+    mass: 0.5,
+  },
+  // Release: Drag dismiss, swipe back, natural inertia
+  release: {
+    stiffness: 220,
+    damping: 22,
+    mass: 1,
   },
 };

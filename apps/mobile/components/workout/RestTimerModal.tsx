@@ -52,9 +52,19 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const [totalSeconds, setTotalSeconds] = useState(initialSeconds);
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
   const [extraSetRequested, setExtraSetRequested] = useState(false);
+  const [prevVisible, setPrevVisible] = useState(visible);
+
+  if (prevVisible !== visible) {
+    setPrevVisible(visible);
+    if (visible) {
+      setTotalSeconds(initialSeconds);
+      setSecondsLeft(initialSeconds);
+      setExtraSetRequested(false);
+    }
+  }
 
   // Wall-clock target timestamp (ms) to survive background pauses
-  const targetEndTimestampRef = useRef<number>(Date.now() + initialSeconds * 1000);
+  const targetEndTimestampRef = useRef<number>(0);
   const scheduledNotificationIdRef = useRef<string | null>(null);
   const alertFiredRef = useRef<boolean>(false);
   const completedFiredRef = useRef<boolean>(false);
@@ -122,9 +132,6 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
     if (visible) {
       const targetTime = Date.now() + initialSeconds * 1000;
       targetEndTimestampRef.current = targetTime;
-      setTotalSeconds(initialSeconds);
-      setSecondsLeft(initialSeconds);
-      setExtraSetRequested(false);
       extraSetRequestedRef.current = false;
       alertFiredRef.current = false;
       completedFiredRef.current = false;

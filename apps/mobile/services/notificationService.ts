@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { AndroidImportance } from 'expo-notifications';
 
 // Configure how notifications appear when app is in foreground/background
 if (Platform.OS !== 'web') {
@@ -27,7 +28,7 @@ export async function setupNotificationChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync('rest-timer-channel', {
       name: 'Rest Timer Alerts',
       description: 'Alerts when your rest period ends between sets',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: AndroidImportance.HIGH,
       sound: 'default',
       vibrationPattern: [0, 300, 200, 300],
       lightColor: '#CCFF00',

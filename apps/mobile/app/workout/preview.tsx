@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -45,47 +45,7 @@ interface PreviewExercise {
   };
 }
 
-const DEFAULT_PREVIEW_EXERCISES: PreviewExercise[] = [
-  {
-    id: 'p-1',
-    exerciseId: 'bench-press-1',
-    name: 'Barbell Bench Press',
-    primaryMuscle: 'Chest, Triceps, Anterior Deltoids',
-    equipment: 'Barbell',
-    categoryTag: 'PRIMARY COMPOUND',
-    targetSets: 4,
-    targetReps: '8 - 10',
-    restSeconds: 120,
-    instructions:
-      'Keep your shoulder blades retracted and feet flat on the floor. Lower the barbell with control to mid-chest, then drive forcefully back up.',
-  },
-  {
-    id: 'p-2',
-    exerciseId: 'incline-db-press',
-    name: 'Incline Dumbbell Press',
-    primaryMuscle: 'Upper Chest, Anterior Deltoids',
-    equipment: 'Dumbbell',
-    categoryTag: 'HYPERTROPHY',
-    targetSets: 3,
-    targetReps: '10 - 12',
-    restSeconds: 90,
-    instructions:
-      'Set bench to 30 degrees. Press dumbbells up in a slight arc, squeezing the upper chest at peak contraction.',
-  },
-  {
-    id: 'p-3',
-    exerciseId: 'cable-pushdowns',
-    name: 'Tricep Cable Pushdown',
-    primaryMuscle: 'Triceps (Lateral & Medial heads)',
-    equipment: 'Cable',
-    categoryTag: 'ISOLATION',
-    targetSets: 3,
-    targetReps: '12 - 15',
-    restSeconds: 60,
-    instructions:
-      'Keep elbows pinned to your sides. Push straight down, lock out the triceps, and control the eccentric return.',
-  },
-];
+
 
 export default function WorkoutPreviewScreen() {
   const router = useRouter();
@@ -94,7 +54,6 @@ export default function WorkoutPreviewScreen() {
   const [loading, setLoading] = useState(true);
   const [exercises, setExercises] = useState<PreviewExercise[]>([]);
   const [dayTitle, setDayTitle] = useState(params.workoutName || "Today's Workout");
-  const [daySubtitle, setDaySubtitle] = useState('Scheduled Session');
   const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<PreviewExercise | null>(null);
 
   useEffect(() => {
@@ -122,7 +81,6 @@ export default function WorkoutPreviewScreen() {
 
           if (matchedDay) {
             setDayTitle(matchedDay.day_name || activeProg.name || 'Workout Session');
-            setDaySubtitle(`${activeProg.name || 'Active Program'} • ${matchedDay.day_name || todayName}`);
 
             if (Array.isArray(matchedDay.exercises) && matchedDay.exercises.length > 0) {
               const loaded: PreviewExercise[] = matchedDay.exercises.map((dayEx: any, idx: number) => {
@@ -226,9 +184,18 @@ export default function WorkoutPreviewScreen() {
 
   const estimatedMinutes = useMemo(() => Math.round(totalSets * 2.5) + 5, [totalSets]);
 
+  const isStartingRef = useRef(false);
+  const [isStarting, setIsStarting] = useState(false);
+
   const handleStartWorkout = () => {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
+    setIsStarting(true);
+
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      } catch {}
     }
     router.push({
       pathname: '/workout/active',
@@ -288,7 +255,7 @@ export default function WorkoutPreviewScreen() {
 
               {/* Section Header */}
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeaderTitle}>TODAY'S EXERCISE LINEUP</Text>
+                <Text style={styles.sectionHeaderTitle}>{"TODAY'S EXERCISE LINEUP"}</Text>
                 <View style={styles.countBadge}>
                   <Text style={styles.countBadgeText}>{exercises.length}</Text>
                 </View>
@@ -387,14 +354,22 @@ export default function WorkoutPreviewScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.startWorkoutBtn,
-                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                  pressed && !isStarting && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                  isStarting && { opacity: 0.75 },
                 ]}
+                disabled={isStarting}
                 unstable_pressDelay={0}
                 android_ripple={{ color: 'rgba(0, 0, 0, 0.2)' }}
                 onPress={handleStartWorkout}
               >
-                <Icon name="Play" size={22} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
-                <Text style={styles.startWorkoutText}>Start Workout • {totalSets} Sets</Text>
+                {isStarting ? (
+                  <ActivityIndicator size="small" color={OBSIDIAN_COLORS.onPrimary} style={{ marginRight: 8 }} />
+                ) : (
+                  <Icon name="Play" size={22} color={OBSIDIAN_COLORS.onPrimary} weight="fill" />
+                )}
+                <Text style={styles.startWorkoutText}>
+                  {isStarting ? 'Starting Workout...' : `Start Workout • ${totalSets} Sets`}
+                </Text>
               </Pressable>
             </View>
 

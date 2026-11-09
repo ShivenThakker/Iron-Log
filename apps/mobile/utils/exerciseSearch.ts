@@ -211,7 +211,7 @@ export function searchExercises<T extends SearchableExercise>(
     });
   }
 
-  const scored: Array<{ exercise: T; score: number }> = [];
+  const scored: { exercise: T; score: number }[] = [];
   const seen = new Set<string>();
 
   for (const ex of exercises) {

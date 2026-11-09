@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ViewStyle, Pressable, Animated, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import {
   RADIUS,
   SPACING,
@@ -7,6 +8,7 @@ import {
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
   OBSIDIAN_SHADOWS,
+  SPRINGS,
 } from '@/constants/tokens';
 
 export type GlassCardVariant =
@@ -31,8 +33,52 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   style,
   onPress,
   variant = 'default',
-  activeOpacity = 0.8,
+  activeOpacity = 0.88,
 }) => {
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [opacityAnim] = useState(() => new Animated.Value(1));
+
+  const handlePressIn = () => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 0.985,
+        ...SPRINGS.snappy,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: activeOpacity,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        ...SPRINGS.snappy,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handlePress = () => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // Ignore
+      }
+    }
+    onPress?.();
+  };
+
   const cardStyle = [
     styles.card,
     variant === 'elevated' && styles.cardElevated,
@@ -48,14 +94,22 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     return (
       <Pressable
         unstable_pressDelay={0}
-        onPress={onPress}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         android_ripple={{ color: 'rgba(255, 255, 255, 0.08)' }}
-        style={({ pressed }) => [
-          cardStyle,
-          pressed && { opacity: 0.82, transform: [{ scale: 0.99 }] },
-        ]}
       >
-        {children}
+        <Animated.View
+          style={[
+            cardStyle,
+            {
+              transform: [{ scale: scaleAnim }],
+              opacity: opacityAnim,
+            },
+          ]}
+        >
+          {children}
+        </Animated.View>
       </Pressable>
     );
   }

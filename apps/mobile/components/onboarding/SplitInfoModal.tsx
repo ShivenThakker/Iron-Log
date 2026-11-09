@@ -13,7 +13,6 @@ import {
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
-  OBSIDIAN_TYPOGRAPHY,
 } from '@/constants/tokens';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';

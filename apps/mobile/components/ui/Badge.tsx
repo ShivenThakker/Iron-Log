@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, RADIUS, SPACING, OBSIDIAN_COLORS } from '@/constants/tokens';
+import { COLORS, RADIUS, OBSIDIAN_COLORS } from '@/constants/tokens';
 import { Text } from './Text';
 
 export type BadgeVariant =

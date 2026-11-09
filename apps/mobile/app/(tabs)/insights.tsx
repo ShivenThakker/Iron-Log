@@ -76,7 +76,7 @@ export default function InsightsTab() {
   });
 
   // Realigned endpoint 5: GET /analytics/activity
-  const { data: activityApiData, isLoading: loadingActivity, refetch: refetchActivity } = useQuery({
+  const { data: activityApiData, refetch: refetchActivity } = useQuery({
     queryKey: ['workoutActivityYear'],
     queryFn: async () => {
       const res = await api.get('/analytics/activity').catch(() => null);
@@ -95,14 +95,10 @@ export default function InsightsTab() {
   };
 
   const isInitialLoading =
-    (loadingStats || loadingHeatmap || loadingRadar) &&
+    (loadingStats || loadingHeatmap || loadingRadar || loadingEquipment) &&
     !statsData &&
     !heatmapApiData &&
     !radarApiData;
-
-  if (isInitialLoading) {
-    return <InsightsSkeleton />;
-  }
 
   // Process Heatmap Data: API returns { muscles: { Chest: { intensity }, ... } }
   const heatmapData: MuscleHeatmapData = React.useMemo(() => {
@@ -179,6 +175,10 @@ export default function InsightsTab() {
       };
     });
   }, [equipmentApiData]);
+
+  if (isInitialLoading) {
+    return <InsightsSkeleton />;
+  }
 
   const totalVolumeKg = statsData?.totalVolumeKg ?? 0;
   const totalVolumeStr = totalVolumeKg >= 1000 ? `${(totalVolumeKg / 1000).toFixed(1)}k` : `${totalVolumeKg}`;

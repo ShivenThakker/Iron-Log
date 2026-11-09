@@ -41,7 +41,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     init();
-  }, []);
+  }, [init]);
 
   useEffect(() => {
     if (fontsLoaded && isHydrated) {
@@ -59,7 +59,7 @@ export default function RootLayout() {
     } else if (isAuthenticated && (inAuthGroup || !rootSegment)) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isHydrated, fontsLoaded, rootSegment]);
+  }, [isAuthenticated, isHydrated, fontsLoaded, rootSegment, router]);
 
   if (!isHydrated || !fontsLoaded) {
     return (

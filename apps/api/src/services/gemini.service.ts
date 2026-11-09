@@ -36,6 +36,29 @@ export interface ParsedWorkoutPlan {
   days: ParsedDayItem[];
 }
 
+interface RawAiPlanExercise {
+  exercise_name?: string;
+  name?: string;
+  target_sets?: number | string;
+  target_reps?: string | number;
+  rest_seconds?: number | string;
+  sort_order?: number;
+}
+
+interface RawAiPlanDay {
+  day_name?: string;
+  sort_order?: number;
+  exercises?: RawAiPlanExercise[];
+}
+
+interface RawAiPlan {
+  name?: string;
+  difficulty?: string;
+  goal?: string;
+  schedule_days_per_week?: number;
+  days?: RawAiPlanDay[];
+}
+
 export class GeminiService {
   private client: GoogleGenAI | null = null;
   private readonly apiKey = env.GEMINI_API_KEY;
@@ -260,10 +283,10 @@ CRITICAL REQUIREMENTS:
       const parseResult = safeParseJson(safety.sanitizedText);
 
       if (parseResult.ok && typeof parseResult.data === 'object' && parseResult.data !== null) {
-        const parsed = parseResult.data as any;
+        const parsed = parseResult.data as RawAiPlan;
         if (Array.isArray(parsed.days) && parsed.days.length >= 3) {
           const activeDaysWithExercises = parsed.days.filter(
-            (d: any) => Array.isArray(d.exercises) && d.exercises.length >= 3
+            (d) => Array.isArray(d.exercises) && d.exercises.length >= 3
           );
           if (activeDaysWithExercises.length >= 2) {
             return {
@@ -273,11 +296,11 @@ CRITICAL REQUIREMENTS:
               schedule_days_per_week: parsed.schedule_days_per_week || fallbackPlan.schedule_days_per_week,
               is_active: true,
               is_ai_generated: true,
-              days: parsed.days.map((d: any, idx: number) => ({
+              days: parsed.days.map((d, idx) => ({
                 day_name: d.day_name || `Day ${idx + 1}`,
                 sort_order: typeof d.sort_order === 'number' ? d.sort_order : idx,
                 exercises: Array.isArray(d.exercises)
-                  ? d.exercises.map((ex: any, exIdx: number) => ({
+                  ? d.exercises.map((ex, exIdx) => ({
                       exercise_name: ex.exercise_name || ex.name || 'Exercise',
                       target_sets: Number(ex.target_sets) || 3,
                       target_reps: String(ex.target_reps || '8-12'),

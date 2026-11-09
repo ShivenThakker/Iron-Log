@@ -1,7 +1,19 @@
-import React from 'react';
-import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Pressable,
+  Animated,
+  StyleSheet,
+  ViewStyle,
+  Platform,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, RADIUS, SPACING } from '@/constants/tokens';
+import {
+  COLORS,
+  RADIUS,
+  SPACING,
+  OBSIDIAN_COLORS,
+  SPRINGS,
+} from '@/constants/tokens';
 import { Text } from './Text';
 
 interface ChipProps {
@@ -10,6 +22,7 @@ interface ChipProps {
   onPress: () => void;
   style?: ViewStyle;
   icon?: React.ReactNode;
+  variant?: 'default' | 'volt';
 }
 
 export const Chip: React.FC<ChipProps> = ({
@@ -18,36 +31,76 @@ export const Chip: React.FC<ChipProps> = ({
   onPress,
   style,
   icon,
+  variant = 'default',
 }) => {
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.96,
+      ...SPRINGS.snappy,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      ...SPRINGS.snappy,
+      useNativeDriver: true,
+    }).start();
+  };
+
   const handlePress = () => {
-    try {
-      Haptics.selectionAsync();
-    } catch {
-      // Ignore
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {
+        // Ignore
+      }
     }
     onPress();
   };
 
+  const isVolt = variant === 'volt';
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
       onPress={handlePress}
-      style={[
-        styles.chip,
-        selected ? styles.chipSelected : styles.chipUnselected,
-        style,
-      ]}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      style={{ marginRight: SPACING.sm }}
     >
-      {icon}
-      <Text
-        variant="bodySmall"
-        weight={selected ? 'semibold' : 'regular'}
-        color={selected ? '#FFFFFF' : COLORS.dark.textSecondary}
-        style={icon ? { marginLeft: SPACING.xs } : undefined}
+      <Animated.View
+        style={[
+          styles.chip,
+          selected
+            ? isVolt
+              ? styles.chipSelectedVolt
+              : styles.chipSelected
+            : styles.chipUnselected,
+          { transform: [{ scale: scaleAnim }] },
+          style,
+        ]}
       >
-        {label}
-      </Text>
-    </TouchableOpacity>
+        {icon}
+        <Text
+          variant="bodySmall"
+          weight={selected ? 'semibold' : 'regular'}
+          color={
+            selected
+              ? isVolt
+                ? OBSIDIAN_COLORS.onPrimary
+                : '#FFFFFF'
+              : COLORS.dark.textSecondary
+          }
+          style={icon ? { marginLeft: SPACING.xs } : undefined}
+        >
+          {label}
+        </Text>
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -59,14 +112,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    marginRight: SPACING.sm,
   },
   chipSelected: {
     backgroundColor: COLORS.dark.accentRed,
     borderColor: COLORS.dark.accentRed,
+  },
+  chipSelectedVolt: {
+    backgroundColor: OBSIDIAN_COLORS.voltLime,
+    borderColor: OBSIDIAN_COLORS.voltLime,
   },
   chipUnselected: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 });
+

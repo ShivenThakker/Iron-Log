@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +21,7 @@ import {
   OBSIDIAN_RADIUS,
   OBSIDIAN_SPACING,
   OBSIDIAN_TYPOGRAPHY,
+  SPRINGS,
 } from '@/constants/tokens';
 import { api } from '@/services/api';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
@@ -51,6 +53,39 @@ interface WorkoutSessionItem {
   exerciseSets?: SessionExerciseSet[];
 }
 
+const CarouselDot: React.FC<{ active: boolean }> = ({ active }) => {
+  const [widthAnim] = React.useState(() => new Animated.Value(active ? 20 : 6));
+  const [opacityAnim] = React.useState(() => new Animated.Value(active ? 1 : 0.35));
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.spring(widthAnim, {
+        toValue: active ? 20 : 6,
+        ...SPRINGS.snappy,
+        useNativeDriver: false,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: active ? 1 : 0.35,
+        duration: 180,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [active, opacityAnim, widthAnim]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.carouselDot,
+        active && styles.carouselDotActive,
+        {
+          width: widthAnim,
+          opacity: opacityAnim,
+        },
+      ]}
+    />
+  );
+};
+
 export default function HomeDashboard() {
   const router = useRouter();
   const [activeCardIndex, setActiveCardIndex] = useState(0);
@@ -64,7 +99,7 @@ export default function HomeDashboard() {
     },
   });
 
-  const { data: gamificationData, isLoading: loadingGamification, refetch: refetchGamification } = useQuery({
+  const { data: gamificationData, refetch: refetchGamification } = useQuery({
     queryKey: ['gamificationDashboard'],
     queryFn: async () => {
       const res = await api.get('/gamification').catch(() => null);
@@ -72,7 +107,7 @@ export default function HomeDashboard() {
     },
   });
 
-  const { data: nutritionData, isLoading: loadingNutrition, refetch: refetchNutrition } = useQuery({
+  const { data: nutritionData, refetch: refetchNutrition } = useQuery({
     queryKey: ['nutritionDashboard'],
     queryFn: async () => {
       const d = new Date();
@@ -84,7 +119,7 @@ export default function HomeDashboard() {
   });
 
   // Realigned query: replace /sessions/history (404) with real GET /sessions endpoint
-  const { data: recentSessions, isLoading: loadingSessions, refetch: refetchSessions } = useQuery({
+  const { data: recentSessions, refetch: refetchSessions } = useQuery({
     queryKey: ['recentSessions'],
     queryFn: async () => {
       const res = await api.get('/sessions').catch(() => null);
@@ -117,26 +152,18 @@ export default function HomeDashboard() {
     ]);
   };
 
-  const isInitialLoading =
-    (loadingProfile || loadingProgram) && !profileData && !activeProgramData;
-
-  if (isInitialLoading) {
-    return <DashboardSkeleton />;
-  }
-
   const user = profileData?.user;
-  const userName = useMemo(() => (user?.name ? user.name.split(' ')[0] : 'Lifter'), [user?.name]);
+  const userName = user?.name ? user.name.split(' ')[0] : 'Lifter';
   const rank = gamificationData?.currentRank?.name || 'Rookie';
   const totalXp = gamificationData?.xpRecord?.total_xp || 0;
 
   // Memoized nutrition calculations
-  const { caloriesConsumed, caloriesTarget, calRatio, proteinG, carbsG, fatG } = useMemo(() => {
+  const { caloriesConsumed, calRatio, proteinG, carbsG, fatG } = useMemo(() => {
     const consumed = nutritionData?.totals?.calories ?? 0;
     const target = profileData?.profile?.daily_calorie_target || 2500;
     const ratio = Math.min(consumed / (target || 2500), 1);
     return {
       caloriesConsumed: consumed,
-      caloriesTarget: target,
       calRatio: ratio,
       proteinG: nutritionData?.totals?.protein ?? 0,
       carbsG: nutritionData?.totals?.carbs ?? 0,
@@ -176,6 +203,13 @@ export default function HomeDashboard() {
 
   const sessionCount = recentSessions?.length || 0;
 
+  const isInitialLoading =
+    (loadingProfile || loadingProgram) && !profileData && !activeProgramData;
+
+  if (isInitialLoading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <ScreenContainer scrollable={false} style={{ backgroundColor: OBSIDIAN_COLORS.surface }}>
       <View style={styles.container}>
@@ -203,7 +237,7 @@ export default function HomeDashboard() {
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Text style={styles.dateLabel}>{todayDateFormatted.toUpperCase()}</Text>
-              <Text style={styles.greeting}>Let's grind, {userName}</Text>
+              <Text style={styles.greeting}>{"Let's grind, "}{userName}</Text>
             </View>
 
             <View style={styles.headerActions}>
@@ -261,7 +295,7 @@ export default function HomeDashboard() {
 
                 <View style={styles.cardHeaderRow}>
                   <View style={styles.workoutBadge}>
-                    <Text style={styles.workoutBadgeText}>TODAY'S WORKOUT</Text>
+                    <Text style={styles.workoutBadgeText}>{"TODAY'S WORKOUT"}</Text>
                   </View>
                   <Pressable
                     style={({ pressed }) => [
@@ -461,10 +495,7 @@ export default function HomeDashboard() {
           {/* Carousel Pagination Indicators (Volt bar + dots) */}
           <View style={styles.dotsRow}>
             {[0, 1, 2].map((idx) => (
-              <View
-                key={idx}
-                style={[styles.carouselDot, activeCardIndex === idx && styles.carouselDotActive]}
-              />
+              <CarouselDot key={idx} active={activeCardIndex === idx} />
             ))}
           </View>
 
@@ -561,10 +592,9 @@ export default function HomeDashboard() {
                   (acc: number, s: SessionExerciseSet) => acc + ((s.weight_kg || 0) * (s.reps || 0)),
                   0
                 ) || 0;
-                const formattedDate = new Date(session.started_at || Date.now()).toLocaleDateString(
-                  'en-US',
-                  { month: 'short', day: 'numeric' }
-                );
+                const formattedDate = session.started_at
+                  ? new Date(session.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : 'Recent';
                 const durationMin = session.duration_seconds
                   ? Math.round(session.duration_seconds / 60)
                   : 45;

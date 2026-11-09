@@ -26,8 +26,6 @@ import {
 import { api } from '@/services/api';
 import { BodySkeleton } from '@/components/ui/Skeleton';
 
-const DEFAULT_WEIGHT_HISTORY: WeightPoint[] = [];
-
 export default function BodyTab() {
   const queryClient = useQueryClient();
   const [timeRange, setTimeRange] = useState<'30' | '90' | 'all'>('30');
@@ -44,7 +42,7 @@ export default function BodyTab() {
   const [thighsInput, setThighsInput] = useState('');
 
   // User profile query (height & profile info)
-  const { data: profileData, isLoading: loadingProfile, refetch: refetchProfile } = useQuery({
+  const { data: profileData, refetch: refetchProfile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: async () => {
       const res = await api.get('/users/profile').catch(() => null);
@@ -125,19 +123,18 @@ export default function BodyTab() {
     moving_avg_kg?: number | string;
   }
 
-  const rawLogs = Array.isArray(weightData?.history)
-    ? weightData.history
-    : (weightData?.history?.history ?? []);
-  const historyList: BodyWeightRecord[] = Array.isArray(rawLogs) ? rawLogs : [];
-
   const chartPoints: WeightPoint[] = React.useMemo(() => {
+    const rawLogs = Array.isArray(weightData?.history)
+      ? weightData.history
+      : (weightData?.history?.history ?? []);
+    const historyList: BodyWeightRecord[] = Array.isArray(rawLogs) ? rawLogs : [];
     if (historyList.length === 0) return [];
     return historyList.map((item) => ({
       date: new Date(item.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       weight: Number(item.weight_kg),
       movingAvg: item.moving_avg_kg ? Number(item.moving_avg_kg) : undefined,
     }));
-  }, [historyList]);
+  }, [weightData]);
 
   const isInitialLoading =
     (loadingWeight || loadingMeasurements) && !weightData && !measurementData;
@@ -450,7 +447,7 @@ export default function BodyTab() {
           >
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <Text variant="headlineSm" style={styles.modalTitle}>Log Today's Weight</Text>
+                <Text variant="headlineSm" style={styles.modalTitle}>{"Log Today's Weight"}</Text>
                 <TouchableOpacity onPress={() => setShowWeightModal(false)}>
                   <Icon name="X" size={20} color={OBSIDIAN_COLORS.textMuted} />
                 </TouchableOpacity>

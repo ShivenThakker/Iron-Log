@@ -113,10 +113,6 @@ export default function NutritionScreen() {
     },
   });
 
-  if (loadingDaily && !dailyData) {
-    return <NutritionSkeleton />;
-  }
-
   // Food Search Query (USDA Engine)
   const { data: searchResults, isFetching: searching } = useQuery({
     queryKey: ['foodSearch', searchQuery],
@@ -149,6 +145,10 @@ export default function NutritionScreen() {
       resetManualForm();
     },
   });
+
+  if (loadingDaily && !dailyData) {
+    return <NutritionSkeleton />;
+  }
 
   const resetManualForm = () => {
     setManualName('');
@@ -562,7 +562,7 @@ export default function NutritionScreen() {
                     ) : searchQuery.length > 1 ? (
                       <View style={styles.noResults}>
                         <Text variant="bodySm" style={{ color: OBSIDIAN_COLORS.textSlate, textAlign: 'center' }}>
-                          No matches found. Switch to "Manual Entry" above to add a custom meal.
+                          {'No matches found. Switch to "Manual Entry" above to add a custom meal.'}
                         </Text>
                       </View>
                     ) : (
@@ -654,7 +654,7 @@ export default function NutritionScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* ================= PORTION & SERVING SELECTOR MODAL ================= */}
+        {/* Portion & serving selector modal */}
         <Modal
           visible={selectedFoodForPortion !== null}
           transparent

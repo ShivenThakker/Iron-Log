@@ -69,10 +69,6 @@ export default function AchievementsTab() {
     },
   });
 
-  if (loadingGamification && !gamificationData) {
-    return <AchievementsSkeleton />;
-  }
-
   const currentRank = gamificationData?.currentRank?.name || 'Rookie';
   const totalXp = gamificationData?.xpRecord?.total_xp ?? 0;
   const nextRank = gamificationData?.nextRank?.name || 'Grinder';
@@ -84,17 +80,15 @@ export default function AchievementsTab() {
   const progressRatio = Math.min(xpInRank / span, 1);
   const remainingXp = Math.max(nextRankMinXp - totalXp, 0);
 
-  interface ApiTrophy {
-    id?: string;
-    name?: string;
-    unlocked?: boolean;
-    unlockedAt?: string | Date;
-  }
-
   const trophies: TrophyItem[] = React.useMemo(() => {
     if (!gamificationData?.trophies?.length) return DEFAULT_TROPHIES;
     return DEFAULT_TROPHIES.map((def) => {
-      const found = (gamificationData.trophies as ApiTrophy[]).find(
+      const found = (gamificationData.trophies as {
+        id?: string;
+        name?: string;
+        unlocked?: boolean;
+        unlockedAt?: string | Date;
+      }[]).find(
         (t) => t.id === def.id || t.name === def.name
       );
       return found
@@ -109,6 +103,10 @@ export default function AchievementsTab() {
 
   const unlockedCount = trophies.filter((t) => t.unlocked).length;
   const categories = ['STREAK', 'WORKOUTS', 'MILESTONES', 'SPECIAL'] as const;
+
+  if (loadingGamification && !gamificationData) {
+    return <AchievementsSkeleton />;
+  }
 
   return (
     <ScreenContainer scrollable={false} theme="obsidian">

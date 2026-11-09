@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Share, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Text } from '@/components/ui/Text';
@@ -121,6 +122,21 @@ export default function PostWorkoutSummary() {
   const totalXp = gamificationData?.xpRecord?.total_xp ?? 0;
   const nextRankXp = gamificationData?.nextRank?.minXp ?? gamificationData?.nextRank?.min_xp ?? 1000;
   const xpProgress = Math.min(1, totalXp / (nextRankXp || 1000));
+
+  const isNavigatingHomeRef = useRef(false);
+  const [isNavigatingHome, setIsNavigatingHome] = useState(false);
+
+  const handleDoneLifting = () => {
+    if (isNavigatingHomeRef.current) return;
+    isNavigatingHomeRef.current = true;
+    setIsNavigatingHome(true);
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+    }
+    router.replace('/(tabs)');
+  };
 
   const handleShare = async () => {
     try {
@@ -297,13 +313,23 @@ export default function PostWorkoutSummary() {
               <Text style={styles.shareText}>Share</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.doneBtn}
-              activeOpacity={0.88}
-              onPress={() => router.replace('/(tabs)')}
+            <Pressable
+              style={({ pressed }) => [
+                styles.doneBtn,
+                pressed && !isNavigatingHome && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                isNavigatingHome && { opacity: 0.75 },
+              ]}
+              disabled={isNavigatingHome}
+              unstable_pressDelay={0}
+              onPress={handleDoneLifting}
             >
-              <Text style={styles.doneText}>Done Lifting</Text>
-            </TouchableOpacity>
+              {isNavigatingHome ? (
+                <ActivityIndicator size="small" color={OBSIDIAN_COLORS.onPrimary} style={{ marginRight: 6 }} />
+              ) : null}
+              <Text style={styles.doneText}>
+                {isNavigatingHome ? 'Wrapping Up...' : 'Done Lifting'}
+              </Text>
+            </Pressable>
           </View>
         </ScrollView>
       </View>

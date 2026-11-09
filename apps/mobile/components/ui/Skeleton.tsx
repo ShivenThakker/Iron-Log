@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useId } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,6 +9,9 @@ import {
   Platform,
   Easing,
   ScrollView,
+  AppState,
+  AppStateStatus,
+  DimensionValue,
 } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { OBSIDIAN_COLORS, OBSIDIAN_RADIUS, OBSIDIAN_SPACING } from '@/constants/tokens';
@@ -20,19 +23,29 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SkeletonWaveContext = createContext<Animated.AnimatedInterpolation<string | number> | null>(null);
 
 let globalLoopAnim: Animated.Value | null = null;
+let globalLoopAnimation: Animated.CompositeAnimation | null = null;
 let globalWaveInterpolation: Animated.AnimatedInterpolation<string | number> | null = null;
 
 function getGlobalWave(): Animated.AnimatedInterpolation<string | number> {
   if (!globalLoopAnim) {
     globalLoopAnim = new Animated.Value(0);
-    Animated.loop(
+    globalLoopAnimation = Animated.loop(
       Animated.timing(globalLoopAnim, {
         toValue: 1,
         duration: 1600,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: Platform.OS !== 'web',
       })
-    ).start();
+    );
+    globalLoopAnimation.start();
+
+    AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        globalLoopAnimation?.start();
+      } else {
+        globalLoopAnimation?.stop();
+      }
+    });
 
     globalWaveInterpolation = globalLoopAnim.interpolate({
       inputRange: [0, 1],
@@ -43,7 +56,7 @@ function getGlobalWave(): Animated.AnimatedInterpolation<string | number> {
 }
 
 export function SkeletonProvider({ children }: { children: React.ReactNode }) {
-  const anim = useRef(new Animated.Value(0)).current;
+  const [anim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -55,7 +68,19 @@ export function SkeletonProvider({ children }: { children: React.ReactNode }) {
       })
     );
     loop.start();
-    return () => loop.stop();
+
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        loop.start();
+      } else {
+        loop.stop();
+      }
+    });
+
+    return () => {
+      loop.stop();
+      subscription.remove();
+    };
   }, [anim]);
 
   const waveTranslateX = anim.interpolate({
@@ -70,13 +95,11 @@ export function SkeletonProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Core Skeleton primitive
-// ---------------------------------------------------------------------------
 
 export interface SkeletonProps {
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
@@ -91,15 +114,16 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 }) => {
   const contextWave = useContext(SkeletonWaveContext);
   const waveTranslateX = contextWave || getGlobalWave();
-  const gradId = useRef(`green_wave_${Math.random().toString(36).substring(2, 9)}`).current;
+  const rawId = useId();
+  const gradId = `green_wave_${rawId.replace(/:/g, '_')}`;
 
   return (
     <View
       style={[
         styles.skeletonBase,
         {
-          width: width as any,
-          height: height as any,
+          width,
+          height,
           borderRadius,
         },
         style,
@@ -197,9 +221,7 @@ export const SkeletonText: React.FC<{
   );
 };
 
-// ---------------------------------------------------------------------------
 // Specialized Full-Screen Skeletons
-// ---------------------------------------------------------------------------
 
 /**
  * Skeleton for Home / Dashboard screen (app/(tabs)/index.tsx)
@@ -586,9 +608,7 @@ export function AchievementsSkeleton() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Styles
-// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   skeletonBase: {

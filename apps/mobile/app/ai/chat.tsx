@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -58,7 +58,7 @@ export default function AiChatScreen() {
     api.get('/health').catch(() => {});
   }, []);
 
-  const handleSend = async (messageToSend?: string) => {
+  const handleSend = useCallback(async (messageToSend?: string) => {
     const text = (messageToSend || inputText).trim();
     if (!text || loading) return;
 
@@ -101,11 +101,12 @@ export default function AiChatScreen() {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err: any) {
-      console.warn('Coach AI error:', err?.response?.data || err?.message);
-      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
-      const isNetworkError = !err?.response;
-      let errorDetail = err?.response?.data?.error;
+    } catch (err: unknown) {
+      const errObj = err as { code?: string; message?: string; response?: { data?: { error?: string } } } | undefined;
+      console.warn('Coach AI error:', errObj?.response?.data || errObj?.message);
+      const isTimeout = errObj?.code === 'ECONNABORTED' || errObj?.message?.includes('timeout');
+      const isNetworkError = !errObj?.response;
+      let errorDetail = errObj?.response?.data?.error;
 
       if (!errorDetail) {
         if (isTimeout || isNetworkError) {
@@ -127,7 +128,7 @@ export default function AiChatScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [inputText, loading, messages]);
 
   useEffect(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });

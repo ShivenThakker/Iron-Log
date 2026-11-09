@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { COLORS } from '@/constants/tokens';
+import { COLORS, SPRINGS } from '@/constants/tokens';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface ProgressRingProps {
   size: number;
@@ -10,6 +12,7 @@ interface ProgressRingProps {
   color?: string;
   trackColor?: string;
   children?: React.ReactNode;
+  animated?: boolean;
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
@@ -19,11 +22,31 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
   color = COLORS.dark.accentRed,
   trackColor = 'rgba(255, 255, 255, 0.08)',
   children,
+  animated = true,
 }) => {
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - clampedProgress);
+
+  const [animProgress] = useState(() => new Animated.Value(clampedProgress));
+
+  useEffect(() => {
+    if (animated) {
+      Animated.spring(animProgress, {
+        toValue: clampedProgress,
+        ...SPRINGS.gentle,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      animProgress.setValue(clampedProgress);
+    }
+  }, [clampedProgress, animated, animProgress]);
+
+  const strokeDashoffset = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circumference, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -38,7 +61,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           fill="none"
         />
         {/* Progress Arc */}
-        <Circle
+        <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
           r={radius}

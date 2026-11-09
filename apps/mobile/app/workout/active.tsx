@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -12,6 +12,7 @@ import {
   AppState,
   AppStateStatus,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -44,14 +45,12 @@ const WorkoutStopwatch = React.memo(
     startTimestamp?: number;
     onTick: (seconds: number) => void;
   }) => {
-    const startTimeRef = React.useRef(startTimestamp || Date.now());
-    const [seconds, setSeconds] = useState(() =>
-      Math.max(0, Math.floor((Date.now() - startTimeRef.current) / 1000))
-    );
+    const [initialTime] = useState(() => startTimestamp ?? Date.now());
+    const [seconds, setSeconds] = useState(0);
 
     useEffect(() => {
       const updateElapsed = () => {
-        const elapsed = Math.max(0, Math.floor((Date.now() - startTimeRef.current) / 1000));
+        const elapsed = Math.max(0, Math.floor((Date.now() - initialTime) / 1000));
         setSeconds(elapsed);
         onTick(elapsed);
         return elapsed;
@@ -73,11 +72,12 @@ const WorkoutStopwatch = React.memo(
         clearInterval(timer);
         subscription.remove();
       };
-    }, [onTick]);
+    }, [initialTime, onTick]);
 
     return <Text style={styles.timerText}>{formatStopwatch(seconds)}</Text>;
   }
 );
+WorkoutStopwatch.displayName = 'WorkoutStopwatch';
 
 type SetType = 'normal' | 'warmup' | 'dropset' | 'failure';
 
@@ -177,12 +177,13 @@ export default function ActiveWorkoutScreen() {
   const [activeSetIndex, setActiveSetIndex] = useState(0);
 
   // Timer states
-  const sessionStartTimeRef = React.useRef(Date.now());
+  const [sessionStartTime] = useState(() => Date.now());
   const elapsedSecondsRef = React.useRef(0);
   const handleStopwatchTick = React.useCallback((sec: number) => {
     elapsedSecondsRef.current = sec;
   }, []);
-  const [restDuration, setRestDuration] = useState(90);
+  const [customRestDurations, setCustomRestDurations] = useState<Record<number, number>>({});
+  const restDuration = customRestDurations[currentExerciseIndex] ?? exercises[currentExerciseIndex]?.restSeconds ?? 90;
   const [restTimerConfig, setRestTimerConfig] = useState<{
     visible: boolean;
     mode: 'set' | 'exercise';
@@ -210,6 +211,11 @@ export default function ActiveWorkoutScreen() {
   const [showEffortGuide, setShowEffortGuide] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
 
+  // Finish workout lock state (prevents multiple taps / duplicate summary navigations)
+  const isFinishingRef = useRef(false);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const lastSetToggleRef = useRef(0);
+
   // PR Celebration State
   const [prCelebration, setPrCelebration] = useState<{
     visible: boolean;
@@ -230,7 +236,7 @@ export default function ActiveWorkoutScreen() {
 
   // Exercise history lookup for Last Session & PR stats
   const [exerciseHistory, setExerciseHistory] = useState<Record<string, ExerciseHistoryRecord>>({});
-  const [sessionHitPRs, setSessionHitPRs] = useState<Array<{ exerciseName: string; value: string }>>([]);
+  const [sessionHitPRs, setSessionHitPRs] = useState<{ exerciseName: string; value: string }[]>([]);
 
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   useEffect(() => {
@@ -396,9 +402,6 @@ export default function ActiveWorkoutScreen() {
             });
 
             setExercises(loadedExercises);
-            if (loadedExercises[0]?.restSeconds) {
-              setRestDuration(loadedExercises[0].restSeconds);
-            }
             return;
           }
         }
@@ -444,14 +447,8 @@ export default function ActiveWorkoutScreen() {
     initSession();
   }, [params.dayId, params.workoutName]);
 
-  // Synchronize rest duration when exercise changes
-  useEffect(() => {
-    if (exercises[currentExerciseIndex]?.restSeconds) {
-      setRestDuration(exercises[currentExerciseIndex].restSeconds || 90);
-    }
-  }, [currentExerciseIndex, exercises]);
 
-  const handleBackPress = () => {
+  const handleBackPress = useCallback(() => {
     const hasCompletedSets = exercises.some((ex) => ex.sets.some((s) => s.completed));
     if (!hasCompletedSets) {
       if (sessionId) {
@@ -461,7 +458,7 @@ export default function ActiveWorkoutScreen() {
     } else {
       setShowDiscardModal(true);
     }
-  };
+  }, [exercises, router, sessionId]);
 
   const handleConfirmDiscard = async () => {
     setShowDiscardModal(false);
@@ -478,7 +475,7 @@ export default function ActiveWorkoutScreen() {
     };
     const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => subscription.remove();
-  }, [exercises, sessionId]);
+  }, [handleBackPress]);
 
   const currentExercise = exercises[currentExerciseIndex] || exercises[0];
   const currentSet = currentExercise?.sets[activeSetIndex] || currentExercise?.sets[0];
@@ -520,9 +517,16 @@ export default function ActiveWorkoutScreen() {
     }
   };
 
-  const handleFinishWorkout = async () => {
+  const handleFinishWorkout = useCallback(async () => {
+    // PREVENT DOUBLE-CLICK / MULTI-INVOCATION
+    if (isFinishingRef.current) return;
+    isFinishingRef.current = true;
+    setIsFinishing(true);
+
     if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
     }
 
     let totalSets = 0;
@@ -551,7 +555,7 @@ export default function ActiveWorkoutScreen() {
 
     const finalDuration = Math.max(
       elapsedSecondsRef.current,
-      Math.floor((Date.now() - sessionStartTimeRef.current) / 1000)
+      Math.floor((Date.now() - sessionStartTime) / 1000)
     );
 
     try {
@@ -580,7 +584,7 @@ export default function ActiveWorkoutScreen() {
         },
       });
     }
-  };
+  }, [exercises, prCelebration.exerciseName, prCelebration.value, prCelebration.visible, router, sessionId, sessionHitPRs, sessionStartTime]);
 
   const triggerRestTimer = React.useCallback(
     (exerciseIdx: number, setIdx: number) => {
@@ -589,7 +593,7 @@ export default function ActiveWorkoutScreen() {
       const isLastSet = setIdx >= ex.sets.length - 1;
       const hasNextEx = exerciseIdx < exercises.length - 1;
       const nextEx = hasNextEx ? exercises[exerciseIdx + 1] : null;
-      const duration = ex.restSeconds ?? restDuration ?? 90;
+      const duration = customRestDurations[exerciseIdx] ?? ex.restSeconds ?? 90;
 
       if (isLastSet && hasNextEx && nextEx) {
         // Inter-exercise rest timer showing upcoming exercise
@@ -633,7 +637,7 @@ export default function ActiveWorkoutScreen() {
         });
       }
     },
-    [exercises, restDuration]
+    [customRestDurations, exercises]
   );
 
   const handleRestTimerComplete = React.useCallback(
@@ -689,6 +693,10 @@ export default function ActiveWorkoutScreen() {
 
   const toggleSetComplete = async () => {
     if (!currentSet) return;
+    const now = Date.now();
+    if (now - lastSetToggleRef.current < 350) return;
+    lastSetToggleRef.current = now;
+
     const willBeCompleted = !currentSet.completed;
 
     if (Platform.OS !== 'web') {
@@ -708,8 +716,6 @@ export default function ActiveWorkoutScreen() {
     if (willBeCompleted) {
       const weightNum = parseFloat(currentSet.weight) || 0;
       const repsNum = parseInt(currentSet.reps, 10) || 1;
-      const restSec = currentExercise.restSeconds ?? 90;
-      setRestDuration(restSec);
 
       // Local estimated 1RM calculation: Brzycki/Epley formula (weight * (1 + reps / 30))
       const estimated1RM = weightNum * (1 + repsNum / 30);
@@ -882,19 +888,28 @@ export default function ActiveWorkoutScreen() {
           <View style={styles.timerBadge}>
             <View style={styles.timerPulseDot} />
             <WorkoutStopwatch
-              startTimestamp={sessionStartTimeRef.current}
+              startTimestamp={sessionStartTime}
               onTick={handleStopwatchTick}
             />
           </View>
 
-          <TouchableOpacity
-            style={styles.finishBtn}
-            activeOpacity={0.8}
+          <Pressable
+            style={({ pressed }) => [
+              styles.finishBtn,
+              pressed && !isFinishing && { opacity: 0.75, transform: [{ scale: 0.96 }] },
+              isFinishing && { opacity: 0.7 },
+            ]}
+            disabled={isFinishing}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={handleFinishWorkout}
           >
-            <Icon name="CheckCircle" size={16} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
-            <Text style={styles.finishBtnText}>END</Text>
-          </TouchableOpacity>
+            {isFinishing ? (
+              <ActivityIndicator size="small" color={OBSIDIAN_COLORS.textWhite} style={{ marginRight: 4 }} />
+            ) : (
+              <Icon name="CheckCircle" size={16} color={OBSIDIAN_COLORS.textWhite} weight="bold" />
+            )}
+            <Text style={styles.finishBtnText}>{isFinishing ? 'FINISHING...' : 'END'}</Text>
+          </Pressable>
         </View>
 
         {/* Scrollable Workout Body */}
@@ -1351,7 +1366,15 @@ export default function ActiveWorkoutScreen() {
               <TouchableOpacity
                 style={styles.restAdjBtn}
                 activeOpacity={0.7}
-                onPress={() => setRestDuration((d) => Math.max(15, d - 15))}
+                onPress={() =>
+                  setCustomRestDurations((prev) => ({
+                    ...prev,
+                    [currentExerciseIndex]: Math.max(
+                      15,
+                      (prev[currentExerciseIndex] ?? exercises[currentExerciseIndex]?.restSeconds ?? 90) - 15
+                    ),
+                  }))
+                }
               >
                 <Text style={styles.restAdjText}>-15s</Text>
               </TouchableOpacity>
@@ -1368,7 +1391,13 @@ export default function ActiveWorkoutScreen() {
               <TouchableOpacity
                 style={styles.restAdjBtn}
                 activeOpacity={0.7}
-                onPress={() => setRestDuration((d) => d + 15)}
+                onPress={() =>
+                  setCustomRestDurations((prev) => ({
+                    ...prev,
+                    [currentExerciseIndex]:
+                      (prev[currentExerciseIndex] ?? exercises[currentExerciseIndex]?.restSeconds ?? 90) + 15,
+                  }))
+                }
               >
                 <Text style={styles.restAdjText}>+15s</Text>
               </TouchableOpacity>

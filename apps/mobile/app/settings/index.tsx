@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Alert,
   Modal,
   KeyboardAvoidingView,
@@ -20,6 +19,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Input } from '@/components/ui/Input';
 import { GradientButton } from '@/components/ui/GradientButton';
+import { Toggle } from '@/components/ui/Toggle';
 import {
   OBSIDIAN_COLORS,
   OBSIDIAN_RADIUS,
@@ -202,11 +202,10 @@ export default function SettingsScreen() {
                 <Text variant="labelInteractive" style={styles.rowTitle}>Push Notifications</Text>
                 <Text variant="bodySm" style={styles.rowSub}>Streak reminders and workout prompts</Text>
               </View>
-              <Switch
+              <Toggle
                 value={notificationsEnabled}
                 onValueChange={setNotificationsEnabled}
-                trackColor={{ false: OBSIDIAN_COLORS.surfaceContainerHighest, true: OBSIDIAN_COLORS.voltLime }}
-                thumbColor={OBSIDIAN_COLORS.textWhite}
+                accessibilityLabel="Toggle Push Notifications"
               />
             </View>
 
@@ -215,11 +214,10 @@ export default function SettingsScreen() {
                 <Text variant="labelInteractive" style={styles.rowTitle}>Haptic Feedback</Text>
                 <Text variant="bodySm" style={styles.rowSub}>Vibration on set completion & PRs</Text>
               </View>
-              <Switch
+              <Toggle
                 value={hapticsEnabled}
                 onValueChange={setHapticsEnabled}
-                trackColor={{ false: OBSIDIAN_COLORS.surfaceContainerHighest, true: OBSIDIAN_COLORS.voltLime }}
-                thumbColor={OBSIDIAN_COLORS.textWhite}
+                accessibilityLabel="Toggle Haptic Feedback"
               />
             </View>
           </GlassCard>
